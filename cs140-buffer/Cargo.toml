@@ -1,12 +1,10 @@
 [package]
-name = "cs140-playground"
+name = "cs140-buffer"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-cs140-common = {path= "../cs140-common" }
+cs140-common = {path = "../cs140-common"}
 cpal = "0.13.4"
-clap = "2.0.0"
-anyhow = "1.0.44"

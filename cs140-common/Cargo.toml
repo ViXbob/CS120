@@ -1,5 +1,5 @@
 [package]
-name = "cs140-transport"
+name = "cs140-common"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,4 +7,3 @@ edition = "2021"
 
 [dependencies]
 cpal = "0.13.4"
-sharded-slab = "0.1.3"

@@ -35,7 +35,7 @@ where
     }
 
     /// Decode binary data in the audio storage indexed by the provided key, returning the data decoded by decoder.
-    pub fn decode<T>(&self, decoder: impl Fn(Buffer::Data) -> T) -> T {
+    pub fn decode<T>(&self, decoder: impl Fn(&Buffer::Data) -> T) -> T {
         self.audio_storage.pop(decoder)
     }
 }

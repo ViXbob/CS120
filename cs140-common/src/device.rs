@@ -4,7 +4,7 @@ use std::sync::Arc;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{Device, SampleFormat, StreamConfig, StreamError};
 
-struct InputDevice<AudioBuffer: ABuffer> {
+pub struct InputDevice<AudioBuffer: ABuffer> {
     stream_config: (Device, StreamConfig, SampleFormat),
     /// store the audio data from the microphone, the data is packed per sampling
     audio_buffer: Arc<AudioBuffer>,
@@ -85,7 +85,7 @@ where
     }
 }
 
-struct OutputDevice<AudioBuffer: ABuffer> {
+pub struct OutputDevice<AudioBuffer: ABuffer> {
     stream_config: (Device, StreamConfig, SampleFormat),
     /// play the audio from audio buffer, consumes n packed data per play, where n is the number of channels to play
     audio_buffer: Arc<AudioBuffer>,
