@@ -1,7 +1,7 @@
 #![feature(maybe_uninit_array_assume_init)]
 #![feature(maybe_uninit_uninit_array)]
 
-mod audio_buffer;
-mod audio_data;
-mod data_buffer;
-mod ring_buffer;
+pub mod audio_buffer;
+pub mod audio_data;
+pub mod data_buffer;
+pub mod ring_buffer;

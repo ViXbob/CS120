@@ -29,18 +29,14 @@ where
             .default_input_device()
             .expect("no input device available");
         // Choose the device that has the maximum of sample rates
-        let supported_configs_range = input_device
-            .supported_output_configs()
+        let config = input_device
+            .default_input_config()
             .expect("error while querying configs");
-        let config = supported_configs_range
-            .max_by(|x, y| x.max_sample_rate().0.cmp(&y.max_sample_rate().0))
-            .unwrap();
-        let config = config.with_max_sample_rate();
         let sample_format = config.sample_format();
         (input_device, config.into(), sample_format)
     }
 
-    pub fn listen<T>(self) {
+    pub fn listen(self) {
         let stream_config = self.stream_config.1.clone();
         let device = self.stream_config.0;
         let audio_buffer = self.audio_buffer;
@@ -110,18 +106,14 @@ where
             .default_output_device()
             .expect("no input device available");
         // Choose the device that has the maximum of sample rates
-        let supported_configs_range = output_device
-            .supported_output_configs()
+        let config = output_device
+            .default_output_config()
             .expect("error while querying configs");
-        let config = supported_configs_range
-            .max_by(|x, y| x.max_sample_rate().0.cmp(&y.max_sample_rate().0))
-            .unwrap();
-        let config = config.with_max_sample_rate();
         let sample_format = config.sample_format();
         (output_device, config.into(), sample_format)
     }
 
-    pub fn play<T>(self) {
+    pub fn play(self) {
         let stream_config = self.stream_config.1.clone();
         let device = self.stream_config.0;
         let audio_buffer = self.audio_buffer;
@@ -164,13 +156,13 @@ where
     where
         T: cpal::Sample,
     {
-        for frame in output.chunks_mut(channels) {
-            audio_buffer.pop(move |data| {
-                for (sample, value) in frame.iter_mut().zip(data.iter()) {
+        audio_buffer.pop(move |data| {
+            for( frame,value) in output.chunks_mut(channels).zip(data.iter()) {
+                for (sample) in frame.iter_mut() {
                     *sample = value;
                 }
-            });
-        }
+            }
+        });
     }
 
     fn play_error_handler(err: StreamError) {

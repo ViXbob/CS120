@@ -16,7 +16,7 @@ pub struct RingBuffer<T, const N: usize> {
 }
 
 impl<T, const N: usize> RingBuffer<T, N> {
-    fn new() -> Self {
+    pub fn new() -> Self {
         RingBuffer {
             buffer: unsafe { MaybeUninit::uninit().assume_init() },
             head: AtomicUsize::new(0),
