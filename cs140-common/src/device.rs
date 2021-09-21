@@ -38,6 +38,7 @@ where
 
     pub fn listen(self) {
         let stream_config = self.stream_config.1.clone();
+        let channels = stream_config.channels;
         let device = self.stream_config.0;
         let audio_buffer = self.audio_buffer;
         // Build the stream
@@ -45,21 +46,27 @@ where
             SampleFormat::I16 => device
                 .build_input_stream(
                     &stream_config,
-                    move |data: &[i16], _: &_| Self::listen_handler(data, audio_buffer.clone()),
+                    move |data: &[i16], _: &_| {
+                        Self::listen_handler(data, channels as usize, audio_buffer.clone())
+                    },
                     Self::listen_error_handler,
                 )
                 .unwrap(),
             SampleFormat::U16 => device
                 .build_input_stream(
                     &stream_config,
-                    move |data: &[u16], _: &_| Self::listen_handler(data, audio_buffer.clone()),
+                    move |data: &[u16], _: &_| {
+                        Self::listen_handler(data, channels as usize, audio_buffer.clone())
+                    },
                     Self::listen_error_handler,
                 )
                 .unwrap(),
             SampleFormat::F32 => device
                 .build_input_stream(
                     &stream_config,
-                    move |data: &[f32], _: &_| Self::listen_handler(data, audio_buffer.clone()),
+                    move |data: &[f32], _: &_| {
+                        Self::listen_handler(data, channels as usize, audio_buffer.clone())
+                    },
                     Self::listen_error_handler,
                 )
                 .unwrap(),
@@ -68,12 +75,12 @@ where
         std::thread::park();
     }
 
-    fn listen_handler<T>(input: &[T], audio_buffer: Arc<Buffer>)
+    fn listen_handler<T>(input: &[T], channels: usize, audio_buffer: Arc<Buffer>)
     where
         T: cpal::Sample,
     {
-        let mut iterator = input.iter().map(|value| value.to_f32());
-        audio_buffer.push_by_iterator(input.len(), &mut iterator);
+        let mut iterator = input.iter().step_by(channels).map(|value| value.to_f32());
+        audio_buffer.push_by_iterator(input.len() / channels, &mut iterator);
     }
 
     fn listen_error_handler(err: StreamError) {

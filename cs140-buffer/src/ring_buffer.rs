@@ -6,7 +6,7 @@ use std::thread::Thread;
 
 use std::mem::MaybeUninit;
 
-pub struct RingBuffer<T, const N: usize> {
+pub struct RingBuffer<T, const N: usize, const GarbageCollection: bool> {
     buffer: [T; N],
     head: AtomicUsize,
     len: AtomicUsize,
@@ -14,7 +14,7 @@ pub struct RingBuffer<T, const N: usize> {
     blocking_writer: Mutex<Option<(Thread, usize)>>,
 }
 
-impl<T, const N: usize> RingBuffer<T, N> {
+impl<T, const N: usize, const GarbageCollection: bool> RingBuffer<T, N, GarbageCollection> {
     pub fn new() -> Self {
         RingBuffer {
             buffer: unsafe { MaybeUninit::uninit().assume_init() },
@@ -118,7 +118,7 @@ impl<T, const N: usize> RingBuffer<T, N> {
             if head < tail {
                 let ptr = self.buffer[head..tail].as_ptr();
                 let ptr = ptr as *mut T;
-                let slice = std::slice::from_raw_parts_mut(ptr, tail-head);
+                let slice = std::slice::from_raw_parts_mut(ptr, tail - head);
 
                 let value = consumer(slice, &[]);
 
@@ -133,9 +133,13 @@ impl<T, const N: usize> RingBuffer<T, N> {
                 let second_slice = std::slice::from_raw_parts_mut(second_ptr, tail);
 
                 let value = consumer(first_slice, second_slice);
-                (0..first_slice.len()).for_each(|i| std::ptr::drop_in_place(&mut first_slice[i]));
+                if GarbageCollection {
+                    (0..first_slice.len())
+                        .for_each(|i| std::ptr::drop_in_place(&mut first_slice[i]));
 
-                (0..second_slice.len()).for_each(|i| std::ptr::drop_in_place(&mut second_slice[i]));
+                    (0..second_slice.len())
+                        .for_each(|i| std::ptr::drop_in_place(&mut second_slice[i]));
+                }
                 value
             }
         };
@@ -154,7 +158,9 @@ impl<T, const N: usize> RingBuffer<T, N> {
     }
 }
 
-impl<T, const N: usize> Drop for RingBuffer<T, N> {
+impl<T, const N: usize, const GarbageCollection: bool> Drop
+    for RingBuffer<T, N, GarbageCollection>
+{
     fn drop(&mut self) {
         let head = self.head.load(Relaxed);
         let tail = (self.len() + head) % N;

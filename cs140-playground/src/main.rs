@@ -3,7 +3,7 @@ use cs140_common::device::{InputDevice, OutputDevice};
 use std::sync::Arc;
 
 fn main() {
-    let buffer: RingBuffer<f32, 100000> = RingBuffer::new();
+    let buffer: RingBuffer<f32, 100000, false> = RingBuffer::new();
     let buffer_ptr = Arc::new(buffer);
     let input = InputDevice::new(buffer_ptr.clone());
     let output = OutputDevice::new(buffer_ptr.clone());
