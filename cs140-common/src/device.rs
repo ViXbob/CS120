@@ -1,21 +1,21 @@
-use crate::audio_buffer::{AudioBuffer as ABuffer, AudioData};
+use crate::buffer::Buffer as Buf;
 use std::sync::Arc;
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{Device, SampleFormat, StreamConfig, StreamError};
 
-pub struct InputDevice<AudioBuffer: ABuffer> {
+pub struct InputDevice<Buffer: Buf<f32>> {
     stream_config: (Device, StreamConfig, SampleFormat),
     /// store the audio data from the microphone, the data is packed per sampling
-    audio_buffer: Arc<AudioBuffer>,
+    audio_buffer: Arc<Buffer>,
 }
 
-impl<AudioBuffer> InputDevice<AudioBuffer>
+impl<Buffer> InputDevice<Buffer>
 where
-    AudioBuffer: ABuffer + 'static,
+    Buffer: Buf<f32> + 'static,
 {
     /// new returns InputDevice as well as some config about the device / stream
-    pub fn new(audio_buffer: Arc<AudioBuffer>) -> Self {
+    pub fn new(audio_buffer: Arc<Buffer>) -> Self {
         InputDevice {
             stream_config: Self::init_stream_config(),
             audio_buffer,
@@ -38,6 +38,7 @@ where
 
     pub fn listen(self) {
         let stream_config = self.stream_config.1.clone();
+        let channels = stream_config.channels;
         let device = self.stream_config.0;
         let audio_buffer = self.audio_buffer;
         // Build the stream
@@ -45,21 +46,27 @@ where
             SampleFormat::I16 => device
                 .build_input_stream(
                     &stream_config,
-                    move |data: &[i16], _: &_| Self::listen_handler(data, audio_buffer.clone()),
+                    move |data: &[i16], _: &_| {
+                        Self::listen_handler(data, channels as usize, audio_buffer.clone())
+                    },
                     Self::listen_error_handler,
                 )
                 .unwrap(),
             SampleFormat::U16 => device
                 .build_input_stream(
                     &stream_config,
-                    move |data: &[u16], _: &_| Self::listen_handler(data, audio_buffer.clone()),
+                    move |data: &[u16], _: &_| {
+                        Self::listen_handler(data, channels as usize, audio_buffer.clone())
+                    },
                     Self::listen_error_handler,
                 )
                 .unwrap(),
             SampleFormat::F32 => device
                 .build_input_stream(
                     &stream_config,
-                    move |data: &[f32], _: &_| Self::listen_handler(data, audio_buffer.clone()),
+                    move |data: &[f32], _: &_| {
+                        Self::listen_handler(data, channels as usize, audio_buffer.clone())
+                    },
                     Self::listen_error_handler,
                 )
                 .unwrap(),
@@ -68,12 +75,12 @@ where
         std::thread::park();
     }
 
-    fn listen_handler<T>(input: &[T], audio_buffer: Arc<AudioBuffer>)
+    fn listen_handler<T>(input: &[T], channels: usize, audio_buffer: Arc<Buffer>)
     where
         T: cpal::Sample,
     {
-        let audio_data = AudioBuffer::Data::from_sample_slice(input);
-        audio_buffer.push(audio_data);
+        let mut iterator = input.iter().step_by(channels).map(|value| value.to_f32());
+        audio_buffer.push_by_iterator(input.len() / channels, &mut iterator);
     }
 
     fn listen_error_handler(err: StreamError) {
@@ -81,18 +88,18 @@ where
     }
 }
 
-pub struct OutputDevice<AudioBuffer: ABuffer> {
+pub struct OutputDevice<Buffer: Buf<f32>> {
     stream_config: (Device, StreamConfig, SampleFormat),
     /// play the audio from audio buffer, consumes n packed data per play, where n is the number of channels to play
-    audio_buffer: Arc<AudioBuffer>,
+    audio_buffer: Arc<Buffer>,
 }
 
-impl<AudioBuffer> OutputDevice<AudioBuffer>
+impl<Buffer> OutputDevice<Buffer>
 where
-    AudioBuffer: ABuffer + 'static,
+    Buffer: Buf<f32> + 'static,
 {
     /// new returns InputDevice as well as some config about the device / stream, for example: channels
-    pub fn new(audio_buffer: Arc<AudioBuffer>) -> Self {
+    pub fn new(audio_buffer: Arc<Buffer>) -> Self {
         OutputDevice {
             stream_config: Self::init_stream_config(),
             audio_buffer,
@@ -152,14 +159,17 @@ where
         std::thread::park();
     }
 
-    fn play_handler<T>(output: &mut [T], channels: usize, audio_buffer: Arc<AudioBuffer>)
+    fn play_handler<T>(output: &mut [T], channels: usize, audio_buffer: Arc<Buffer>)
     where
         T: cpal::Sample,
     {
-        audio_buffer.pop(move |data| {
-            for( frame,value) in output.chunks_mut(channels).zip(data.iter()) {
-                for (sample) in frame.iter_mut() {
-                    *sample = value;
+        audio_buffer.pop(output.len() / channels, move |first, second| {
+            for (frame, value) in output
+                .chunks_mut(channels)
+                .zip(first.iter().chain(second.iter()))
+            {
+                for sample in frame.iter_mut() {
+                    *sample = cpal::Sample::from(value);
                 }
             }
         });
