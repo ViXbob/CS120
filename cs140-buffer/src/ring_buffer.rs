@@ -115,22 +115,22 @@ impl<T, const N: usize> RingBuffer<T, N> {
         let tail = (head + self.len()) % N;
         // This is safe because only one thread can access the variable
         let result = unsafe {
-            if head > tail {
-                let ptr = self.buffer[tail..head].as_ptr();
+            if head < tail {
+                let ptr = self.buffer[head..tail].as_ptr();
                 let ptr = ptr as *mut T;
-                let slice = std::slice::from_raw_parts_mut(ptr, head - tail);
+                let slice = std::slice::from_raw_parts_mut(ptr, tail-head);
 
                 let value = consumer(slice, &[]);
 
                 (0..slice.len()).for_each(|i| std::ptr::drop_in_place(&mut slice[i]));
                 value
             } else {
-                let first_ptr = self.buffer[tail..].as_ptr();
+                let first_ptr = self.buffer[head..].as_ptr();
                 let first_ptr = first_ptr as *mut T;
-                let first_slice = std::slice::from_raw_parts_mut(first_ptr, N - tail);
-                let second_ptr = self.buffer[..head].as_ptr();
+                let first_slice = std::slice::from_raw_parts_mut(first_ptr, N - head);
+                let second_ptr = self.buffer[..tail].as_ptr();
                 let second_ptr = second_ptr as *mut T;
-                let second_slice = std::slice::from_raw_parts_mut(second_ptr, head);
+                let second_slice = std::slice::from_raw_parts_mut(second_ptr, tail);
 
                 let value = consumer(first_slice, second_slice);
                 (0..first_slice.len()).for_each(|i| std::ptr::drop_in_place(&mut first_slice[i]));
