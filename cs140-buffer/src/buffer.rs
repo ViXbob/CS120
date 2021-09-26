@@ -1,8 +1,8 @@
 use crate::ring_buffer::RingBuffer;
 use cs140_common::buffer::Buffer;
 
-impl<T, const N: usize, const GarbageCollection: bool> Buffer<T>
-    for RingBuffer<T, N, GarbageCollection>
+impl<T, const N: usize, const GARBAGE_COLLECTION: bool> Buffer<T>
+    for RingBuffer<T, N, GARBAGE_COLLECTION>
 where
     T: Sync + Send,
 {

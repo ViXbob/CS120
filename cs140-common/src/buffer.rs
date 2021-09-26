@@ -40,7 +40,7 @@ pub trait Buffer<Data>: Send + Sync {
         })
     }
 
-    fn pop_by_iterator<'a, T>(
+    fn pop_by_iterator<T>(
         &self,
         count: usize,
         mut consumer: impl FnMut(Box<dyn Iterator<Item = &Data> + '_>) -> T,
@@ -50,8 +50,7 @@ pub trait Buffer<Data>: Send + Sync {
     {
         self.pop(count, |first, second| {
             let b = first.iter().chain(second.iter());
-            let value = consumer(Box::new(b));
-            value
+            consumer(Box::new(b))
         })
     }
 }

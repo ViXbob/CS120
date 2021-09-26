@@ -6,7 +6,7 @@ use std::thread::Thread;
 
 use std::mem::MaybeUninit;
 
-pub struct RingBuffer<T, const N: usize, const GarbageCollection: bool> {
+pub struct RingBuffer<T, const N: usize, const GARBAGE_COLLECTION: bool> {
     buffer: [T; N],
     head: AtomicUsize,
     len: AtomicUsize,
@@ -14,7 +14,16 @@ pub struct RingBuffer<T, const N: usize, const GarbageCollection: bool> {
     blocking_writer: Mutex<Option<(Thread, usize)>>,
 }
 
-impl<T, const N: usize, const GarbageCollection: bool> RingBuffer<T, N, GarbageCollection> {
+impl<T, const N: usize, const GARBAGE_COLLECTION: bool> Default
+    for RingBuffer<T, N, GARBAGE_COLLECTION>
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<T, const N: usize, const GARBAGE_COLLECTION: bool> RingBuffer<T, N, GARBAGE_COLLECTION> {
+    #[allow(clippy::uninit_assumed_init)]
     pub fn new() -> Self {
         RingBuffer {
             buffer: unsafe { MaybeUninit::uninit().assume_init() },
@@ -54,7 +63,7 @@ impl<T, const N: usize, const GarbageCollection: bool> RingBuffer<T, N, GarbageC
         }
         if parked {
             thread::park();
-            self.blocking_writer.lock().unwrap(); // to ensure that blocking_writer is set to None
+            drop(self.blocking_writer.lock().unwrap()); // to ensure that blocking_writer is set to None
         }
         let head = self.head.load(Relaxed);
         let tail = (head + self.len()) % N;
@@ -108,7 +117,7 @@ impl<T, const N: usize, const GarbageCollection: bool> RingBuffer<T, N, GarbageC
         }
         if parked {
             thread::park();
-            self.blocking_reader.lock().unwrap(); // to ensure that blocking_writer is set to None
+            drop(self.blocking_reader.lock().unwrap()); // to ensure that blocking_writer is set to None
         }
 
         let head = self.head.load(Relaxed);
@@ -118,7 +127,7 @@ impl<T, const N: usize, const GarbageCollection: bool> RingBuffer<T, N, GarbageC
             if head < tail {
                 let ptr = self.buffer[head..tail].as_ptr();
                 let ptr = ptr as *mut T;
-                let slice = std::slice::from_raw_parts_mut(ptr, tail - head);
+                let slice = std::slice::from_raw_parts_mut(ptr, count);
 
                 let value = consumer(slice, &[]);
 
@@ -127,20 +136,30 @@ impl<T, const N: usize, const GarbageCollection: bool> RingBuffer<T, N, GarbageC
             } else {
                 let first_ptr = self.buffer[head..].as_ptr();
                 let first_ptr = first_ptr as *mut T;
-                let first_slice = std::slice::from_raw_parts_mut(first_ptr, N - head);
-                let second_ptr = self.buffer[..tail].as_ptr();
-                let second_ptr = second_ptr as *mut T;
-                let second_slice = std::slice::from_raw_parts_mut(second_ptr, tail);
+                let mut first_slice = std::slice::from_raw_parts_mut(first_ptr, N - head);
+                if first_slice.len() >= count {
+                    first_slice = &mut first_slice[..count];
+                    let value = consumer(first_slice, &[]);
+                    if GARBAGE_COLLECTION {
+                        (0..first_slice.len())
+                            .for_each(|i| std::ptr::drop_in_place(&mut first_slice[i]));
+                    }
+                    value
+                } else {
+                    let second_ptr = self.buffer.as_ptr(); // this pointer is started from zero
+                    let second_ptr = second_ptr as *mut T;
+                    let second_slice =
+                        std::slice::from_raw_parts_mut(second_ptr, count - first_slice.len());
+                    let value = consumer(first_slice, second_slice);
+                    if GARBAGE_COLLECTION {
+                        (0..first_slice.len())
+                            .for_each(|i| std::ptr::drop_in_place(&mut first_slice[i]));
 
-                let value = consumer(first_slice, second_slice);
-                if GarbageCollection {
-                    (0..first_slice.len())
-                        .for_each(|i| std::ptr::drop_in_place(&mut first_slice[i]));
-
-                    (0..second_slice.len())
-                        .for_each(|i| std::ptr::drop_in_place(&mut second_slice[i]));
+                        (0..second_slice.len())
+                            .for_each(|i| std::ptr::drop_in_place(&mut second_slice[i]));
+                    }
+                    value
                 }
-                value
             }
         };
 
@@ -158,20 +177,22 @@ impl<T, const N: usize, const GarbageCollection: bool> RingBuffer<T, N, GarbageC
     }
 }
 
-impl<T, const N: usize, const GarbageCollection: bool> Drop
-    for RingBuffer<T, N, GarbageCollection>
+impl<T, const N: usize, const GARBAGE_COLLECTION: bool> Drop
+    for RingBuffer<T, N, GARBAGE_COLLECTION>
 {
     fn drop(&mut self) {
-        let head = self.head.load(Relaxed);
-        let tail = (self.len() + head) % N;
-        (head..{
-            if head > tail {
-                tail + N
-            } else {
-                tail
-            }
-        })
-            .for_each(|index| unsafe { std::ptr::drop_in_place(&mut self.buffer[index % N]) })
+        if GARBAGE_COLLECTION {
+            let head = self.head.load(Relaxed);
+            let tail = (self.len() + head) % N;
+            (head..{
+                if head > tail {
+                    tail + N
+                } else {
+                    tail
+                }
+            })
+                .for_each(|index| unsafe { std::ptr::drop_in_place(&mut self.buffer[index % N]) })
+        }
     }
 }
 
@@ -185,9 +206,9 @@ mod tests {
 
     #[test]
     fn test_ring_buffer() {
-        let buffer = Arc::new(RingBuffer::<f32, 32>::new());
+        let buffer = Arc::new(RingBuffer::<f32, 32, false>::new());
         let buffer_for_consumer = buffer.clone();
-        let buffer_for_producer = buffer.clone();
+        let buffer_for_producer = buffer;
         let consumer = thread::spawn(move || {
             println!(
                 "{}",
@@ -198,7 +219,7 @@ mod tests {
             buffer_for_producer.push_by_ref(&[1.0; 32]);
             println!("pushed.");
         });
-        consumer.join();
-        producer.join();
+        consumer.join().unwrap();
+        producer.join().unwrap();
     }
 }

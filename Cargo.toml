@@ -1,2 +1,2 @@
 [workspace]
-members = ["cs140-common","cs140-playground","cs140-buffer"]
+members = ["cs140-common","cs140-playground","cs140-buffer","cs140-project1"]

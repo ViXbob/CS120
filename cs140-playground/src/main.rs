@@ -5,10 +5,10 @@ use std::sync::Arc;
 fn main() {
     let buffer: RingBuffer<f32, 100000, false> = RingBuffer::new();
     let buffer_ptr = Arc::new(buffer);
-    let input = InputDevice::new(buffer_ptr.clone());
-    let output = OutputDevice::new(buffer_ptr.clone());
+    let input = InputDevice::new(buffer_ptr.clone()).0;
+    let output = OutputDevice::new(buffer_ptr.clone()).0;
     let input = std::thread::spawn(move || input.listen());
     let output = std::thread::spawn(move || output.play());
-    input.join();
-    output.join();
+    input.join().unwrap();
+    output.join().unwrap();
 }

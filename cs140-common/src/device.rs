@@ -15,11 +15,16 @@ where
     Buffer: Buf<f32> + 'static,
 {
     /// new returns InputDevice as well as some config about the device / stream
-    pub fn new(audio_buffer: Arc<Buffer>) -> Self {
-        InputDevice {
-            stream_config: Self::init_stream_config(),
-            audio_buffer,
-        }
+    pub fn new(audio_buffer: Arc<Buffer>) -> (Self, (StreamConfig, SampleFormat)) {
+        let config = Self::init_stream_config();
+        let config_and_format = (config.1.clone(), config.2);
+        (
+            InputDevice {
+                stream_config: config,
+                audio_buffer,
+            },
+            config_and_format,
+        )
     }
 
     fn init_stream_config() -> (Device, StreamConfig, SampleFormat) {
@@ -99,11 +104,16 @@ where
     Buffer: Buf<f32> + 'static,
 {
     /// new returns InputDevice as well as some config about the device / stream, for example: channels
-    pub fn new(audio_buffer: Arc<Buffer>) -> Self {
-        OutputDevice {
-            stream_config: Self::init_stream_config(),
-            audio_buffer,
-        }
+    pub fn new(audio_buffer: Arc<Buffer>) -> (Self, (StreamConfig, SampleFormat)) {
+        let config = Self::init_stream_config();
+        let config_and_format = (config.1.clone(), config.2);
+        (
+            OutputDevice {
+                stream_config: config,
+                audio_buffer,
+            },
+            config_and_format,
+        )
     }
 
     fn init_stream_config() -> (Device, StreamConfig, SampleFormat) {
