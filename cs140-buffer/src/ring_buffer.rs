@@ -120,7 +120,7 @@ impl<T, const N: usize, const GarbageCollection: bool> RingBuffer<T, N, GarbageC
                 let ptr = ptr as *mut T;
                 let slice = std::slice::from_raw_parts_mut(ptr, tail - head);
 
-                let value = consumer(slice, &[]);
+                let value = consumer(&slice[..count], &[]);
 
                 (0..slice.len()).for_each(|i| std::ptr::drop_in_place(&mut slice[i]));
                 value
@@ -128,18 +128,22 @@ impl<T, const N: usize, const GarbageCollection: bool> RingBuffer<T, N, GarbageC
                 let first_ptr = self.buffer[head..].as_ptr();
                 let first_ptr = first_ptr as *mut T;
                 let first_slice = std::slice::from_raw_parts_mut(first_ptr, N - head);
-                let second_ptr = self.buffer[..tail].as_ptr();
-                let second_ptr = second_ptr as *mut T;
-                let second_slice = std::slice::from_raw_parts_mut(second_ptr, tail);
+                let value = if first_slice.len() >= count {
+                    consumer(&first_slice[..count], &[])
+                } else {
+                    let second_ptr = self.buffer[..count - first_slice.len()].as_ptr();
+                    let second_ptr = second_ptr as *mut T;
+                    let second_slice = std::slice::from_raw_parts_mut(second_ptr, count - first_slice.len());
+                    consumer(first_slice, second_slice)
+                };
 
-                let value = consumer(first_slice, second_slice);
-                if GarbageCollection {
-                    (0..first_slice.len())
-                        .for_each(|i| std::ptr::drop_in_place(&mut first_slice[i]));
-
-                    (0..second_slice.len())
-                        .for_each(|i| std::ptr::drop_in_place(&mut second_slice[i]));
-                }
+                // if GarbageCollection {
+                //     (0..first_slice.len())
+                //         .for_each(|i| std::ptr::drop_in_place(&mut first_slice[i]));
+                //
+                //     (0..second_slice.len())
+                //         .for_each(|i| std::ptr::drop_in_place(&mut second_slice[i]));
+                // }
                 value
             }
         };

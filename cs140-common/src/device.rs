@@ -5,9 +5,9 @@ use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{Device, SampleFormat, StreamConfig, StreamError};
 
 pub struct InputDevice<Buffer: Buf<f32>> {
-    stream_config: (Device, StreamConfig, SampleFormat),
+    pub stream_config: (Device, StreamConfig, SampleFormat),
     /// store the audio data from the microphone, the data is packed per sampling
-    audio_buffer: Arc<Buffer>,
+    pub audio_buffer: Arc<Buffer>,
 }
 
 impl<Buffer> InputDevice<Buffer>
@@ -15,11 +15,11 @@ where
     Buffer: Buf<f32> + 'static,
 {
     /// new returns InputDevice as well as some config about the device / stream
-    pub fn new(audio_buffer: Arc<Buffer>) -> Self {
-        InputDevice {
+    pub fn new(audio_buffer: Arc<Buffer>) -> (Self, (Device, StreamConfig, SampleFormat)) {
+        (InputDevice {
             stream_config: Self::init_stream_config(),
             audio_buffer,
-        }
+        }, Self::init_stream_config())
     }
 
     fn init_stream_config() -> (Device, StreamConfig, SampleFormat) {
