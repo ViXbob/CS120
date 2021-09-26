@@ -12,3 +12,7 @@ cpal = "0.13.4"
 clap = "2.0.0"
 anyhow = "1.0.44"
 hound = "3.4.0"
+
+[[bin]]
+name = "play"
+path = "src/play.rs"
