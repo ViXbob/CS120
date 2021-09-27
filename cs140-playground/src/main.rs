@@ -6,7 +6,7 @@ fn main() {
     let buffer: RingBuffer<f32, 100000, false> = RingBuffer::new();
     let buffer_ptr = Arc::new(buffer);
     let input = InputDevice::new(buffer_ptr.clone()).0;
-    let output = OutputDevice::new(buffer_ptr.clone()).0;
+    let output = OutputDevice::new(buffer_ptr).0;
     let _ = input.listen();
     let _ = output.play();
     std::thread::sleep(std::time::Duration::from_millis(100000));
