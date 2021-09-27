@@ -1,22 +1,20 @@
-use cpal::{Device, SampleFormat, StreamConfig};
+use cpal::{SampleFormat, StreamConfig};
 use cs140_buffer::ring_buffer::RingBuffer;
 use cs140_common::buffer::Buffer;
 use cs140_common::device::InputDevice;
-use super::sample_format;
 use std::fs::File;
 use std::io::BufWriter;
 use std::sync::{Arc, Mutex};
 
-pub fn record(path : &str, record_time : u32) -> Result<(), anyhow::Error> {
-    let buffer: RingBuffer<f32, 100001, false> = RingBuffer::new();
+pub fn record(output_path: &str, record_time: u32) -> Result<(), anyhow::Error> {
+    let buffer: RingBuffer<f32, 100000, false> = RingBuffer::new();
     let buffer_ptr = Arc::new(buffer);
     let (input, input_config) = InputDevice::new(buffer_ptr.clone());
-    let input_close = input.listen();
+    let close_input = input.listen();
 
     let spec = wav_spec_from_config(&input_config);
-    // println!("{:?}", spec);
 
-    let writer = hound::WavWriter::create(path, spec)?;
+    let writer = hound::WavWriter::create(output_path, spec)?;
     let writer = Arc::new(Mutex::new(Some(writer)));
 
     let segment_count = 100;
@@ -28,9 +26,16 @@ pub fn record(path : &str, record_time : u32) -> Result<(), anyhow::Error> {
         });
     }
     writer.lock().unwrap().take().unwrap().finalize()?;
-
-    input_close();
+    close_input();
     Ok(())
+}
+
+fn sample_format(format: cpal::SampleFormat) -> hound::SampleFormat {
+    match format {
+        cpal::SampleFormat::U16 => hound::SampleFormat::Int,
+        cpal::SampleFormat::I16 => hound::SampleFormat::Int,
+        cpal::SampleFormat::F32 => hound::SampleFormat::Float,
+    }
 }
 
 fn wav_spec_from_config(input: &(StreamConfig, SampleFormat)) -> hound::WavSpec {
@@ -45,9 +50,9 @@ fn wav_spec_from_config(input: &(StreamConfig, SampleFormat)) -> hound::WavSpec 
 type WavWriterHandle = Arc<Mutex<Option<hound::WavWriter<BufWriter<File>>>>>;
 
 fn write_input_data<T, U>(input: &[T], writer: &WavWriterHandle)
-    where
-        T: cpal::Sample,
-        U: cpal::Sample + hound::Sample,
+where
+    T: cpal::Sample,
+    U: cpal::Sample + hound::Sample,
 {
     if let Ok(mut guard) = writer.try_lock() {
         if let Some(writer) = guard.as_mut() {

@@ -46,8 +46,8 @@ impl<T, const N: usize, const GARBAGE_COLLECTION: bool> RingBuffer<T, N, GARBAGE
         if count == 0 {
             return;
         }
-        if count > N {
-            panic!("Can not push more than {} elements", N);
+        if count > N / 2 {
+            panic!("Can not push more than {} elements", N / 2);
         }
         let mut parked = false;
         {
@@ -77,11 +77,11 @@ impl<T, const N: usize, const GARBAGE_COLLECTION: bool> RingBuffer<T, N, GARBAGE
                 producer(
                     std::slice::from_raw_parts_mut(first_ptr, N - tail),
                     std::slice::from_raw_parts_mut(second_ptr, head),
-                )
+                );
             } else {
                 let ptr = self.buffer[tail..head].as_ptr();
                 let ptr = ptr as *mut T;
-                producer(std::slice::from_raw_parts_mut(ptr, head - tail), &mut [])
+                producer(std::slice::from_raw_parts_mut(ptr, head - tail), &mut []);
             }
         }
 
@@ -100,8 +100,8 @@ impl<T, const N: usize, const GARBAGE_COLLECTION: bool> RingBuffer<T, N, GARBAGE
         if count == 0 {
             return consumer(&[], &[]);
         }
-        if count > N {
-            panic!("Can not acquire more than {} elements", N);
+        if count > N / 2 {
+            panic!("Can not acquire more than {} elements", N / 2);
         }
         let mut parked = false;
         {
@@ -191,7 +191,7 @@ impl<T, const N: usize, const GARBAGE_COLLECTION: bool> Drop
                     tail
                 }
             })
-                .for_each(|index| unsafe { std::ptr::drop_in_place(&mut self.buffer[index % N]) })
+                .for_each(|index| unsafe { std::ptr::drop_in_place(&mut self.buffer[index % N]) });
         }
     }
 }
@@ -213,7 +213,7 @@ mod tests {
             println!(
                 "{}",
                 buffer_for_consumer.pop_by_iterator(20, |iter| { iter.sum::<f32>() })
-            )
+            );
         });
         let producer = thread::spawn(move || {
             buffer_for_producer.push_by_ref(&[1.0; 32]);

@@ -11,8 +11,8 @@ pub trait Buffer<Data>: Send + Sync {
                 .zip(first.iter_mut().chain(second.iter_mut()))
                 .for_each(|(data, store)| {
                     *store = *data;
-                })
-        })
+                });
+        });
     }
 
     fn push_by_iterator(&self, count: usize, data: &mut impl Iterator<Item = Data>)
@@ -23,8 +23,8 @@ pub trait Buffer<Data>: Send + Sync {
             data.zip(first.iter_mut().chain(second.iter_mut()))
                 .for_each(|(data, store)| {
                     *store = data;
-                })
-        })
+                });
+        });
     }
 
     /// pop the data from the buffer, the data will be removed after the consumer call
