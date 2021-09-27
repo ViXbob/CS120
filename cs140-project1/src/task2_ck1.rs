@@ -11,7 +11,7 @@ fn main() {
     std::thread::spawn(move || {
         let segment_count = 100;
         let segment_len = config.0.sample_rate.0 / segment_count;
-        for i in 0..record_time * segment_count {
+        for i in 0.. {
             let segment_index = i % segment_count;
             buffer_ptr.push_by_iterator(
                 segment_len as usize,
