@@ -46,8 +46,8 @@ impl<T, const N: usize, const GARBAGE_COLLECTION: bool> RingBuffer<T, N, GARBAGE
         if count == 0 {
             return;
         }
-        if count > N {
-            panic!("Can not push more than {} elements", N);
+        if count > N / 2 {
+            panic!("Can not push more than {} elements", N / 2);
         }
         let mut parked = false;
         {
@@ -100,8 +100,8 @@ impl<T, const N: usize, const GARBAGE_COLLECTION: bool> RingBuffer<T, N, GARBAGE
         if count == 0 {
             return consumer(&[], &[]);
         }
-        if count > N {
-            panic!("Can not acquire more than {} elements", N);
+        if count > N / 2 {
+            panic!("Can not acquire more than {} elements", N / 2);
         }
         let mut parked = false;
         {
