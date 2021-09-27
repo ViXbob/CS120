@@ -7,8 +7,9 @@ fn main() {
     let buffer_ptr = Arc::new(buffer);
     let input = InputDevice::new(buffer_ptr.clone()).0;
     let output = OutputDevice::new(buffer_ptr.clone()).0;
-    let input = std::thread::spawn(move || input.listen());
-    let output = std::thread::spawn(move || output.play());
-    input.join().unwrap();
-    output.join().unwrap();
+    let close_input = input.listen();
+    let close_play = output.play();
+    std::thread::sleep(std::time::Duration::from_millis(1000));
+    let input = close_input();
+    input.listen();
 }

@@ -8,6 +8,7 @@ extern crate cpal;
 extern crate hound;
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+use cs140_project1::sample_format;
 use std::fs::File;
 use std::io::BufWriter;
 use std::sync::{Arc, Mutex};
@@ -137,14 +138,6 @@ fn main() -> Result<(), anyhow::Error> {
     writer.lock().unwrap().take().unwrap().finalize()?;
     println!("Recording {} complete!", PATH);
     Ok(())
-}
-
-fn sample_format(format: cpal::SampleFormat) -> hound::SampleFormat {
-    match format {
-        cpal::SampleFormat::U16 => hound::SampleFormat::Int,
-        cpal::SampleFormat::I16 => hound::SampleFormat::Int,
-        cpal::SampleFormat::F32 => hound::SampleFormat::Float,
-    }
 }
 
 fn wav_spec_from_config(config: &cpal::SupportedStreamConfig) -> hound::WavSpec {

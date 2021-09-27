@@ -2,6 +2,7 @@ use cpal::{Device, SampleFormat, StreamConfig};
 use cs140_buffer::ring_buffer::RingBuffer;
 use cs140_common::buffer::Buffer;
 use cs140_common::device::InputDevice;
+use cs140_project1::sample_format;
 use std::fs::File;
 use std::io::BufWriter;
 use std::sync::{Arc, Mutex};
@@ -10,7 +11,7 @@ fn main() -> Result<(), anyhow::Error> {
     let buffer: RingBuffer<f32, 100001, false> = RingBuffer::new();
     let buffer_ptr = Arc::new(buffer);
     let (input, input_config) = InputDevice::new(buffer_ptr.clone());
-    let input = std::thread::spawn(move || input.listen());
+    let _ = input.listen();
 
     const PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/recorded.wav");
 
@@ -32,16 +33,8 @@ fn main() -> Result<(), anyhow::Error> {
         });
     }
     writer.lock().unwrap().take().unwrap().finalize()?;
-    input.join();
+    std::thread::park();
     Ok(())
-}
-
-fn sample_format(format: cpal::SampleFormat) -> hound::SampleFormat {
-    match format {
-        cpal::SampleFormat::U16 => hound::SampleFormat::Int,
-        cpal::SampleFormat::I16 => hound::SampleFormat::Int,
-        cpal::SampleFormat::F32 => hound::SampleFormat::Float,
-    }
 }
 
 fn wav_spec_from_config(input: &(StreamConfig, SampleFormat)) -> hound::WavSpec {

@@ -1,5 +1,6 @@
 use crate::buffer::Buffer as Buf;
 use std::sync::Arc;
+use std::thread;
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{Device, SampleFormat, StreamConfig, StreamError};
@@ -41,43 +42,51 @@ where
         (input_device, config.into(), sample_format)
     }
 
-    pub fn listen(self) {
-        let stream_config = self.stream_config.1.clone();
-        let channels = stream_config.channels;
-        let device = self.stream_config.0;
-        let audio_buffer = self.audio_buffer;
-        // Build the stream
-        let stream = match self.stream_config.2 {
-            SampleFormat::I16 => device
-                .build_input_stream(
-                    &stream_config,
-                    move |data: &[i16], _: &_| {
-                        Self::listen_handler(data, channels as usize, audio_buffer.clone())
-                    },
-                    Self::listen_error_handler,
-                )
-                .unwrap(),
-            SampleFormat::U16 => device
-                .build_input_stream(
-                    &stream_config,
-                    move |data: &[u16], _: &_| {
-                        Self::listen_handler(data, channels as usize, audio_buffer.clone())
-                    },
-                    Self::listen_error_handler,
-                )
-                .unwrap(),
-            SampleFormat::F32 => device
-                .build_input_stream(
-                    &stream_config,
-                    move |data: &[f32], _: &_| {
-                        Self::listen_handler(data, channels as usize, audio_buffer.clone())
-                    },
-                    Self::listen_error_handler,
-                )
-                .unwrap(),
-        };
-        stream.play().unwrap();
-        std::thread::park();
+    pub fn listen(self) -> impl FnOnce() -> Self {
+        let thread_handle = std::thread::spawn(move || {
+            let stream_config = &self.stream_config.1;
+            let channels = stream_config.channels;
+            let device = &self.stream_config.0;
+            let audio_buffer = self.audio_buffer.clone();
+            // Build the stream
+            let stream = match self.stream_config.2 {
+                SampleFormat::I16 => device
+                    .build_input_stream(
+                        stream_config,
+                        move |data: &[i16], _: &_| {
+                            Self::listen_handler(data, channels as usize, audio_buffer.clone())
+                        },
+                        Self::listen_error_handler,
+                    )
+                    .unwrap(),
+                SampleFormat::U16 => device
+                    .build_input_stream(
+                        stream_config,
+                        move |data: &[u16], _: &_| {
+                            Self::listen_handler(data, channels as usize, audio_buffer.clone())
+                        },
+                        Self::listen_error_handler,
+                    )
+                    .unwrap(),
+                SampleFormat::F32 => device
+                    .build_input_stream(
+                        stream_config,
+                        move |data: &[f32], _: &_| {
+                            Self::listen_handler(data, channels as usize, audio_buffer.clone())
+                        },
+                        Self::listen_error_handler,
+                    )
+                    .unwrap(),
+            };
+            stream.play().unwrap();
+            thread::park();
+            self
+        });
+
+        move || {
+            thread_handle.thread().unpark();
+            thread_handle.join().unwrap()
+        }
     }
 
     fn listen_handler<T>(input: &[T], channels: usize, audio_buffer: Arc<Buffer>)
@@ -130,43 +139,53 @@ where
         (output_device, config.into(), sample_format)
     }
 
-    pub fn play(self) {
-        let stream_config = self.stream_config.1.clone();
-        let device = self.stream_config.0;
-        let audio_buffer = self.audio_buffer;
-        let channels = stream_config.channels as usize;
-        // Build the stream
-        let stream = match self.stream_config.2 {
-            SampleFormat::I16 => device
-                .build_output_stream(
-                    &stream_config,
-                    move |data: &mut [i16], _: &_| {
-                        Self::play_handler(data, channels, audio_buffer.clone())
-                    },
-                    Self::play_error_handler,
-                )
-                .unwrap(),
-            SampleFormat::U16 => device
-                .build_output_stream(
-                    &stream_config,
-                    move |data: &mut [u16], _: &_| {
-                        Self::play_handler(data, channels, audio_buffer.clone())
-                    },
-                    Self::play_error_handler,
-                )
-                .unwrap(),
-            SampleFormat::F32 => device
-                .build_output_stream(
-                    &stream_config,
-                    move |data: &mut [f32], _: &_| {
-                        Self::play_handler(data, channels, audio_buffer.clone())
-                    },
-                    Self::play_error_handler,
-                )
-                .unwrap(),
-        };
-        stream.play().unwrap();
-        std::thread::park();
+    pub fn play(self) -> impl FnOnce() -> Self {
+        let thread_handle = std::thread::spawn(move || {
+            let stream_config = &self.stream_config.1;
+            let device = &self.stream_config.0;
+            let audio_buffer = self.audio_buffer.clone();
+            let channels = stream_config.channels as usize;
+
+            // Build the stream
+            let stream = match self.stream_config.2 {
+                SampleFormat::I16 => device
+                    .build_output_stream(
+                        stream_config,
+                        move |data: &mut [i16], _: &_| {
+                            Self::play_handler(data, channels, audio_buffer.clone())
+                        },
+                        Self::play_error_handler,
+                    )
+                    .unwrap(),
+                SampleFormat::U16 => device
+                    .build_output_stream(
+                        stream_config,
+                        move |data: &mut [u16], _: &_| {
+                            Self::play_handler(data, channels, audio_buffer.clone())
+                        },
+                        Self::play_error_handler,
+                    )
+                    .unwrap(),
+                SampleFormat::F32 => device
+                    .build_output_stream(
+                        stream_config,
+                        move |data: &mut [f32], _: &_| {
+                            Self::play_handler(data, channels, audio_buffer.clone())
+                        },
+                        Self::play_error_handler,
+                    )
+                    .unwrap(),
+            };
+
+            stream.play().unwrap();
+            thread::park();
+            self
+        });
+
+        move || {
+            thread_handle.thread().unpark();
+            thread_handle.join().unwrap()
+        }
     }
 
     fn play_handler<T>(output: &mut [T], channels: usize, audio_buffer: Arc<Buffer>)
