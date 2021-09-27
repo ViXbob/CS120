@@ -21,3 +21,7 @@ path = "src/task1_ck1.rs"
 [[bin]]
 name = "task1_ck2"
 path = "src/task1_ck2.rs"
+
+[[bin]]
+name = "task2_ck1"
+path = "src/task2_ck1.rs"
