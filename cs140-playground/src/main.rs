@@ -9,7 +9,5 @@ fn main() {
     let output = OutputDevice::new(buffer_ptr.clone()).0;
     let close_input = input.listen();
     let close_play = output.play();
-    std::thread::sleep(std::time::Duration::from_millis(1000));
-    let input = close_input();
-    input.listen();
+    std::thread::sleep(std::time::Duration::from_millis(100000));
 }

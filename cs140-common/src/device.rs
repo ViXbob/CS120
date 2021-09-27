@@ -54,7 +54,7 @@ where
                     .build_input_stream(
                         stream_config,
                         move |data: &[i16], _: &_| {
-                            Self::listen_handler(data, channels as usize, audio_buffer.clone())
+                            Self::listen_handler(data, channels as usize, audio_buffer.clone());
                         },
                         Self::listen_error_handler,
                     )
@@ -63,7 +63,7 @@ where
                     .build_input_stream(
                         stream_config,
                         move |data: &[u16], _: &_| {
-                            Self::listen_handler(data, channels as usize, audio_buffer.clone())
+                            Self::listen_handler(data, channels as usize, audio_buffer.clone());
                         },
                         Self::listen_error_handler,
                     )
@@ -72,7 +72,7 @@ where
                     .build_input_stream(
                         stream_config,
                         move |data: &[f32], _: &_| {
-                            Self::listen_handler(data, channels as usize, audio_buffer.clone())
+                            Self::listen_handler(data, channels as usize, audio_buffer.clone());
                         },
                         Self::listen_error_handler,
                     )
@@ -152,7 +152,7 @@ where
                     .build_output_stream(
                         stream_config,
                         move |data: &mut [i16], _: &_| {
-                            Self::play_handler(data, channels, audio_buffer.clone())
+                            Self::play_handler(data, channels, audio_buffer.clone());
                         },
                         Self::play_error_handler,
                     )
@@ -161,7 +161,7 @@ where
                     .build_output_stream(
                         stream_config,
                         move |data: &mut [u16], _: &_| {
-                            Self::play_handler(data, channels, audio_buffer.clone())
+                            Self::play_handler(data, channels, audio_buffer.clone());
                         },
                         Self::play_error_handler,
                     )
@@ -170,7 +170,7 @@ where
                     .build_output_stream(
                         stream_config,
                         move |data: &mut [f32], _: &_| {
-                            Self::play_handler(data, channels, audio_buffer.clone())
+                            Self::play_handler(data, channels, audio_buffer.clone());
                         },
                         Self::play_error_handler,
                     )
