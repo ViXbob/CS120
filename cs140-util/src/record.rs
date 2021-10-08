@@ -1,10 +1,10 @@
-use std::sync::Arc;
 use cs140_buffer::ring_buffer::RingBuffer;
 use cs140_common::device::InputDevice;
 use cs140_common::record::Recorder;
 use hound::WavWriter;
+use std::sync::Arc;
 
-pub fn record(output_path: &str, record_time: usize){
+pub fn record(output_path: &str, record_time: usize) {
     let buffer: RingBuffer<f32, 100000, false> = RingBuffer::new();
     let buffer_ptr = Arc::new(buffer);
     let (input, descriptor) = InputDevice::new(buffer_ptr.clone());

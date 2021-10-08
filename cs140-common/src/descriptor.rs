@@ -23,19 +23,9 @@ pub enum SampleFormat {
 impl SampleFormat {
     fn sample_size(&self) -> usize {
         match self {
-            SampleFormat::I16 => { mem::size_of::<i16>() }
-            SampleFormat::U16 => { mem::size_of::<u16>() }
-            SampleFormat::F32 => { mem::size_of::<f32>() }
-        }
-    }
-}
-
-impl Into<CpalSampleFormat> for SampleFormat {
-    fn into(self) -> CpalSampleFormat {
-        match self {
-            SampleFormat::I16 => { CpalSampleFormat::I16 }
-            SampleFormat::U16 => { CpalSampleFormat::U16 }
-            SampleFormat::F32 => { CpalSampleFormat::F32 }
+            SampleFormat::I16 => mem::size_of::<i16>(),
+            SampleFormat::U16 => mem::size_of::<u16>(),
+            SampleFormat::F32 => mem::size_of::<f32>(),
         }
     }
 }
@@ -43,19 +33,20 @@ impl Into<CpalSampleFormat> for SampleFormat {
 impl From<CpalSampleFormat> for SampleFormat {
     fn from(format: CpalSampleFormat) -> Self {
         match format {
-            CpalSampleFormat::I16 => { SampleFormat::I16 }
-            CpalSampleFormat::U16 => { SampleFormat::U16 }
-            CpalSampleFormat::F32 => { SampleFormat::F32 }
+            CpalSampleFormat::I16 => SampleFormat::I16,
+            CpalSampleFormat::U16 => SampleFormat::U16,
+            CpalSampleFormat::F32 => SampleFormat::F32,
         }
     }
 }
 
+#[allow(clippy::from_over_into)]
 impl Into<HoundSampleFormat> for SampleFormat {
     fn into(self) -> HoundSampleFormat {
         match self {
-            SampleFormat::I16 => { HoundSampleFormat::Int }
-            SampleFormat::U16 => { HoundSampleFormat::Int }
-            SampleFormat::F32 => { HoundSampleFormat::Float }
+            SampleFormat::I16 => HoundSampleFormat::Int,
+            SampleFormat::U16 => HoundSampleFormat::Int,
+            SampleFormat::F32 => HoundSampleFormat::Float,
         }
     }
 }
@@ -63,19 +54,19 @@ impl Into<HoundSampleFormat> for SampleFormat {
 impl From<HoundSampleFormat> for SampleFormat {
     fn from(format: HoundSampleFormat) -> Self {
         match format {
-            HoundSampleFormat::Int => { SampleFormat::I16 }
-            HoundSampleFormat::Float => { SampleFormat::F32 }
+            HoundSampleFormat::Int => SampleFormat::I16,
+            HoundSampleFormat::Float => SampleFormat::F32,
         }
     }
 }
-
-impl Into<WavSpec> for SoundDescriptor{
+#[allow(clippy::from_over_into)]
+impl Into<WavSpec> for SoundDescriptor {
     fn into(self) -> WavSpec {
-        WavSpec{
+        WavSpec {
             channels: self.channels,
             sample_rate: self.sample_rate,
             bits_per_sample: self.sample_format.sample_size() as u16,
-            sample_format: self.sample_format.into()
+            sample_format: self.sample_format.into(),
         }
     }
 }

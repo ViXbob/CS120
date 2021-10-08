@@ -1,14 +1,20 @@
 use crate::buffer::Buffer;
-use std::sync::Arc;
 use hound::WavWriter;
+use std::sync::Arc;
 
-pub struct Recorder<Writer> where Writer: std::io::Write + std::io::Seek {
+pub struct Recorder<Writer>
+where
+    Writer: std::io::Write + std::io::Seek,
+{
     writer: WavWriter<Writer>,
     data_count: usize,
     data_written: usize,
 }
 
-impl<Writer> Recorder<Writer> where Writer: std::io::Write + std::io::Seek {
+impl<Writer> Recorder<Writer>
+where
+    Writer: std::io::Write + std::io::Seek,
+{
     pub fn new(writer: WavWriter<Writer>, data_count: usize) -> Self {
         Recorder {
             writer,
@@ -19,12 +25,13 @@ impl<Writer> Recorder<Writer> where Writer: std::io::Write + std::io::Seek {
 
     pub fn record_from_buffer<T: Buffer<f32>>(mut self, buffer: Arc<T>, segment_len: usize) {
         loop {
-            let result = buffer.pop_by_ref(segment_len as usize, |data| {
-                self.record_from_slice(data)
-            });
+            let result =
+                buffer.pop_by_ref(segment_len as usize, |data| self.record_from_slice(data));
             match result {
-                None => { return; }
-                Some(val) => { self = val }
+                None => {
+                    return;
+                }
+                Some(val) => self = val,
             }
         }
     }
@@ -45,10 +52,10 @@ impl<Writer> Recorder<Writer> where Writer: std::io::Write + std::io::Seek {
 }
 
 fn write_input_data<T, U, Writer>(input: &[T], writer: &mut WavWriter<Writer>)
-    where
-        T: cpal::Sample,
-        U: cpal::Sample + hound::Sample,
-        Writer: std::io::Write + std::io::Seek
+where
+    T: cpal::Sample,
+    U: cpal::Sample + hound::Sample,
+    Writer: std::io::Write + std::io::Seek,
 {
     for &sample in input.iter() {
         let sample: U = cpal::Sample::from(&sample);

@@ -13,23 +13,23 @@ pub struct InputDevice<Buffer: Buf<f32>> {
 }
 
 impl<Buffer> InputDevice<Buffer>
-    where
-        Buffer: Buf<f32> + 'static,
+where
+    Buffer: Buf<f32> + 'static,
 {
     /// new returns InputDevice as well as some config about the device / stream
     pub fn new(audio_buffer: Arc<Buffer>) -> (Self, SoundDescriptor) {
         let config = Self::init_stream_config();
-        let descriptor = SoundDescriptor{
+        let descriptor = SoundDescriptor {
             channels: config.1.channels,
             sample_rate: config.1.sample_rate.0,
-            sample_format: config.2.into()
+            sample_format: config.2.into(),
         };
         (
             InputDevice {
                 stream_config: config,
                 audio_buffer,
             },
-            descriptor
+            descriptor,
         )
     }
 
@@ -95,8 +95,8 @@ impl<Buffer> InputDevice<Buffer>
     }
 
     fn listen_handler<T>(input: &[T], channels: usize, audio_buffer: Arc<Buffer>)
-        where
-            T: cpal::Sample,
+    where
+        T: cpal::Sample,
     {
         let mut iterator = input.iter().step_by(channels).map(|value| value.to_f32());
         audio_buffer.push_by_iterator(input.len() / channels, &mut iterator);
@@ -114,16 +114,16 @@ pub struct OutputDevice<Buffer: Buf<f32>> {
 }
 
 impl<Buffer> OutputDevice<Buffer>
-    where
-        Buffer: Buf<f32> + 'static,
+where
+    Buffer: Buf<f32> + 'static,
 {
     /// new returns InputDevice as well as some config about the device / stream, for example: channels
     pub fn new(audio_buffer: Arc<Buffer>) -> (Self, SoundDescriptor) {
         let config = Self::init_stream_config();
-        let descriptor = SoundDescriptor{
+        let descriptor = SoundDescriptor {
             channels: config.1.channels,
             sample_rate: config.1.sample_rate.0,
-            sample_format: config.2.into()
+            sample_format: config.2.into(),
         };
         (
             OutputDevice {
@@ -198,8 +198,8 @@ impl<Buffer> OutputDevice<Buffer>
     }
 
     fn play_handler<T>(output: &mut [T], channels: usize, audio_buffer: Arc<Buffer>)
-        where
-            T: cpal::Sample,
+    where
+        T: cpal::Sample,
     {
         audio_buffer.pop(output.len() / channels, move |first, second| {
             for (frame, value) in output

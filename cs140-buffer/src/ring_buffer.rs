@@ -38,7 +38,7 @@ impl<T, const N: usize, const GARBAGE_COLLECTION: bool> RingBuffer<T, N, GARBAGE
         self.len.load(Relaxed)
     }
 
-    pub fn capacity(&self) ->usize{
+    pub fn capacity(&self) -> usize {
         N
     }
 
