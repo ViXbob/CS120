@@ -3,8 +3,11 @@ use cs140_common::buffer::Buffer;
 use cs140_common::device::OutputDevice;
 use cs140_frame_handler::header::generate_frame_sample;
 use rand::Rng;
+use hound::WavWriter;
 use rustfft::{num_complex::Complex, FftPlanner};
 use std::sync::Arc;
+use cs140_common::descriptor::{SampleFormat, SoundDescriptor};
+use cs140_common::record::Recorder;
 
 fn play_audio() {
     let buffer: RingBuffer<f32, 100000, false> = RingBuffer::new();
@@ -110,6 +113,13 @@ fn main() {
         48000,
         1000,
     );
-    // println!("{:?}", data);
-    play_audio_from_vector(data, record_time as f32);
+
+    let descriptor = SoundDescriptor{
+        channels: 1,
+        sample_rate: 48000,
+        sample_format: SampleFormat::F32
+    };
+    let writer = WavWriter::create("output.wav", descriptor.clone().into()).unwrap();
+    let recorder = Recorder::new(writer, record_time * descriptor.sample_rate as usize);
+    recorder.record_from_slice(&data);
 }
