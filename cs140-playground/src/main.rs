@@ -65,6 +65,8 @@ fn play_audio_from_vector(data: Vec<f32>, record_time: f32) {
         }
     });
     let close_play = output.play();
+    const PATH1: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/recorded1.wav");
+    cs140_util::record::record(PATH1, 10);
     std::thread::sleep(std::time::Duration::from_secs(record_time as u64));
     close_play();
 }

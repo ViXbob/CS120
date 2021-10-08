@@ -87,6 +87,7 @@ pub fn frame_resolve(
     sample_rate: u32,
 ) {
     let begin_index = header_detect(data, header_length, header).expect("detection failed");
+
 }
 
 pub fn header_create(
@@ -123,7 +124,7 @@ pub fn generate_frame_sample(
 ) -> Vec<f32> {
     assert!(multiplex_range > 0);
     let samples_per_bit: f32 = (sample_rate / speed) as f32;
-    let mut rtn: Vec<f32> = header_create(60, 2000.0, 9000.0, sample_rate, 1.0);
+    let mut rtn: Vec<f32> = header_create(880, 2000.0, 10000.0, sample_rate, 1.0);
     let sample_rate: f32 = sample_rate as f32;
     for (i, bits_group) in data.chunks(multiplex_range).enumerate() {
         for time in i * (samples_per_bit as usize)..(i + 1) * (samples_per_bit as usize) {
