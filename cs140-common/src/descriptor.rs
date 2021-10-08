@@ -23,9 +23,9 @@ pub enum SampleFormat {
 impl SampleFormat {
     fn sample_size(&self) -> usize {
         match self {
-            SampleFormat::I16 => mem::size_of::<i16>(),
-            SampleFormat::U16 => mem::size_of::<u16>(),
-            SampleFormat::F32 => mem::size_of::<f32>(),
+            SampleFormat::I16 => mem::size_of::<i16>() * 8,
+            SampleFormat::U16 => mem::size_of::<u16>() * 8,
+            SampleFormat::F32 => mem::size_of::<f32>() * 8,
         }
     }
 }
