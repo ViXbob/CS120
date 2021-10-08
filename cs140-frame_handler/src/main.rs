@@ -5,7 +5,8 @@ fn main() {
     let period: u32 = sample_rate / frequency as u32;
     let mut data: Vec<f32> = (0..period * 5 + 1)
         .map(|x| {
-            (2.0 * std::f32::consts::PI * x as f32 / sample_rate as f32 * frequency as f32 + initial_phase)
+            (2.0 * std::f32::consts::PI * x as f32 / sample_rate as f32 * frequency as f32
+                + initial_phase)
                 .sin()
         })
         .collect();
