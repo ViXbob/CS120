@@ -6,11 +6,11 @@ impl<T, const N: usize, const GARBAGE_COLLECTION: bool> Buffer<T>
 where
     T: Sync + Send,
 {
-    fn push(&self, count: usize, producer: impl FnMut(&mut [T], &mut [T])) {
+    fn push(&self, count: usize, producer: impl FnOnce(&mut [T], &mut [T])) {
         self.push(count, producer);
     }
 
-    fn pop<U>(&self, count: usize, consumer: impl FnMut(&[T], &[T]) -> U) -> U {
+    fn pop<U>(&self, count: usize, consumer: impl FnOnce(&[T], &[T]) -> U) -> U {
         self.pop(count, consumer)
     }
 }

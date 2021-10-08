@@ -38,11 +38,15 @@ impl<T, const N: usize, const GARBAGE_COLLECTION: bool> RingBuffer<T, N, GARBAGE
         self.len.load(Relaxed)
     }
 
+    pub fn capacity(&self) ->usize{
+        N
+    }
+
     fn get_available_count(&self) -> usize {
         N - self.len()
     }
 
-    pub fn push(&self, count: usize, mut producer: impl FnMut(&mut [T], &mut [T])) {
+    pub fn push(&self, count: usize, producer: impl FnOnce(&mut [T], &mut [T])) {
         if count == 0 {
             return;
         }
@@ -96,7 +100,7 @@ impl<T, const N: usize, const GARBAGE_COLLECTION: bool> RingBuffer<T, N, GARBAGE
         }
     }
 
-    pub fn pop<U>(&self, count: usize, mut consumer: impl FnMut(&[T], &[T]) -> U) -> U {
+    pub fn pop<U>(&self, count: usize, consumer: impl FnOnce(&[T], &[T]) -> U) -> U {
         if count == 0 {
             return consumer(&[], &[]);
         }

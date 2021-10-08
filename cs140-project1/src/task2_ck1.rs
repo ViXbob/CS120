@@ -10,7 +10,7 @@ fn main() {
     let record_time = 5;
     std::thread::spawn(move || {
         let segment_count = 100;
-        let segment_len = config.0.sample_rate.0 / segment_count;
+        let segment_len = config.sample_rate / segment_count;
         for i in 0.. {
             let segment_index = i % segment_count;
             buffer_ptr.push_by_iterator(
@@ -18,7 +18,7 @@ fn main() {
                 (segment_index * segment_len..(segment_index + 1) * segment_len)
                     .map(|x: _| {
                         let xy =
-                            x as f32 * 2.0 * std::f32::consts::PI / (config.0.sample_rate.0 as f32);
+                            x as f32 * 2.0 * std::f32::consts::PI / (config.sample_rate as f32);
                         (xy * 1000_f32).sin() + (xy * 10000_f32).sin()
                     })
                     .by_ref(),

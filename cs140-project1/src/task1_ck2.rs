@@ -18,6 +18,6 @@ fn main() -> Result<(), anyhow::Error> {
     // so we need to keep the main thread alive while it's playing.
 
     const PATH1: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/recorded1.wav");
-    cs140_project1::record_wav::record(PATH1, 10)?;
+    cs140_util::record::record(PATH1, 10);
     Ok(())
 }
