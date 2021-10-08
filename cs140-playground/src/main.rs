@@ -1,7 +1,6 @@
 use cs140_buffer::ring_buffer::RingBuffer;
 use cs140_common::buffer::Buffer;
 use cs140_common::device::OutputDevice;
-use cs140_frame_handler;
 use cs140_frame_handler::header::generate_frame_sample;
 use rand::Rng;
 use rustfft::{num_complex::Complex, FftPlanner};
@@ -13,7 +12,7 @@ fn play_audio() {
     let (output, config) = OutputDevice::new(buffer_ptr.clone());
     let record_time: f32 = 10.0;
     std::thread::spawn(move || {
-        let sample_rate = config.0.sample_rate.0;
+        let sample_rate = config.sample_rate;
         let header_length = 12000;
         let segment_count = 200;
         let segment_len = header_length / segment_count;
@@ -58,7 +57,7 @@ fn play_audio() {
 fn play_audio_from_vector(data: Vec<f32>, record_time: f32) {
     let buffer: RingBuffer<f32, 100000, false> = RingBuffer::new();
     let buffer_ptr = Arc::new(buffer);
-    let (output, config) = OutputDevice::new(buffer_ptr.clone());
+    let (output, _) = OutputDevice::new(buffer_ptr.clone());
     let segment_length = 100;
     std::thread::spawn(move || {
         for segment in data.chunks(segment_length) {
@@ -99,11 +98,10 @@ fn fft_test() {
 fn main() {
     let record_time = 10;
     let data = (0..(record_time * 1000))
-        .map(|x: _| rand::thread_rng().gen_range(0..2))
+        .map(|_| rand::thread_rng().gen_range(0..2))
         .collect::<Vec<i32>>();
     let multiplex_frequency: [f32; 1] = [10000.0];
     let data = generate_frame_sample(
-        data.len(),
         data.as_slice(),
         multiplex_frequency.len(),
         &multiplex_frequency,

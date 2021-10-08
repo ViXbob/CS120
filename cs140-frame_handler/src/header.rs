@@ -44,7 +44,6 @@ pub fn header_solve(
 }
 
 pub fn header_detect(
-    count: usize,
     data: &[f32],
     header_length: usize,
     header: &[f32],
@@ -82,13 +81,12 @@ pub fn header_detect(
 }
 
 pub fn frame_resolve(
-    count: usize,
     data: &[f32],
     header_length: usize,
     header: &[f32],
     sample_rate: u32,
 ) {
-    let begin_index = header_detect(count, data, header_length, header).expect("detection failed");
+    let begin_index = header_detect(data, header_length, header).expect("detection failed");
 }
 
 pub fn header_create(
@@ -117,7 +115,6 @@ pub fn header_create(
 }
 
 pub fn generate_frame_sample(
-    count: usize,
     data: &[i32],
     multiplex_range: usize,
     multiplex_frequency: &[f32],
