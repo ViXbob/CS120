@@ -1,6 +1,6 @@
 pub trait Buffer<Data>: Send + Sync {
     /// push the data into buffer, the process will be blocking when there is no space in the storage.
-    fn push(&self, count: usize, producer: impl FnMut(&mut [Data], &mut [Data]));
+    fn push(&self, count: usize, producer: impl FnOnce(&mut [Data], &mut [Data]));
 
     fn push_by_ref(&self, data: &[Data])
     where
@@ -28,9 +28,9 @@ pub trait Buffer<Data>: Send + Sync {
     }
 
     /// pop the data from the buffer, the data will be removed after the consumer call
-    fn pop<T>(&self, count: usize, consumer: impl FnMut(&[Data], &[Data]) -> T) -> T;
+    fn pop<T>(&self, count: usize, consumer: impl FnOnce(&[Data], &[Data]) -> T) -> T;
 
-    fn pop_by_ref<T>(&self, count: usize, mut consumer: impl FnMut(&[Data]) -> T) -> T
+    fn pop_by_ref<T>(&self, count: usize, consumer: impl FnOnce(&[Data]) -> T) -> T
     where
         Data: Copy + Clone,
     {
@@ -43,7 +43,7 @@ pub trait Buffer<Data>: Send + Sync {
     fn pop_by_iterator<T>(
         &self,
         count: usize,
-        mut consumer: impl FnMut(Box<dyn Iterator<Item = &Data> + '_>) -> T,
+        consumer: impl FnOnce(Box<dyn Iterator<Item = &Data> + '_>) -> T,
     ) -> T
     where
         Data: std::clone::Clone,
