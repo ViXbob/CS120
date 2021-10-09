@@ -1,17 +1,16 @@
 use cs140_buffer::ring_buffer::RingBuffer;
 use cs140_common::buffer::Buffer;
-use cs140_common::device::OutputDevice;
-use cs140_frame_handler::header::generate_frame_sample;
-use rand::Rng;
-use hound::WavWriter;
-use rustfft::{num_complex::Complex, FftPlanner};
-use std::sync::Arc;
 use cs140_common::descriptor::{SampleFormat, SoundDescriptor};
+use cs140_common::device::OutputDevice;
 use cs140_common::record::Recorder;
+use cs140_frame_handler::header::generate_frame_sample;
+use hound::WavWriter;
+use rand::Rng;
 use rodio::{source::Source, Decoder, OutputStream};
+use rustfft::{num_complex::Complex, FftPlanner};
 use std::fs::File;
 use std::io::BufReader;
-
+use std::sync::Arc;
 
 #[test]
 fn play_audio() {
@@ -59,7 +58,6 @@ fn play_audio() {
     std::thread::sleep(std::time::Duration::from_secs(record_time as u64));
     close_play();
 }
-
 
 fn play_audio_from_vector_and_record() {
     let record_time = 1;
@@ -120,10 +118,9 @@ fn fft_test() {
 #[test]
 fn calculate_power_of_header() {
     let data = cs140_frame_handler::header::header_create(440, 2000.0, 10000.0, 48000, 1.0);
-    println!("{}", data.iter().map(|x : _| { x * x }).sum::<f32>());
+    println!("{}", data.iter().map(|x: _| { x * x }).sum::<f32>());
     println!("{}", data.len());
 }
-
 
 fn header_detect_test() -> Result<(), anyhow::Error> {
     const PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/output.wav");
@@ -139,7 +136,8 @@ fn header_detect_test() -> Result<(), anyhow::Error> {
     let data = source.convert_samples().buffered().collect::<Vec<f32>>();
     // println!("{:?}", data);
     let header = cs140_frame_handler::header::header_create(220, 3000.0, 6000.0, 48000, 1.0);
-    let first_index = cs140_frame_handler::header::header_detect(&data, 220, &header).expect("detection failed");
+    let first_index =
+        cs140_frame_handler::header::header_detect(&data, 220, &header).expect("detection failed");
     println!("{}", first_index);
     Ok(())
 }
@@ -159,7 +157,17 @@ fn frame_resolve_test() -> Result<(), anyhow::Error> {
     // println!("{:?}", data);
     let multiplex_frequency: [f32; 1] = [10000.0];
     let header = cs140_frame_handler::header::header_create(220, 3000.0, 6000.0, 48000, 1.0);
-    let (result, next_index) = cs140_frame_handler::header::frame_resolve(data.as_slice(), 220, header.as_slice(), 1, &multiplex_frequency, 48000, 1000, 100).unwrap();
+    let (result, next_index) = cs140_frame_handler::header::frame_resolve(
+        data.as_slice(),
+        220,
+        header.as_slice(),
+        1,
+        &multiplex_frequency,
+        48000,
+        1000,
+        100,
+    )
+    .unwrap();
     println!("{:?}", result);
     println!("{}", next_index);
     Ok(())
@@ -185,14 +193,34 @@ fn generate_data_with_noise() {
         48000,
         1000,
     );
-    let data = data.iter().map(|x : _| { x + rand::thread_rng().gen_range(-std::f32::consts::PI..std::f32::consts::PI).cos() * 0.4 }).collect::<Vec<f32>>();
-    let data = (0..5000).map(|_| { rand::thread_rng().gen_range(-std::f32::consts::PI..std::f32::consts::PI).sin() * 0.1 }).chain(data.iter().cloned()).collect::<Vec<f32>>();
-    let descriptor = SoundDescriptor{
+    let data = data
+        .iter()
+        .map(|x: _| {
+            x + rand::thread_rng()
+                .gen_range(-std::f32::consts::PI..std::f32::consts::PI)
+                .cos()
+                * 0.4
+        })
+        .collect::<Vec<f32>>();
+    let data = (0..5000)
+        .map(|_| {
+            rand::thread_rng()
+                .gen_range(-std::f32::consts::PI..std::f32::consts::PI)
+                .sin()
+                * 0.1
+        })
+        .chain(data.iter().cloned())
+        .collect::<Vec<f32>>();
+    let descriptor = SoundDescriptor {
         channels: 1,
         sample_rate: 48000,
-        sample_format: SampleFormat::F32
+        sample_format: SampleFormat::F32,
     };
-    let writer = WavWriter::create(concat!(env!("CARGO_MANIFEST_DIR"), "/output.wav"), descriptor.clone().into()).unwrap();
+    let writer = WavWriter::create(
+        concat!(env!("CARGO_MANIFEST_DIR"), "/output.wav"),
+        descriptor.clone().into(),
+    )
+    .unwrap();
     let recorder = Recorder::new(writer, data.len() as usize);
     recorder.record_from_slice(&data);
 }
