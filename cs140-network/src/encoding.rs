@@ -1,6 +1,5 @@
 use bitvec::order::Lsb0;
 use bitvec::vec::BitVec;
-
 pub trait NetworkPackage {}
 
 pub trait HandlePackage<Package: NetworkPackage> {

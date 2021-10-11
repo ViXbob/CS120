@@ -134,6 +134,14 @@ where
         )
     }
 
+    pub fn sound_descriptor(&self) -> SoundDescriptor {
+        SoundDescriptor {
+            channels: self.stream_config.1.channels,
+            sample_rate: self.stream_config.1.sample_rate.0,
+            sample_format: self.stream_config.2.into(),
+        }
+    }
+
     fn init_stream_config() -> (Device, StreamConfig, SampleFormat) {
         // Get the input device from user
         let host = cpal::default_host();
