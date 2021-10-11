@@ -25,8 +25,9 @@ where
 
     pub fn record_from_buffer<T: Buffer<f32>>(mut self, buffer: Arc<T>, segment_len: usize) {
         loop {
-            let result =
-                buffer.pop_by_ref(segment_len as usize, |data| self.record_from_slice(data));
+            let result = buffer.pop_by_ref(segment_len as usize, |data| {
+                (self.record_from_slice(data), data.len())
+            });
             match result {
                 None => {
                     return;

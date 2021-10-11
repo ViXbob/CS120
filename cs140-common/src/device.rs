@@ -201,7 +201,8 @@ where
     where
         T: cpal::Sample,
     {
-        audio_buffer.pop(output.len() / channels, move |first, second| {
+        let len = output.len() / channels;
+        audio_buffer.pop(len, move |first, second| {
             for (frame, value) in output
                 .chunks_mut(channels)
                 .zip(first.iter().chain(second.iter()))
@@ -210,6 +211,7 @@ where
                     *sample = cpal::Sample::from(value);
                 }
             }
+            ((), len)
         });
     }
 
