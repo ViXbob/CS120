@@ -1,2 +1,2 @@
-mod frame;
-mod header;
+pub(crate) mod frame;
+pub(crate) mod header;

@@ -1,8 +1,8 @@
 use super::header;
-use rustfft::{num_complex::Complex, FftPlanner};
-use bitvec::vec::BitVec;
+use crate::encoding::BitStore;
 use bitvec::order::Lsb0;
-use cs140_util::network_type::BitStore;
+use bitvec::vec::BitVec;
+use rustfft::{num_complex::Complex, FftPlanner};
 
 pub fn frame_resolve(
     data: &[f32],
@@ -27,7 +27,7 @@ pub fn frame_resolve(
             .iter()
             .map(|x: _| Complex::<f32>::new(*x, 0.0));
         // let mut buffer : Vec<_> = buffer.skip(sample_per_bit as usize / 4).take(sample_per_bit as usize / 2).cycle().take(sample_per_bit as usize).collect();
-        let mut buffer : Vec<_> = buffer.collect();
+        let mut buffer: Vec<_> = buffer.collect();
         fft.process(buffer.as_mut_slice());
         for frequency in multiplex_frequency {
             let index: usize = (*frequency as usize) / ((sample_rate / sample_per_bit) as usize);
@@ -73,7 +73,7 @@ pub fn frame_resolve_to_bitvec(
             .iter()
             .map(|x: _| Complex::<f32>::new(*x, 0.0));
         // let mut buffer : Vec<_> = buffer.skip(sample_per_bit as usize / 4).take(sample_per_bit as usize / 2).cycle().take(sample_per_bit as usize).collect();
-        let mut buffer : Vec<_> = buffer.collect();
+        let mut buffer: Vec<_> = buffer.collect();
         fft.process(buffer.as_mut_slice());
         for frequency in multiplex_frequency {
             let index: usize = (*frequency as usize) / ((sample_rate / sample_per_bit) as usize);
@@ -147,4 +147,27 @@ pub fn generate_frame_sample_from_bitvec(
         }
     }
     rtn
+}
+
+#[cfg(test)]
+mod test {
+    use crate::framing::header;
+
+    #[test]
+    fn calculate_power_of_header() {
+        let data = header::header_create(440, 2000.0, 10000.0, 48000, 1.0);
+        println!("{}", data.iter().map(|x: _| { x * x }).sum::<f32>());
+        println!("{}", data.len());
+    }
+
+    #[test]
+    fn header_detect_test() -> Result<(), anyhow::Error> {
+        const PATH: &str = "/Users/vixbob/cs140/cs140-playground/recorded1.wav";
+        let data = read_from_file_to_vec(PATH);
+        let header = cs140_frame_handler::header::header_create(220, 3000.0, 6000.0, 48000, 1.0);
+        let first_index = cs140_frame_handler::header::header_detect(&data, 220, &header)
+            .expect("detection failed");
+        println!("{}", first_index);
+        Ok(())
+    }
 }

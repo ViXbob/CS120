@@ -245,7 +245,7 @@ mod tests {
         let consumer = thread::spawn(move || {
             println!(
                 "{}",
-                buffer_for_consumer.pop_by_iterator(20, |iter| { (iter.sum::<f32>(),20) })
+                buffer_for_consumer.pop_by_iterator(20, |iter| { (iter.sum::<f32>(), 20) })
             );
         });
         let producer = thread::spawn(move || {
