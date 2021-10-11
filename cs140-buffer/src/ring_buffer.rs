@@ -46,7 +46,20 @@ impl<T, const N: usize, const GARBAGE_COLLECTION: bool> RingBuffer<T, N, GARBAGE
         N - self.len()
     }
 
-    pub fn push(&self, count: usize, producer: impl FnOnce(&mut [T], &mut [T])) {
+    pub fn try_push(
+        &self,
+        count: usize,
+        producer: impl FnOnce(&mut [T], &mut [T]) -> usize,
+    ) -> Option<()> {
+        if count <= self.get_available_count() {
+            self.push(count, producer);
+            Some(())
+        } else {
+            None
+        }
+    }
+
+    pub fn push(&self, count: usize, producer: impl FnOnce(&mut [T], &mut [T]) -> usize) {
         if count == 0 {
             return;
         }
@@ -72,7 +85,7 @@ impl<T, const N: usize, const GARBAGE_COLLECTION: bool> RingBuffer<T, N, GARBAGE
         let head = self.head.load(Relaxed);
         let tail = (head + self.len()) % N;
         // This is safe because only one thread can access the variable
-        unsafe {
+        let count = unsafe {
             if head <= tail {
                 let first_ptr = self.buffer[tail..].as_ptr();
                 let first_ptr = first_ptr as *mut T;
@@ -81,13 +94,13 @@ impl<T, const N: usize, const GARBAGE_COLLECTION: bool> RingBuffer<T, N, GARBAGE
                 producer(
                     std::slice::from_raw_parts_mut(first_ptr, N - tail),
                     std::slice::from_raw_parts_mut(second_ptr, head),
-                );
+                )
             } else {
                 let ptr = self.buffer[tail..head].as_ptr();
                 let ptr = ptr as *mut T;
-                producer(std::slice::from_raw_parts_mut(ptr, head - tail), &mut []);
+                producer(std::slice::from_raw_parts_mut(ptr, head - tail), &mut [])
             }
-        }
+        };
 
         self.len.fetch_add(count, Relaxed);
 
@@ -100,9 +113,21 @@ impl<T, const N: usize, const GARBAGE_COLLECTION: bool> RingBuffer<T, N, GARBAGE
         }
     }
 
-    pub fn pop<U>(&self, count: usize, consumer: impl FnOnce(&[T], &[T]) -> U) -> U {
+    pub fn try_pop<U>(
+        &self,
+        count: usize,
+        consumer: impl FnOnce(&[T], &[T]) -> (U, usize),
+    ) -> Option<U> {
+        if count <= self.len() {
+            Some(self.pop(count, consumer))
+        } else {
+            None
+        }
+    }
+
+    pub fn pop<U>(&self, count: usize, consumer: impl FnOnce(&[T], &[T]) -> (U, usize)) -> U {
         if count == 0 {
-            return consumer(&[], &[]);
+            return consumer(&[], &[]).0;
         }
         if count > N / 2 {
             panic!("Can not acquire more than {} elements", N / 2);
@@ -127,42 +152,46 @@ impl<T, const N: usize, const GARBAGE_COLLECTION: bool> RingBuffer<T, N, GARBAGE
         let head = self.head.load(Relaxed);
         let tail = (head + self.len()) % N;
         // This is safe because only one thread can access the variable
-        let result = unsafe {
+        let (result, count) = unsafe {
             if head < tail {
                 let ptr = self.buffer[head..tail].as_ptr();
                 let ptr = ptr as *mut T;
                 let slice = std::slice::from_raw_parts_mut(ptr, count);
 
-                let value = consumer(slice, &[]);
-
-                (0..slice.len()).for_each(|i| std::ptr::drop_in_place(&mut slice[i]));
-                value
+                let (value, count) = consumer(slice, &[]);
+                if GARBAGE_COLLECTION {
+                    (0..count).for_each(|i| std::ptr::drop_in_place(&mut slice[i]));
+                }
+                (value, count)
             } else {
                 let first_ptr = self.buffer[head..].as_ptr();
                 let first_ptr = first_ptr as *mut T;
                 let mut first_slice = std::slice::from_raw_parts_mut(first_ptr, N - head);
                 if first_slice.len() >= count {
                     first_slice = &mut first_slice[..count];
-                    let value = consumer(first_slice, &[]);
+                    let (value, count) = consumer(first_slice, &[]);
                     if GARBAGE_COLLECTION {
-                        (0..first_slice.len())
-                            .for_each(|i| std::ptr::drop_in_place(&mut first_slice[i]));
+                        (0..count).for_each(|i| std::ptr::drop_in_place(&mut first_slice[i]));
                     }
-                    value
+                    (value, count)
                 } else {
                     let second_ptr = self.buffer.as_ptr(); // this pointer is started from zero
                     let second_ptr = second_ptr as *mut T;
                     let second_slice =
                         std::slice::from_raw_parts_mut(second_ptr, count - first_slice.len());
-                    let value = consumer(first_slice, second_slice);
+                    let (value, count) = consumer(first_slice, second_slice);
                     if GARBAGE_COLLECTION {
-                        (0..first_slice.len())
-                            .for_each(|i| std::ptr::drop_in_place(&mut first_slice[i]));
+                        if count <= first_slice.len() {
+                            (0..count).for_each(|i| std::ptr::drop_in_place(&mut first_slice[i]));
+                        } else {
+                            (0..first_slice.len())
+                                .for_each(|i| std::ptr::drop_in_place(&mut first_slice[i]));
 
-                        (0..second_slice.len())
-                            .for_each(|i| std::ptr::drop_in_place(&mut second_slice[i]));
+                            (0..count - first_slice.len())
+                                .for_each(|i| std::ptr::drop_in_place(&mut second_slice[i]));
+                        }
                     }
-                    value
+                    (value, count)
                 }
             }
         };
@@ -216,7 +245,7 @@ mod tests {
         let consumer = thread::spawn(move || {
             println!(
                 "{}",
-                buffer_for_consumer.pop_by_iterator(20, |iter| { iter.sum::<f32>() })
+                buffer_for_consumer.pop_by_iterator(20, |iter| { (iter.sum::<f32>(),20) })
             );
         });
         let producer = thread::spawn(move || {

@@ -41,3 +41,13 @@ impl HandlePackage<RedundancyPackage> for RedundancyLayer {
         }
     }
 }
+
+impl HandlePackage<PhysicalPackage> for RedundancyLayer {
+    fn send(&mut self, package: PhysicalPackage) {
+        self.physical.send(package)
+    }
+
+    fn receive(&mut self) -> PhysicalPackage {
+        self.physical.receive()
+    }
+}
