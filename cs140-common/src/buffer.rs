@@ -1,7 +1,11 @@
 pub trait Buffer<Data>: Send + Sync {
     /// push the data into buffer, the process will be blocking when there is no space in the storage.
-    fn push(&self, count: usize, producer: impl FnOnce(&mut [Data], &mut [Data]));
-
+    fn push(&self, count: usize, producer: impl FnOnce(&mut [Data], &mut [Data]) -> usize);
+    fn try_push(
+        &self,
+        count: usize,
+        producer: impl FnOnce(&mut [Data], &mut [Data]) -> usize,
+    ) -> Option<()>;
     fn push_by_ref(&self, data: &[Data])
     where
         Data: Copy + Clone,
@@ -12,6 +16,7 @@ pub trait Buffer<Data>: Send + Sync {
                 .for_each(|(data, store)| {
                     *store = *data;
                 });
+            data.len()
         });
     }
 
@@ -20,17 +25,24 @@ pub trait Buffer<Data>: Send + Sync {
         Data: Copy + Clone,
     {
         self.push(count, |first, second| {
+            let mut count = 0;
             data.zip(first.iter_mut().chain(second.iter_mut()))
                 .for_each(|(data, store)| {
                     *store = data;
+                    count += 1;
                 });
+            count
         });
     }
 
     /// pop the data from the buffer, the data will be removed after the consumer call
-    fn pop<T>(&self, count: usize, consumer: impl FnOnce(&[Data], &[Data]) -> T) -> T;
-
-    fn pop_by_ref<T>(&self, count: usize, consumer: impl FnOnce(&[Data]) -> T) -> T
+    fn pop<T>(&self, count: usize, consumer: impl FnOnce(&[Data], &[Data]) -> (T, usize)) -> T;
+    fn try_pop<T>(
+        &self,
+        count: usize,
+        consumer: impl FnOnce(&[Data], &[Data]) -> (T, usize),
+    ) -> Option<T>;
+    fn pop_by_ref<T>(&self, count: usize, consumer: impl FnOnce(&[Data]) -> (T, usize)) -> T
     where
         Data: Copy + Clone,
     {
@@ -43,7 +55,7 @@ pub trait Buffer<Data>: Send + Sync {
     fn pop_by_iterator<T>(
         &self,
         count: usize,
-        consumer: impl FnOnce(Box<dyn Iterator<Item = &Data> + '_>) -> T,
+        consumer: impl FnOnce(Box<dyn Iterator<Item = &Data> + '_>) -> (T, usize),
     ) -> T
     where
         Data: std::clone::Clone,
