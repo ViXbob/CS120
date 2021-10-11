@@ -61,6 +61,11 @@ pub fn frame_resolve_to_bitvec(
     }
     let begin_index = begin_index.unwrap();
     let sample_per_bit = sample_rate / speed;
+
+    if begin_index + frame_length * (sample_per_bit as usize) >= data.len() {
+        return (None, begin_index - header.len() * 2);
+    }
+
     let fft_len: usize = sample_per_bit as usize;
     let mut planner = FftPlanner::<f32>::new();
     let fft = planner.plan_fft_forward(fft_len);
