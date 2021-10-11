@@ -153,17 +153,56 @@ pub fn generate_frame_sample_from_bitvec(
 mod test {
     use std::fs::File;
     use std::io::BufReader;
-    use std::sync::Arc;
     use rand::Rng;
-    use rodio::{Decoder, Source};
+    use std::sync::Arc;
     use cs140_buffer::ring_buffer::RingBuffer;
     use cs140_common::buffer::Buffer;
     use cs140_common::descriptor::{SampleFormat, SoundDescriptor};
     use cs140_common::device::OutputDevice;
     use cs140_common::record::Recorder;
-    use crate::framing::frame::generate_frame_sample;
-    use crate::framing::{frame, header};
     use hound::WavWriter;
+    use rodio::{Decoder, Source};
+
+    use super::*;
+
+    fn generate_noise(length:usize) ->Vec<f32> {
+        (0..length)
+            .map(|_| {
+                rand::thread_rng()
+                    .gen_range(-std::f32::consts::PI..std::f32::consts::PI)
+                    .sin()
+                    * 1.0
+            })
+            .collect::<Vec<f32>>()
+    }
+
+    fn generate_test_frame(length:usize,multiplex_frequency:&[f32]) ->(Vec<i32>,Vec<f32>){
+        let data = (0..length)
+            .map(|_| rand::thread_rng().gen_range(0..2))
+            .collect::<Vec<i32>>();
+        let frame = generate_frame_sample(
+            data.as_slice(),
+            multiplex_frequency.len(),
+            &multiplex_frequency,
+            48000,
+            1000,
+        );
+        (data,frame)
+    }
+
+    #[test]
+    fn test_detect_header() {
+        const header_length: usize = 220;
+        let noise = generate_noise(4096);
+        let (ground_truth,audio) = generate_test_frame(512,&[5000.0]);
+        let data = vec![noise,audio,generate_noise(2000)].concat();
+        let header = super::header::header_create(220, 3000.0, 6000.0, 48000, 1.0);
+        let first_index = super::header::header_detect(&data, 220, &header)
+            .expect("detection failed");
+        assert_eq!(header_length+4096,first_index);
+        println!("{}", first_index);
+    }
+
 
     fn read_from_file_to_vec(path: &str) -> Vec<f32> {
         println!("{}", path);
@@ -186,10 +225,10 @@ mod test {
 
     #[test]
     fn header_detect_test() -> Result<(), anyhow::Error> {
-        const PATH: &str = "/Users/vixbob/cs140/cs140-playground/recorded1.wav";
+        const PATH: &str = "./recorded1.wav";
         let data = read_from_file_to_vec(PATH);
-        let header = header::header_create(220, 3000.0, 6000.0, 48000, 1.0);
-        let first_index = header::header_detect(&data, 220, &header)
+        let header = super::header::header_create(220, 3000.0, 6000.0, 48000, 1.0);
+        let first_index = super::header::header_detect(&data, 220, &header)
             .expect("detection failed");
         println!("{}", first_index);
         Ok(())
@@ -242,43 +281,43 @@ mod test {
             concat!(env!("CARGO_MANIFEST_DIR"), "/output.wav"),
             descriptor.clone().into(),
         )
-        .unwrap();
+            .unwrap();
         let recorder = Recorder::new(writer, data.len() as usize);
         recorder.record_from_slice(&data);
     }
 
-    #[test]
-    fn generate_noise() {
-        let data = (0..12000)
-            .map(|_| {
-                rand::thread_rng()
-                    .gen_range(-std::f32::consts::PI..std::f32::consts::PI)
-                    .sin()
-                    * 1.0
-            })
-            .collect::<Vec<f32>>();
-        let descriptor = SoundDescriptor {
-            channels: 1,
-            sample_rate: 48000,
-            sample_format: SampleFormat::F32,
-        };
-        let writer = WavWriter::create(
-            concat!(env!("CARGO_MANIFEST_DIR"), "/noise.wav"),
-            descriptor.clone().into(),
-        )
-            .unwrap();
-        let recorder = Recorder::new(writer, data.len() as usize);
-        recorder.record_from_slice(&data.as_slice());
-    }
+    // #[test]
+    // fn generate_noise() {
+    //     let data = (0..12000)
+    //         .map(|_| {
+    //             rand::thread_rng()
+    //                 .gen_range(-std::f32::consts::PI..std::f32::consts::PI)
+    //                 .sin()
+    //                 * 1.0
+    //         })
+    //         .collect::<Vec<f32>>();
+    //     let descriptor = SoundDescriptor {
+    //         channels: 1,
+    //         sample_rate: 48000,
+    //         sample_format: SampleFormat::F32,
+    //     };
+    //     let writer = WavWriter::create(
+    //         concat!(env!("CARGO_MANIFEST_DIR"), "/noise.wav"),
+    //         descriptor.clone().into(),
+    //     )
+    //         .unwrap();
+    //     let recorder = Recorder::new(writer, data.len() as usize);
+    //     recorder.record_from_slice(&data.as_slice());
+    // }
 
     #[test]
     fn frame_resolve_test() {
-        const PATH: &str = "/Users/vixbob/cs140/cs140-playground/recorded1.wav";
+        const PATH: &str = "./recorded1.wav";
         let data = read_from_file_to_vec(PATH);
         // println!("{:?}", data);
         let multiplex_frequency: [f32; 1] = [5000.0];
-        let header = header::header_create(220, 3000.0, 6000.0, 48000, 1.0);
-        let (result, next_index) = frame::frame_resolve(
+        let header = super::header::header_create(220, 3000.0, 6000.0, 48000, 1.0);
+        let (result, next_index) = frame_resolve(
             data.as_slice(),
             220,
             header.as_slice(),
@@ -288,7 +327,7 @@ mod test {
             1000,
             1000,
         )
-        .unwrap();
+            .unwrap();
         println!("{:?}", result);
         println!("{}", next_index);
     }
@@ -299,20 +338,17 @@ mod test {
         let data = (0..(record_time * 1000))
             .map(|_| rand::thread_rng().gen_range(0..2))
             .collect::<Vec<i32>>();
-        // let data = (0..(record_time * 1000))
-        //     .map(|x : _| x % 2)
-        //     .collect::<Vec<i32>>();
         println!("{:?}", data);
         let multiplex_frequency: [f32; 1] = [5000.0];
         let data = vec![
-            read_from_file_to_vec("/Users/vixbob/cs140/cs140-playground/noise.wav"),
+            read_from_file_to_vec("./noise.wav"),
             generate_frame_sample(
-            data.as_slice(),
-            multiplex_frequency.len(),
-            &multiplex_frequency,
-            48000,
-            1000,
-        )].concat();
+                data.as_slice(),
+                multiplex_frequency.len(),
+                &multiplex_frequency,
+                48000,
+                1000,
+            )].concat();
         let buffer: RingBuffer<f32, 100000, false> = RingBuffer::new();
         let buffer_ptr = Arc::new(buffer);
         let (output, _) = OutputDevice::new(buffer_ptr.clone());
