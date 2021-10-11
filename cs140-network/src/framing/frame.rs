@@ -151,14 +151,31 @@ pub fn generate_frame_sample_from_bitvec(
 
 #[cfg(test)]
 mod test {
+    use std::fs::File;
+    use std::io::BufReader;
     use std::sync::Arc;
+    use rand::Rng;
+    use rodio::{Decoder, Source};
     use cs140_buffer::ring_buffer::RingBuffer;
     use cs140_common::buffer::Buffer;
     use cs140_common::descriptor::{SampleFormat, SoundDescriptor};
     use cs140_common::device::OutputDevice;
     use cs140_common::record::Recorder;
     use crate::framing::frame::generate_frame_sample;
-    use crate::framing::header;
+    use crate::framing::{frame, header};
+    use hound::WavWriter;
+
+    fn read_from_file_to_vec(path: &str) -> Vec<f32> {
+        println!("{}", path);
+        // Load a sound from a file, using a path relative to Cargo.toml
+        let file = BufReader::new(File::open(path).unwrap());
+        // Decode that sound file into a source
+        let source = Decoder::new(file).unwrap();
+        // Play the sound directly on the device
+        // stream_handle.play_raw(source.convert_samples())?;
+        let data = source.convert_samples().buffered().collect::<Vec<f32>>();
+        return data;
+    }
 
     #[test]
     fn calculate_power_of_header() {
@@ -171,8 +188,8 @@ mod test {
     fn header_detect_test() -> Result<(), anyhow::Error> {
         const PATH: &str = "/Users/vixbob/cs140/cs140-playground/recorded1.wav";
         let data = read_from_file_to_vec(PATH);
-        let header = cs140_frame_handler::header::header_create(220, 3000.0, 6000.0, 48000, 1.0);
-        let first_index = cs140_frame_handler::header::header_detect(&data, 220, &header)
+        let header = header::header_create(220, 3000.0, 6000.0, 48000, 1.0);
+        let first_index = header::header_detect(&data, 220, &header)
             .expect("detection failed");
         println!("{}", first_index);
         Ok(())
@@ -260,8 +277,8 @@ mod test {
         let data = read_from_file_to_vec(PATH);
         // println!("{:?}", data);
         let multiplex_frequency: [f32; 1] = [5000.0];
-        let header = cs140_frame_handler::header::header_create(220, 3000.0, 6000.0, 48000, 1.0);
-        let (result, next_index) = cs140_frame_handler::frame::frame_resolve(
+        let header = header::header_create(220, 3000.0, 6000.0, 48000, 1.0);
+        let (result, next_index) = frame::frame_resolve(
             data.as_slice(),
             220,
             header.as_slice(),

@@ -11,10 +11,12 @@ pub struct PhysicalPackage(pub BitStore);
 
 impl NetworkPackage for PhysicalPackage {}
 
+type DefaultBuffer = RingBuffer<f32, 100000, false>;
+
 pub struct PhysicalLayer {
-    input: InputDevice<RingBuffer<f32, 100000, false>>,
-    output: OutputDevice<RingBuffer<f32, 100000, false>>,
-    buffer_ptr: Arc<RingBuffer<f32, 100000, false>>,
+    input: InputDevice<DefaultBuffer>,
+    output: OutputDevice<DefaultBuffer>,
+    buffer_ptr: Arc<DefaultBuffer>,
     multiplex_frequency: [f32; 1],
     header: [f32; 220],
     speed: u32,
