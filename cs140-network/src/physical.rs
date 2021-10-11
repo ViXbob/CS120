@@ -6,6 +6,8 @@ use cs140_buffer::ring_buffer::RingBuffer;
 use cs140_common::buffer::Buffer;
 use cs140_common::device::{InputDevice, OutputDevice};
 use std::sync::Arc;
+use cs140_common::descriptor::SoundDescriptor;
+use crate::framing::header::create_header;
 
 type DefaultBuffer = RingBuffer<f32, 100000, false>;
 
@@ -14,29 +16,33 @@ pub struct PhysicalPackage(pub BitStore);
 impl NetworkPackage for PhysicalPackage {}
 
 pub struct PhysicalLayer {
-    input: InputDevice<DefaultBuffer>,
-    output: OutputDevice<DefaultBuffer>,
-    buffer: Arc<DefaultBuffer>,
-    multiplex_frequency: &'static [f32],
-    header: [f32; 220],
+    input_descriptor: SoundDescriptor,
+    input_buffer: Arc<DefaultBuffer>,
+    output_descriptor: SoundDescriptor,
+    output_buffer: Arc<DefaultBuffer>,
+    multiplex_frequency: Vec<f32>,
     speed: u32,
     frame_length: usize,
+    header: Vec<f32>,
 }
 
-impl PhysicalLayer{
-    fn new(multiplex_frequency:&[f32])->Self{
-        unimplemented!();
-        let buffer = Arc::new(DefaultBuffer::new());
-        let (input_device, input_descriptor) = InputDevice::new(buffer.clone());
-        let (output_device,output_descriptor) = OutputDevice::new(buffer.clone());
-        PhysicalLayer{
-            input: input_device,
-            output: output_device,
-            buffer,
-            multiplex_frequency: &multiplex_frequency.to_owned(),
-            header: [0.0;220],
-            speed: 0,
-            frame_length: 0
+impl PhysicalLayer {
+    fn new(multiplex_frequency: &[f32], frame_length: usize) -> Self {
+        let input_buffer = Arc::new(DefaultBuffer::new());
+        let (input_device, input_descriptor) = InputDevice::new(input_buffer.clone());
+        let output_buffer = Arc::new(DefaultBuffer::new());
+        let (output_device, output_descriptor) = OutputDevice::new(output_buffer.clone());
+        input_device.listen();
+        output_device.play();
+        PhysicalLayer {
+            input_descriptor,
+            input_buffer,
+            output_descriptor,
+            output_buffer,
+            multiplex_frequency: multiplex_frequency.to_owned(),
+            speed: 1000,
+            frame_length: 800,
+            header: create_header(220, 3000.0, 6000.0, 48000),
         }
     }
 }
@@ -45,27 +51,26 @@ impl HandlePackage<PhysicalPackage> for PhysicalLayer {
     fn send(&mut self, package: PhysicalPackage) {
         let samples = frame::generate_frame_sample_from_bitvec(
             &package.0,
-            self.multiplex_frequency.len(),
+            &self.header,
             &self.multiplex_frequency,
-            self.output.sound_descriptor().sample_rate,
+            self.output_descriptor.sample_rate,
             self.speed,
         );
         let segment_len = 100;
         for segment in samples.chunks(segment_len) {
             // segment push
-            self.buffer.push_by_ref(segment);
+            self.output_buffer.push_by_ref(segment);
         }
     }
 
     fn receive(&mut self) -> PhysicalPackage {
         loop {
-            let mut return_package = self.buffer.pop_by_ref(111, |data| {
+            let mut return_package = self.input_buffer.pop_by_ref(2000, |data| {
                 frame::frame_resolve_to_bitvec(
                     data,
-                    self.header.len(),
                     &self.header,
                     &self.multiplex_frequency,
-                    self.output.sound_descriptor().sample_rate,
+                    self.input_descriptor.sample_rate,
                     self.speed,
                     self.frame_length,
                 )
@@ -74,5 +79,69 @@ impl HandlePackage<PhysicalPackage> for PhysicalLayer {
                 return PhysicalPackage(return_package.unwrap());
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use bitvec::prelude::*;
+    use rand::Rng;
+    use rand::seq::index::sample;
+    use cs140_common::buffer::Buffer;
+
+    fn push_data_to_buffer<T: Buffer<f32>>(buffer: &T, header: &Vec<f32>) -> BitVec<Lsb0, u8> {
+        let mut data: BitVec<Lsb0, u8> = BitVec::new();
+        let size = 512;
+        for i in 0..size {
+            data.push(rand::thread_rng().gen::<bool>());
+        }
+        let samples = frame::generate_frame_sample_from_bitvec(
+            &data,
+            header,
+            &[5000.0],
+            48000,
+            1000,
+        );
+        buffer.push_by_iterator(30000, &mut (0..30000).map(|x| (x as f32 * 6.28 * 3000.0 / 48000.0).sin() * 0.0).take(30000));
+        buffer.push_by_ref(&samples);
+        buffer.push_by_iterator(10000, &mut std::iter::repeat(0.0));
+        data
+    }
+
+    #[test]
+    fn test_decode_frame() {
+        let header = create_header(220, 3000.0, 6000.0, 48000);
+        let buffer = DefaultBuffer::new();
+        let ground_truth = push_data_to_buffer(&buffer, &header);
+        let result = buffer.pop_by_ref(25000, |data| {
+            frame::frame_resolve_to_bitvec(
+                data,
+                &header,
+                &[5000.0],
+                48000,
+                1000,
+                512,
+            )
+        });
+        let result = result.unwrap();
+        println!("result:\t{:?}", result);
+        println!("source:\t{:?}", ground_truth);
+        assert_eq!(result, ground_truth)
+    }
+
+    #[test]
+    fn test_decode_frame_from_physical_layer() {
+        let mut layer = PhysicalLayer::new(&[5000.0], 512);
+        let header = layer.header.clone();
+        let output_buffer = layer.output_buffer.clone();
+        let handle = std::thread::spawn(move || {
+            push_data_to_buffer(&*output_buffer, &header)
+        });
+        let ground_truth = handle.join().unwrap();
+        let response = layer.receive().0;
+        println!("result:\t{:?}", response);
+        println!("source:\t{:?}", ground_truth);
+        assert_eq!(response, ground_truth)
     }
 }

@@ -12,12 +12,12 @@ pub trait HandlePackage<Package: NetworkPackage> {
 
 #[cfg(test)]
 mod test {
-    use bitvec::vec::BitVec;
     use crate::encoding::BitStore;
+    use bitvec::vec::BitVec;
 
     #[test]
     fn test_bitstore() {
-        let mut bv : BitStore = BitVec::new();
+        let mut bv: BitStore = BitVec::new();
         bv.push(false);
         bv.push(true);
         bv.push(false);

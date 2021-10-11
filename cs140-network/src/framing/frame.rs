@@ -4,59 +4,58 @@ use bitvec::order::Lsb0;
 use bitvec::vec::BitVec;
 use rustfft::{num_complex::Complex, FftPlanner};
 
-pub fn frame_resolve(
-    data: &[f32],
-    header_length: usize,
-    header: &[f32],
-    multiplex_range: usize,
-    multiplex_frequency: &[f32],
-    sample_rate: u32,
-    speed: u32,
-    frame_length: usize,
-) -> Result<(Vec<i32>, usize), &'static str> {
-    let begin_index = header::header_detect(data, header_length, header).expect("detection failed");
-    let sample_per_bit = sample_rate / speed;
-    let fft_len: usize = sample_per_bit as usize;
-    let mut planner = FftPlanner::<f32>::new();
-    let fft = planner.plan_fft_forward(fft_len);
-    // let mut buffer: Vec<Complex<f32>> = Vec::new();
-    let mut result: Vec<i32> = Vec::new();
-    for i in 0..frame_length {
-        let buffer = data[(begin_index + i * sample_per_bit as usize)
-            ..(begin_index + (i + 1) * sample_per_bit as usize)]
-            .iter()
-            .map(|x: _| Complex::<f32>::new(*x, 0.0));
-        // let mut buffer : Vec<_> = buffer.skip(sample_per_bit as usize / 4).take(sample_per_bit as usize / 2).cycle().take(sample_per_bit as usize).collect();
-        let mut buffer: Vec<_> = buffer.collect();
-        fft.process(buffer.as_mut_slice());
-        for frequency in multiplex_frequency {
-            let index: usize = (*frequency as usize) / ((sample_rate / sample_per_bit) as usize);
-            let value = buffer[index];
-            println!("{}", value.im / (sample_per_bit as f32) * 2.0);
-            if (value.im.abs() / (sample_per_bit as f32) * 2.0 > 0.01) && (value.im < 0.0) {
-                result.push(1);
-            } else {
-                result.push(0);
-            }
-            // if (value.im.abs() / (sample_per_bit as f32) * 2.0 > 0.01) && (value.im > 0.0)
-        }
-    }
-    Ok((
-        result,
-        (begin_index + frame_length * sample_per_bit as usize) as usize,
-    ))
-}
+// pub fn frame_resolve(
+//     data: &[f32],
+//     header_length: usize,
+//     header: &[f32],
+//     multiplex_range: usize,
+//     multiplex_frequency: &[f32],
+//     sample_rate: u32,
+//     speed: u32,
+//     frame_length: usize,
+// ) -> Result<(Vec<i32>, usize), &'static str> {
+//     let begin_index = header::detect_header(data.iter(), header).expect("detection failed");
+//     let sample_per_bit = sample_rate / speed;
+//     let fft_len: usize = sample_per_bit as usize;
+//     let mut planner = FftPlanner::<f32>::new();
+//     let fft = planner.plan_fft_forward(fft_len);
+//     // let mut buffer: Vec<Complex<f32>> = Vec::new();
+//     let mut result: Vec<i32> = Vec::new();
+//     for i in 0..frame_length {
+//         let buffer = data[(begin_index + i * sample_per_bit as usize)
+//             ..(begin_index + (i + 1) * sample_per_bit as usize)]
+//             .iter()
+//             .map(|x: _| Complex::<f32>::new(*x, 0.0));
+//         // let mut buffer : Vec<_> = buffer.skip(sample_per_bit as usize / 4).take(sample_per_bit as usize / 2).cycle().take(sample_per_bit as usize).collect();
+//         let mut buffer: Vec<_> = buffer.collect();
+//         fft.process(buffer.as_mut_slice());
+//         for frequency in multiplex_frequency {
+//             let index: usize = (*frequency as usize) / ((sample_rate / sample_per_bit) as usize);
+//             let value = buffer[index];
+//             println!("{}", value.im / (sample_per_bit as f32) * 2.0);
+//             if (value.im.abs() / (sample_per_bit as f32) * 2.0 > 0.01) && (value.im < 0.0) {
+//                 result.push(1);
+//             } else {
+//                 result.push(0);
+//             }
+//             // if (value.im.abs() / (sample_per_bit as f32) * 2.0 > 0.01) && (value.im > 0.0)
+//         }
+//     }
+//     Ok((
+//         result,
+//         (begin_index + frame_length * sample_per_bit as usize) as usize,
+//     ))
+// }
 
 pub fn frame_resolve_to_bitvec(
     data: &[f32],
-    header_length: usize,
     header: &[f32],
     multiplex_frequency: &[f32],
     sample_rate: u32,
     speed: u32,
     frame_length: usize,
 ) -> (Option<BitStore>, usize) {
-    let begin_index = header::header_detect(data, header_length, header); //.expect("detection failed");
+    let begin_index = header::detect_header(data.iter(), header); //.expect("detection failed");
     if begin_index.is_none() {
         return (None, data.len() - header.len());
     }
@@ -102,7 +101,7 @@ pub fn generate_frame_sample(
 ) -> Vec<f32> {
     assert!(multiplex_range > 0);
     let samples_per_bit: f32 = (sample_rate / speed) as f32;
-    let mut rtn: Vec<f32> = header::header_create(220, 3000.0, 6000.0, sample_rate, 1.0);
+    let mut rtn: Vec<f32> = header::create_header(220, 3000.0, 6000.0, sample_rate);
     let sample_rate: f32 = sample_rate as f32;
     for (i, bits_group) in data.chunks(multiplex_range).enumerate() {
         for time in i * (samples_per_bit as usize)..(i + 1) * (samples_per_bit as usize) {
@@ -123,16 +122,16 @@ pub fn generate_frame_sample(
 
 pub fn generate_frame_sample_from_bitvec(
     data: &BitStore,
-    multiplex_range: usize,
+    header:&Vec<f32>,
     multiplex_frequency: &[f32],
     sample_rate: u32,
     speed: u32,
 ) -> Vec<f32> {
-    assert!(multiplex_range > 0);
+    assert!(multiplex_frequency.len() > 0);
     let samples_per_bit: f32 = (sample_rate / speed) as f32;
-    let mut rtn: Vec<f32> = header::header_create(220, 3000.0, 6000.0, sample_rate, 1.0);
+    let mut rtn: Vec<f32> = header.clone();
     let sample_rate: f32 = sample_rate as f32;
-    for (i, bits_group) in data.chunks(multiplex_range).enumerate() {
+    for (i, bits_group) in data.chunks(multiplex_frequency.len()).enumerate() {
         for time in i * (samples_per_bit as usize)..(i + 1) * (samples_per_bit as usize) {
             let phase: f32 = 2.0 * std::f32::consts::PI * time as f32 / sample_rate;
             let mut value: f32 = 0.0;
@@ -151,21 +150,21 @@ pub fn generate_frame_sample_from_bitvec(
 
 #[cfg(test)]
 mod test {
-    use std::fs::File;
-    use std::io::BufReader;
-    use rand::Rng;
-    use std::sync::Arc;
     use cs140_buffer::ring_buffer::RingBuffer;
     use cs140_common::buffer::Buffer;
     use cs140_common::descriptor::{SampleFormat, SoundDescriptor};
     use cs140_common::device::OutputDevice;
     use cs140_common::record::Recorder;
     use hound::WavWriter;
+    use rand::Rng;
     use rodio::{Decoder, Source};
+    use std::fs::File;
+    use std::io::BufReader;
+    use std::sync::Arc;
 
     use super::*;
 
-    fn generate_noise(length:usize) ->Vec<f32> {
+    fn generate_noise(length: usize) -> Vec<f32> {
         (0..length)
             .map(|_| {
                 rand::thread_rng()
@@ -176,7 +175,7 @@ mod test {
             .collect::<Vec<f32>>()
     }
 
-    fn generate_test_frame(length:usize,multiplex_frequency:&[f32]) ->(Vec<i32>,Vec<f32>){
+    fn generate_test_frame(length: usize, multiplex_frequency: &[f32]) -> (Vec<i32>, Vec<f32>) {
         let data = (0..length)
             .map(|_| rand::thread_rng().gen_range(0..2))
             .collect::<Vec<i32>>();
@@ -187,22 +186,20 @@ mod test {
             48000,
             1000,
         );
-        (data,frame)
+        (data, frame)
     }
 
     #[test]
     fn test_detect_header() {
         const header_length: usize = 220;
-        let noise = generate_noise(4096);
-        let (ground_truth,audio) = generate_test_frame(512,&[5000.0]);
-        let data = vec![noise,audio,generate_noise(2000)].concat();
-        let header = super::header::header_create(220, 3000.0, 6000.0, 48000, 1.0);
-        let first_index = super::header::header_detect(&data, 220, &header)
-            .expect("detection failed");
-        assert_eq!(header_length+4096,first_index);
+        let noise = generate_noise(30);
+        let (ground_truth, audio) = generate_test_frame(100, &[5000.0]);
+        let data = vec![noise, audio, generate_noise(30)].concat();
+        let header = super::header::create_header(220, 3000.0, 6000.0, 48000);
+        let first_index = super::header::detect_header(data.iter(), &header).expect("detection failed");
+        assert_eq!(header_length + 30, first_index);
         println!("{}", first_index);
     }
-
 
     fn read_from_file_to_vec(path: &str) -> Vec<f32> {
         println!("{}", path);
@@ -218,7 +215,7 @@ mod test {
 
     #[test]
     fn calculate_power_of_header() {
-        let data = header::header_create(440, 2000.0, 10000.0, 48000, 1.0);
+        let data = header::create_header(440, 2000.0, 10000.0, 48000);
         println!("{}", data.iter().map(|x: _| { x * x }).sum::<f32>());
         println!("{}", data.len());
     }
@@ -227,9 +224,8 @@ mod test {
     fn header_detect_test() -> Result<(), anyhow::Error> {
         const PATH: &str = "./recorded1.wav";
         let data = read_from_file_to_vec(PATH);
-        let header = super::header::header_create(220, 3000.0, 6000.0, 48000, 1.0);
-        let first_index = super::header::header_detect(&data, 220, &header)
-            .expect("detection failed");
+        let header = super::header::create_header(220, 3000.0, 6000.0, 48000);
+        let first_index = super::header::detect_header(data.iter(), &header).expect("detection failed");
         println!("{}", first_index);
         Ok(())
     }
@@ -281,7 +277,7 @@ mod test {
             concat!(env!("CARGO_MANIFEST_DIR"), "/output.wav"),
             descriptor.clone().into(),
         )
-            .unwrap();
+        .unwrap();
         let recorder = Recorder::new(writer, data.len() as usize);
         recorder.record_from_slice(&data);
     }
@@ -316,18 +312,15 @@ mod test {
         let data = read_from_file_to_vec(PATH);
         // println!("{:?}", data);
         let multiplex_frequency: [f32; 1] = [5000.0];
-        let header = super::header::header_create(220, 3000.0, 6000.0, 48000, 1.0);
-        let (result, next_index) = frame_resolve(
+        let header = super::header::create_header(220, 3000.0, 6000.0, 48000);
+        let (result, next_index) = frame_resolve_to_bitvec(
             data.as_slice(),
-            220,
             header.as_slice(),
-            1,
             &multiplex_frequency,
             48000,
             1000,
-            1000,
-        )
-            .unwrap();
+            1000
+        );
         println!("{:?}", result);
         println!("{}", next_index);
     }
@@ -348,7 +341,9 @@ mod test {
                 &multiplex_frequency,
                 48000,
                 1000,
-            )].concat();
+            ),
+        ]
+        .concat();
         let buffer: RingBuffer<f32, 100000, false> = RingBuffer::new();
         let buffer_ptr = Arc::new(buffer);
         let (output, _) = OutputDevice::new(buffer_ptr.clone());
