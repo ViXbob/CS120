@@ -5,16 +5,24 @@ use crate::redundancy::{RedundancyLayer, RedundancyPackage};
 use bitvec::order::Lsb0;
 use bitvec::vec::BitVec;
 
-// data_length in [0, 65535]
 pub struct IPPackage {
     data: Vec<u8>,
+}
+
+impl IPPackage {
+    fn new(data: Vec<u8>) -> Self {
+        assert!(data.len() < 65534);
+        Self {
+            data
+        }
+    }
 }
 
 impl NetworkPackage for IPPackage {}
 
 pub struct IPLayer {
     redundancy: RedundancyLayer,
-    frame_length: usize,
+    byte_per_frame: usize,
 }
 
 impl IPLayer {
@@ -22,43 +30,40 @@ impl IPLayer {
         let frame_length = redundancy.physical.frame_length;
         IPLayer {
             redundancy,
-            frame_length,
+            byte_per_frame: frame_length / 8,
         }
     }
 }
 
 impl HandlePackage<IPPackage> for IPLayer {
     fn send(&mut self, package: IPPackage) {
-        let frame_bytes: usize = self.frame_length / 8;
-        let data = package.data.clone();
-        let size = data.chunks(frame_bytes - 1).len();
-        for (index, bits) in data.chunks(frame_bytes - 1).enumerate() {
-            let mut tmp  = bits.to_vec();
-            while tmp.len() + 1 < frame_bytes {
-                tmp.push(0);
-            }
-            if index + 1 != size {
-                tmp.push(0);
-            } else {
-                tmp.push(1);
-            }
+        let byte_per_frame: usize = self.byte_per_frame;
+        let chunks = package.data.chunks(byte_per_frame - 2);
+        for ip_data in chunks {
+            let mut data = Vec::with_capacity(byte_per_frame);
+            let len = ip_data.len() as u16;
+            data.push((len & 0xff00 >> 8) as u8);
+            data.push((len & 0x00ff) as u8);
+            data.extend(ip_data.into_iter());
+            data.resize(byte_per_frame, 0);
             self.redundancy.send(RedundancyPackage {
-                data: tmp,
+                data,
             });
         }
     }
 
     fn receive(&mut self) -> IPPackage {
-        let mut data : Vec<u8> = Vec::new();
+        let mut data: Vec<u8> = Vec::new();
         loop {
             let package: RedundancyPackage = self.redundancy.receive();
-            data.extend(package.data.iter().take(self.frame_length - 1));
-            if *package.data.get(self.frame_length - 1).unwrap() == 1u8 {
-                break;
+            assert!(package.len() == self.byte_per_frame);
+            let len = (package[0] as u16) << 8 + package[1] as u16;
+            data.extend(package.into_iter().skip(2).take(len));
+            if len == self.byte_per_frame - 2 {
+                return IPPackage{
+                    data
+                };
             }
-        }
-        IPPackage {
-            data,
         }
     }
 }
