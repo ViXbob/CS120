@@ -82,7 +82,7 @@ pub fn frame_resolve_to_bitvec(
         for frequency in multiplex_frequency {
             let index: usize = (*frequency as usize) / ((sample_rate / sample_per_bit) as usize);
             let value = buffer[index];
-            println!("{}", value.im / (sample_per_bit as f32) * 2.0);
+            // println!("{}", value.im / (sample_per_bit as f32) * 2.0);
             if (value.im.abs() / (sample_per_bit as f32) * 2.0 > 0.01) && (value.im < 0.0) {
                 result.push(true);
             } else {
