@@ -1,11 +1,9 @@
 use cs140_buffer::ring_buffer::RingBuffer;
-use cs140_common::device::{InputDevice, OutputDevice};
+use cs140_common::descriptor::{SampleFormat, SoundDescriptor};
+use cs140_common::device::InputDevice;
 use cs140_common::record::Recorder;
 use hound::WavWriter;
 use std::sync::Arc;
-use cs140_buffer::vec_buffer::VecBuffer;
-use cs140_common::buffer::Buffer;
-use cs140_common::descriptor::{SampleFormat, SoundDescriptor};
 
 pub fn record(output_path: &str, record_time: usize) {
     let buffer: RingBuffer<f32, 100000, false> = RingBuffer::new();
@@ -19,13 +17,13 @@ pub fn record(output_path: &str, record_time: usize) {
     close_input();
 }
 
-pub fn record_from_slice(output_path: &str,audio: &[f32]){
+pub fn record_from_slice(output_path: &str, audio: &[f32]) {
     let descriptor = SoundDescriptor {
         channels: 1,
         sample_rate: 48000,
         sample_format: SampleFormat::F32,
     };
-    let writer = WavWriter::create(output_path,descriptor.into() ).unwrap();
+    let writer = WavWriter::create(output_path, descriptor.into()).unwrap();
     let recorder = Recorder::new(writer, audio.len() as usize);
     recorder.record_from_slice(audio);
 }

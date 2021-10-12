@@ -3,7 +3,10 @@ use std::collections::VecDeque;
 /// Detect the position of the start of data from audio using `header`
 ///
 /// If `None` returned, it means we do not find header from the audio
-pub fn detect_header<'a>(data_iter: impl Iterator<Item = &'a f32>, header: &[f32]) -> Option<usize> {
+pub fn detect_header<'a>(
+    data_iter: impl Iterator<Item = &'a f32>,
+    header: &[f32],
+) -> Option<usize> {
     let header_length = header.len();
     let correlation_value = |data_slice: &VecDeque<f32>| {
         data_slice
@@ -12,7 +15,11 @@ pub fn detect_header<'a>(data_iter: impl Iterator<Item = &'a f32>, header: &[f32
             .fold(0.0, |old, (x, y)| old + x * y)
     };
     let sum = header.iter().fold(0.0, |old, x| old + x * x);
-    let mut sync: VecDeque<f32> = VecDeque::from(std::iter::repeat(0.0).take(header_length).collect::<Vec<f32>>());
+    let mut sync: VecDeque<f32> = VecDeque::from(
+        std::iter::repeat(0.0)
+            .take(header_length)
+            .collect::<Vec<f32>>(),
+    );
     let mut power: f32 = 0.0;
     let mut start_index: usize = 0;
     let mut max_correlation: f32 = 0.0;
@@ -23,10 +30,10 @@ pub fn detect_header<'a>(data_iter: impl Iterator<Item = &'a f32>, header: &[f32
         sync.push_back(value);
         let now_correlation: f32 = correlation_value(&sync) / sum;
 
-        if now_correlation > power * 1.5
+        if now_correlation > power * 1.0
             && (now_correlation > max_correlation
                 || ((now_correlation - max_correlation).abs() < 1e-7 && index > start_index))
-            && now_correlation > 0.1
+            && now_correlation > 0.08
         {
             max_correlation = now_correlation;
             start_index = index;
