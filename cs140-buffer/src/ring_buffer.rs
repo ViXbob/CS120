@@ -26,7 +26,7 @@ impl<T, const N: usize, const GARBAGE_COLLECTION: bool> RingBuffer<T, N, GARBAGE
     #[allow(clippy::uninit_assumed_init)]
     pub fn new() -> Self {
         RingBuffer {
-            buffer: unsafe { Box::new(MaybeUninit::uninit().assume_init()) },
+            buffer: unsafe { Box::new_uninit().assume_init() },
             head: AtomicUsize::new(0),
             len: AtomicUsize::new(0),
             blocking_reader: Mutex::new(None),
@@ -240,14 +240,14 @@ mod tests {
 
     #[test]
     fn test_ring_buffer() {
-        let buffer = Arc::new(RingBuffer::<f32, 100000, false>::new());
+        let buffer = Arc::new(RingBuffer::<f32, 1000000, false>::new());
         let buffer_for_consumer = buffer.clone();
         let buffer_for_producer = buffer;
         let consumer = thread::spawn(move || {
             for _ in 0..1000 {
                 let start = Instant::now();
                 buffer_for_consumer.pop_by_ref(4000, |_| ((), 4000));
-                println!("pop cost: {} us", start.elapsed().as_micros())
+                println!("pop cost: {} ns", start.elapsed().as_nanos())
             }
             loop {
                 if buffer_for_consumer.try_pop(1000,|_,_|((),1000)).is_none(){
@@ -260,7 +260,7 @@ mod tests {
                 let data: Vec<_> = (0..40000).map(|x| (x as f32).sin()).collect();
                 let start = Instant::now();
                 buffer_for_producer.push_by_ref(&data);
-                println!("push cost: {} us", start.elapsed().as_micros())
+                println!("push cost: {} ns", start.elapsed().as_nanos())
             }
         });
         consumer.join().unwrap();
