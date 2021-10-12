@@ -1,6 +1,5 @@
 use super::header;
 use crate::encoding::BitStore;
-use bitvec::order::Lsb0;
 use bitvec::vec::BitVec;
 use rustfft::{num_complex::Complex, FftPlanner};
 
@@ -82,7 +81,7 @@ pub fn frame_resolve_to_bitvec(
         for frequency in multiplex_frequency {
             let index: usize = (*frequency as usize) / ((sample_rate / sample_per_bit) as usize);
             let value = buffer[index];
-            println!("{}", value.im / (sample_per_bit as f32) * 2.0);
+            // println!("{}", value.im / (sample_per_bit as f32) * 2.0);
             if (value.im.abs() / (sample_per_bit as f32) * 2.0 > 0.01) && (value.im < 0.0) {
                 result.push(true);
             } else {
@@ -127,12 +126,12 @@ pub fn generate_frame_sample(
 
 pub fn generate_frame_sample_from_bitvec(
     data: &BitStore,
-    header:&Vec<f32>,
+    header: &Vec<f32>,
     multiplex_frequency: &[f32],
     sample_rate: u32,
     speed: u32,
 ) -> Vec<f32> {
-    assert!(multiplex_frequency.len() > 0);
+    assert!(!multiplex_frequency.is_empty());
     let samples_per_bit: f32 = (sample_rate / speed) as f32;
     let mut rtn: Vec<f32> = header.clone();
     let sample_rate: f32 = sample_rate as f32;
@@ -201,7 +200,8 @@ mod test {
         let (ground_truth, audio) = generate_test_frame(100, &[5000.0]);
         let data = vec![noise, audio, generate_noise(30)].concat();
         let header = super::header::create_header(220, 3000.0, 6000.0, 48000);
-        let first_index = super::header::detect_header(data.iter(), &header).expect("detection failed");
+        let first_index =
+            super::header::detect_header(data.iter(), &header).expect("detection failed");
         assert_eq!(header_length + 30, first_index);
         println!("{}", first_index);
     }
@@ -230,7 +230,8 @@ mod test {
         const PATH: &str = "./recorded1.wav";
         let data = read_from_file_to_vec(PATH);
         let header = super::header::create_header(220, 3000.0, 6000.0, 48000);
-        let first_index = super::header::detect_header(data.iter(), &header).expect("detection failed");
+        let first_index =
+            super::header::detect_header(data.iter(), &header).expect("detection failed");
         println!("{}", first_index);
         Ok(())
     }
@@ -324,7 +325,7 @@ mod test {
             &multiplex_frequency,
             48000,
             1000,
-            1000
+            1000,
         );
         println!("{:?}", result);
         println!("{}", next_index);

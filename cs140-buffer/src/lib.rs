@@ -4,4 +4,3 @@
 
 pub mod buffer;
 pub mod ring_buffer;
-pub mod vec_buffer;

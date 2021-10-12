@@ -4,10 +4,8 @@ use std::sync::Mutex;
 use std::thread;
 use std::thread::Thread;
 
-use std::mem::MaybeUninit;
-
 pub struct RingBuffer<T, const N: usize, const GARBAGE_COLLECTION: bool> {
-    buffer: Box<[T;N]>,
+    buffer: Box<[T; N]>,
     head: AtomicUsize,
     len: AtomicUsize,
     blocking_reader: Mutex<Option<(Thread, usize)>>,
@@ -15,7 +13,7 @@ pub struct RingBuffer<T, const N: usize, const GARBAGE_COLLECTION: bool> {
 }
 
 impl<T, const N: usize, const GARBAGE_COLLECTION: bool> Default
-for RingBuffer<T, N, GARBAGE_COLLECTION>
+    for RingBuffer<T, N, GARBAGE_COLLECTION>
 {
     fn default() -> Self {
         Self::new()
@@ -60,7 +58,7 @@ impl<T, const N: usize, const GARBAGE_COLLECTION: bool> RingBuffer<T, N, GARBAGE
     }
 
     pub fn push(&self, count: usize, producer: impl FnOnce(&mut [T], &mut [T]) -> usize) {
-        assert_ne!(count,0);
+        assert_ne!(count, 0);
         if count > N / 2 {
             panic!("Can not push more than {} elements", N / 2);
         }
@@ -209,7 +207,7 @@ impl<T, const N: usize, const GARBAGE_COLLECTION: bool> RingBuffer<T, N, GARBAGE
 }
 
 impl<T, const N: usize, const GARBAGE_COLLECTION: bool> Drop
-for RingBuffer<T, N, GARBAGE_COLLECTION>
+    for RingBuffer<T, N, GARBAGE_COLLECTION>
 {
     fn drop(&mut self) {
         if GARBAGE_COLLECTION {
@@ -236,7 +234,6 @@ mod tests {
     use std::thread;
 
     use std::time::Instant;
-    use crate::vec_buffer::VecBuffer;
 
     #[test]
     fn test_ring_buffer() {
@@ -250,7 +247,10 @@ mod tests {
                 println!("pop cost: {} ns", start.elapsed().as_nanos())
             }
             loop {
-                if buffer_for_consumer.try_pop(1000,|_,_|((),1000)).is_none(){
+                if buffer_for_consumer
+                    .try_pop(1000, |_, _| ((), 1000))
+                    .is_none()
+                {
                     break;
                 }
             }

@@ -1,7 +1,7 @@
 use crate::encoding::{HandlePackage, NetworkPackage};
+use crate::ip::{IPLayer, IPPackage};
 use crate::physical::PhysicalPackage;
 use crate::redundancy::RedundancyPackage;
-use crate::udp::{UDPLayer, UDPPackage};
 
 pub struct TCPPackage {
     data: Vec<u8>,
@@ -10,7 +10,7 @@ pub struct TCPPackage {
 impl NetworkPackage for TCPPackage {}
 
 pub struct TCPLayer {
-    udp: UDPLayer,
+    ip: IPLayer,
 }
 
 impl HandlePackage<TCPPackage> for TCPLayer {
@@ -23,32 +23,32 @@ impl HandlePackage<TCPPackage> for TCPLayer {
     }
 }
 
-impl HandlePackage<UDPPackage> for TCPLayer {
-    fn send(&mut self, package: UDPPackage) {
-        self.udp.send(package)
+impl HandlePackage<IPPackage> for TCPLayer {
+    fn send(&mut self, package: IPPackage) {
+        self.ip.send(package)
     }
 
-    fn receive(&mut self) -> UDPPackage {
-        self.udp.receive()
+    fn receive(&mut self) -> IPPackage {
+        self.ip.receive()
     }
 }
 
 impl HandlePackage<RedundancyPackage> for TCPLayer {
     fn send(&mut self, package: RedundancyPackage) {
-        self.udp.send(package)
+        self.ip.send(package)
     }
 
     fn receive(&mut self) -> RedundancyPackage {
-        self.udp.receive()
+        self.ip.receive()
     }
 }
 
 impl HandlePackage<PhysicalPackage> for TCPLayer {
     fn send(&mut self, package: PhysicalPackage) {
-        self.udp.send(package)
+        self.ip.send(package)
     }
 
     fn receive(&mut self) -> PhysicalPackage {
-        self.udp.receive()
+        self.ip.receive()
     }
 }
