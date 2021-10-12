@@ -8,7 +8,7 @@ fn generate_random_data() -> Vec<u8> {
     use rand_pcg::Pcg64;
 
     let mut rng = Pcg64::seed_from_u64(2);
-    return (0..2500).map(|_|rng.gen()).collect();
+    return (0..2500).map(|_| rng.gen()).collect();
 }
 
 fn main() {
@@ -17,8 +17,8 @@ fn main() {
     let redundancy_layer = RedundancyLayer::new(physical_layer);
     let mut ip_layer = IPLayer::new(redundancy_layer);
     let mut index = 0;
-    let data:IPPackage = ip_layer.receive();
-    assert_eq!(data.data,generate_random_data())
+    let data: IPPackage = ip_layer.receive();
+    assert_eq!(data.data, generate_random_data())
     // loop{
     //     let data:RedundancyPackage = ip_layer.receive();
     //     println!("{:?}",data.data);

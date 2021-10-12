@@ -10,13 +10,16 @@ impl NetworkPackage for RedundancyPackage {}
 
 pub struct RedundancyLayer {
     pub(crate) physical: PhysicalLayer,
-    pub(crate) byte_in_frame: usize
+    pub(crate) byte_in_frame: usize,
 }
 
 impl RedundancyLayer {
     pub fn new(physical: PhysicalLayer) -> Self {
         let byte_in_frame = physical.byte_in_frame;
-        Self { physical, byte_in_frame }
+        Self {
+            physical,
+            byte_in_frame,
+        }
     }
 
     fn make_redundancy(&self, package: RedundancyPackage) -> BitStore {

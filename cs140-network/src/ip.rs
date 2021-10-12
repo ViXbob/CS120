@@ -36,19 +36,22 @@ impl IPLayer {
 impl HandlePackage<IPPackage> for IPLayer {
     fn send(&mut self, package: IPPackage) {
         let chunks = package.data.chunks(self.byte_in_frame);
-        let last_chunk_index = chunks.len()-1;
+        let last_chunk_index = chunks.len() - 1;
         for (index, ip_data) in chunks.enumerate() {
             let mut data = Vec::with_capacity(self.redundancy.byte_in_frame);
             let len = ip_data.len() as u16;
             data.push(((len & 0xff00) >> 8) as u8);
             data.push((len & 0x00ff) as u8);
-            data.push(if index == last_chunk_index {0b00000001} else{0});
+            data.push(if index == last_chunk_index {
+                0b00000001
+            } else {
+                0
+            });
             data.extend(ip_data.into_iter());
             data.resize(self.redundancy.byte_in_frame, 0);
             self.redundancy.send(RedundancyPackage { data });
             println!("Package {} sent, len {}.", index, len)
         }
-
     }
 
     fn receive(&mut self) -> IPPackage {
@@ -87,15 +90,15 @@ impl HandlePackage<PhysicalPackage> for IPLayer {
 
 #[cfg(test)]
 mod test {
-    use bitvec::order::Lsb0;
-    use bitvec::vec::BitVec;
-    use rand::Rng;
-    use cs140_common::buffer::Buffer;
     use crate::encoding::HandlePackage;
     use crate::framing::frame;
     use crate::ip::{IPLayer, IPPackage};
     use crate::physical::PhysicalLayer;
     use crate::redundancy::RedundancyLayer;
+    use bitvec::order::Lsb0;
+    use bitvec::vec::BitVec;
+    use cs140_common::buffer::Buffer;
+    use rand::Rng;
 
     const FREQUENCY: &'static [f32] = &[3000.0, 6000.0];
     const BYTE_PER_FRAME: usize = 128;
@@ -135,7 +138,9 @@ mod test {
         let mut data = BitVec::new();
         let (samples, data_) = generate_data(size, header, multiplex_frequency);
         // buffer.push_by_ref(&samples);
-        ip.send(IPPackage { data: data.clone().into_vec() });
+        ip.send(IPPackage {
+            data: data.clone().into_vec(),
+        });
         buffer.push_by_iterator(10000, &mut std::iter::repeat(0.0));
         data
     }
@@ -146,7 +151,14 @@ mod test {
         let output_buffer = physical.output_buffer.clone();
         let redundancy: RedundancyLayer = RedundancyLayer::new(physical);
         let mut ip_server: IPLayer = IPLayer::new(redundancy);
-        let ground_truth = push_data_to_buffer(&*output_buffer, &mut ip_server, 10000, BYTE_PER_FRAME * 8, &header, FREQUENCY);
+        let ground_truth = push_data_to_buffer(
+            &*output_buffer,
+            &mut ip_server,
+            10000,
+            BYTE_PER_FRAME * 8,
+            &header,
+            FREQUENCY,
+        );
         // ip_server.receive();
     }
 }

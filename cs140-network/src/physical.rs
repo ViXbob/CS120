@@ -33,7 +33,7 @@ pub struct PhysicalLayer {
 }
 
 impl PhysicalLayer {
-    fn push_warm_up_data_to_buffer(buffer: &Arc<DefaultBuffer>){
+    fn push_warm_up_data_to_buffer(buffer: &Arc<DefaultBuffer>) {
         buffer.push_by_iterator(
             30000,
             &mut (0..30000)
@@ -164,7 +164,7 @@ mod test {
         use rand_pcg::Pcg64;
 
         let mut rng = Pcg64::seed_from_u64(2);
-        let vec : Vec<u8> =(0..size).map(|_|rng.gen()).collect();
+        let vec: Vec<u8> = (0..size).map(|_| rng.gen()).collect();
         let data = BitVec::from_vec(vec);
         let mut samples = frame::generate_frame_sample_from_bitvec(
             &data,
