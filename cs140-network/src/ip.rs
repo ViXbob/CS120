@@ -1,20 +1,18 @@
-use bitvec::view::BitView;
 use crate::encoding::{BitStore, HandlePackage, NetworkPackage};
 use crate::physical::PhysicalPackage;
 use crate::redundancy::{RedundancyLayer, RedundancyPackage};
 use bitvec::order::Lsb0;
 use bitvec::vec::BitVec;
+use bitvec::view::BitView;
 
 pub struct IPPackage {
-    data: Vec<u8>,
+    pub data: Vec<u8>,
 }
 
 impl IPPackage {
-    fn new(data: Vec<u8>) -> Self {
+    pub fn new(data: Vec<u8>) -> Self {
         assert!(data.len() < 65534);
-        Self {
-            data
-        }
+        Self { data }
     }
 }
 
@@ -26,7 +24,7 @@ pub struct IPLayer {
 }
 
 impl IPLayer {
-    fn new(redundancy: RedundancyLayer) -> Self {
+    pub fn new(redundancy: RedundancyLayer) -> Self {
         let frame_length = redundancy.physical.frame_length;
         IPLayer {
             redundancy,
@@ -39,16 +37,15 @@ impl HandlePackage<IPPackage> for IPLayer {
     fn send(&mut self, package: IPPackage) {
         let byte_per_frame: usize = self.byte_per_frame;
         let chunks = package.data.chunks(byte_per_frame - 2);
-        for ip_data in chunks {
+        for (index, ip_data) in chunks.enumerate() {
             let mut data = Vec::with_capacity(byte_per_frame);
             let len = ip_data.len() as u16;
             data.push((len & 0xff00 >> 8) as u8);
             data.push((len & 0x00ff) as u8);
             data.extend(ip_data.into_iter());
             data.resize(byte_per_frame, 0);
-            self.redundancy.send(RedundancyPackage {
-                data,
-            });
+            self.redundancy.send(RedundancyPackage { data });
+            println!("Package {} sent, len {}.", index, len)
         }
     }
 
@@ -56,13 +53,11 @@ impl HandlePackage<IPPackage> for IPLayer {
         let mut data: Vec<u8> = Vec::new();
         loop {
             let package: RedundancyPackage = self.redundancy.receive();
-            assert!(package.len() == self.byte_per_frame);
-            let len = (package[0] as u16) << 8 + package[1] as u16;
-            data.extend(package.into_iter().skip(2).take(len));
+            assert_eq!(package.data.len(), self.byte_per_frame);
+            let len = (package.data[0] as usize) << 8 + package.data[1] as usize;
+            data.extend(package.data.into_iter().skip(2).take(len));
             if len == self.byte_per_frame - 2 {
-                return IPPackage{
-                    data
-                };
+                return IPPackage { data };
             }
         }
     }

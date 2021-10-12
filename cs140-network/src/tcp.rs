@@ -1,7 +1,7 @@
 use crate::encoding::{HandlePackage, NetworkPackage};
+use crate::ip::{IPLayer, IPPackage};
 use crate::physical::PhysicalPackage;
 use crate::redundancy::RedundancyPackage;
-use crate::ip::{IPLayer, IPPackage};
 
 pub struct TCPPackage {
     data: Vec<u8>,

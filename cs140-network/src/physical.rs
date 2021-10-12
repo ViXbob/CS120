@@ -7,7 +7,7 @@ use cs140_common::descriptor::SoundDescriptor;
 use cs140_common::device::{InputDevice, OutputDevice};
 use std::sync::Arc;
 
-type DefaultBuffer = RingBuffer<f32, 1500000, false>;
+type DefaultBuffer = RingBuffer<f32, 5000000, false>;
 
 pub struct PhysicalPackage(pub BitStore);
 
@@ -29,7 +29,7 @@ pub struct PhysicalLayer {
 }
 
 impl PhysicalLayer {
-    fn new(multiplex_frequency: &[f32], frame_length: usize) -> Self {
+    pub fn new(multiplex_frequency: &[f32], frame_length: usize) -> Self {
         let input_buffer = Arc::new(DefaultBuffer::new());
         let (input_device, input_descriptor) = InputDevice::new(input_buffer.clone());
         let output_buffer = Arc::new(DefaultBuffer::new());

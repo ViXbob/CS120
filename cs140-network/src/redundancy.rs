@@ -13,10 +13,8 @@ pub struct RedundancyLayer {
 }
 
 impl RedundancyLayer {
-    fn new(physical: PhysicalLayer) -> Self {
-        Self{
-            physical
-        }
+    pub fn new(physical: PhysicalLayer) -> Self {
+        Self { physical }
     }
 
     fn make_redundancy(&self, package: RedundancyPackage) -> BitStore {
