@@ -30,11 +30,12 @@ pub fn detect_header<'a>(
         sync.push_back(value);
         let now_correlation: f32 = correlation_value(&sync) / sum;
 
-        if now_correlation > power * 1.0
+        if now_correlation > power * 1.5
             && (now_correlation > max_correlation
                 || ((now_correlation - max_correlation).abs() < 1e-7 && index > start_index))
-            && now_correlation > 0.08
+            && now_correlation > 0.1
         {
+            // println!("{}, {}, {}, {}", sum, now_correlation, max_correlation, power);
             max_correlation = now_correlation;
             start_index = index;
         } else if (index - start_index > 200) && start_index != 0 {

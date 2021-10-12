@@ -3,18 +3,20 @@ use crate::physical::{PhysicalLayer, PhysicalPackage};
 use bitvec::prelude::BitVec;
 
 pub struct RedundancyPackage {
-    pub(crate) data: Vec<u8>,
+    pub data: Vec<u8>,
 }
 
 impl NetworkPackage for RedundancyPackage {}
 
 pub struct RedundancyLayer {
     pub(crate) physical: PhysicalLayer,
+    pub(crate) byte_in_frame: usize
 }
 
 impl RedundancyLayer {
     pub fn new(physical: PhysicalLayer) -> Self {
-        Self { physical }
+        let byte_in_frame = physical.byte_in_frame;
+        Self { physical, byte_in_frame }
     }
 
     fn make_redundancy(&self, package: RedundancyPackage) -> BitStore {

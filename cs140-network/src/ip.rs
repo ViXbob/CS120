@@ -20,43 +20,45 @@ impl NetworkPackage for IPPackage {}
 
 pub struct IPLayer {
     redundancy: RedundancyLayer,
-    byte_per_frame: usize,
+    byte_in_frame: usize,
 }
 
 impl IPLayer {
     pub fn new(redundancy: RedundancyLayer) -> Self {
-        let frame_length = redundancy.physical.frame_length;
+        let byte_in_frame = redundancy.byte_in_frame - 3;
         IPLayer {
             redundancy,
-            byte_per_frame: frame_length / 8,
+            byte_in_frame,
         }
     }
 }
 
 impl HandlePackage<IPPackage> for IPLayer {
     fn send(&mut self, package: IPPackage) {
-        let byte_per_frame: usize = self.byte_per_frame;
-        let chunks = package.data.chunks(byte_per_frame - 2);
+        let chunks = package.data.chunks(self.byte_in_frame);
+        let last_chunk_index = chunks.len()-1;
         for (index, ip_data) in chunks.enumerate() {
-            let mut data = Vec::with_capacity(byte_per_frame);
+            let mut data = Vec::with_capacity(self.redundancy.byte_in_frame);
             let len = ip_data.len() as u16;
-            data.push((len & 0xff00 >> 8) as u8);
+            data.push(((len & 0xff00) >> 8) as u8);
             data.push((len & 0x00ff) as u8);
+            data.push(if index == last_chunk_index {0b00000001} else{0});
             data.extend(ip_data.into_iter());
-            data.resize(byte_per_frame, 0);
+            data.resize(self.redundancy.byte_in_frame, 0);
             self.redundancy.send(RedundancyPackage { data });
             println!("Package {} sent, len {}.", index, len)
         }
+
     }
 
     fn receive(&mut self) -> IPPackage {
         let mut data: Vec<u8> = Vec::new();
         loop {
             let package: RedundancyPackage = self.redundancy.receive();
-            assert_eq!(package.data.len(), self.byte_per_frame);
-            let len = (package.data[0] as usize) << 8 + package.data[1] as usize;
-            data.extend(package.data.into_iter().skip(2).take(len));
-            if len == self.byte_per_frame - 2 {
+            let len = ((package.data[0] as usize) << 8) + package.data[1] as usize;
+            let ended = (package.data[2] & 1) == 1;
+            data.extend(package.data.into_iter().skip(3).take(len));
+            if ended {
                 return IPPackage { data };
             }
         }
@@ -80,5 +82,71 @@ impl HandlePackage<PhysicalPackage> for IPLayer {
 
     fn receive(&mut self) -> PhysicalPackage {
         self.redundancy.receive()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use bitvec::order::Lsb0;
+    use bitvec::vec::BitVec;
+    use rand::Rng;
+    use cs140_common::buffer::Buffer;
+    use crate::encoding::HandlePackage;
+    use crate::framing::frame;
+    use crate::ip::{IPLayer, IPPackage};
+    use crate::physical::PhysicalLayer;
+    use crate::redundancy::RedundancyLayer;
+
+    const FREQUENCY: &'static [f32] = &[3000.0, 6000.0];
+    const BYTE_PER_FRAME: usize = 128;
+    fn generate_data(
+        size: usize,
+        header: &Vec<f32>,
+        multiplex_frequency: &[f32],
+    ) -> (Vec<f32>, BitVec<Lsb0, u8>) {
+        let mut data: BitVec<Lsb0, u8> = BitVec::new();
+        for i in 0..size {
+            data.push(rand::thread_rng().gen::<bool>());
+        }
+        let mut samples = frame::generate_frame_sample_from_bitvec(
+            &data,
+            header,
+            multiplex_frequency,
+            48000,
+            1000,
+        );
+        (samples, data)
+    }
+
+    fn push_data_to_buffer<T: Buffer<f32>>(
+        buffer: &T,
+        ip: &mut IPLayer,
+        size: usize,
+        frame_size: usize,
+        header: &Vec<f32>,
+        multiplex_frequency: &[f32],
+    ) -> BitVec<Lsb0, u8> {
+        buffer.push_by_iterator(
+            30000,
+            &mut (0..30000)
+                .map(|x| (x as f32 * 6.28 * 3000.0 / 48000.0).sin() * 0.5)
+                .take(30000),
+        );
+        let mut data = BitVec::new();
+        let (samples, data_) = generate_data(size, header, multiplex_frequency);
+        // buffer.push_by_ref(&samples);
+        ip.send(IPPackage { data: data.clone().into_vec() });
+        buffer.push_by_iterator(10000, &mut std::iter::repeat(0.0));
+        data
+    }
+
+    fn test_ip_layer() {
+        let physical: PhysicalLayer = PhysicalLayer::new(FREQUENCY, BYTE_PER_FRAME * 2);
+        let header = physical.header.clone();
+        let output_buffer = physical.output_buffer.clone();
+        let redundancy: RedundancyLayer = RedundancyLayer::new(physical);
+        let mut ip_server: IPLayer = IPLayer::new(redundancy);
+        let ground_truth = push_data_to_buffer(&*output_buffer, &mut ip_server, 10000, BYTE_PER_FRAME * 8, &header, FREQUENCY);
+        // ip_server.receive();
     }
 }
