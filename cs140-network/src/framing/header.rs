@@ -41,7 +41,7 @@ pub fn detect_header<'a>(
             max_correlation = now_correlation;
             start_index = index;
         } else if (index - start_index > 200) && start_index != 0 {
-            // println!("detect: {}, {}, {}, {}", sum, now_correlation, max_correlation, power);
+            // println!("detect: {}, {}, {}, {}, {}", sum, now_correlation, max_correlation, power, value);
             return Some(start_index + 1);
         }
     }

@@ -15,10 +15,10 @@ fn generate_random_data() -> Vec<u8> {
 
 fn main() {
     let data = generate_random_data();
-    let padding = 497;
+    let padding = 50;
     let (packages,r) = make_redundancy(data,padding,1.0);
     println!("data_shard_count: {}, parity_shard_count: {}",r.data_shard_count(),r.parity_shard_count());
-    let physical_layer = PhysicalLayer::new_send_only(&[4000.0, 5000.0], 500);
+    let physical_layer = PhysicalLayer::new_send_only(&[4000.0, 5000.0], 53);
     let redundancy_layer = RedundancyLayer::new(physical_layer);
     let mut ip_layer = IPLayer::new(redundancy_layer);
     for p in packages{

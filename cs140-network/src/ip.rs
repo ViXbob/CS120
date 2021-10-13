@@ -59,7 +59,11 @@ impl HandlePackage<IPPackage> for IPLayer {
         loop {
             let package: RedundancyPackage = self.redundancy.receive();
             let len = ((package.data[0] as usize) << 8) + package.data[1] as usize;
+            // println!("we received a package with len:{}", len);
             let ended = (package.data[2] & 1) == 1;
+            // if ended{
+            //     println!("the package is ended");
+            // }
             data.extend(package.data.into_iter().skip(3).take(len));
             if ended {
                 return IPPackage { data };

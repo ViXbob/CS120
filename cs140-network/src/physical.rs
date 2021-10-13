@@ -6,6 +6,7 @@ use cs140_common::buffer::Buffer;
 use cs140_common::descriptor::SoundDescriptor;
 use cs140_common::device::{InputDevice, OutputDevice};
 use std::sync::Arc;
+use cs140_common::padding::{padding, padding_range};
 
 type DefaultBuffer = RingBuffer<f32, 5000000, false>;
 
@@ -119,6 +120,7 @@ impl HandlePackage<PhysicalPackage> for PhysicalLayer {
             // segment push
             self.output_buffer.push_by_ref(segment);
         }
+        self.output_buffer.push_by_ref(&padding_range(-1.0,1.0).take(HEADER_LENGTH).collect::<Vec<f32>>());
     }
 
     fn receive(&mut self) -> PhysicalPackage {
@@ -217,9 +219,9 @@ mod test {
 
     #[test]
     fn test_decode_frame_from_physical_layer() {
-        const SIZE: usize = 500;
+        const SIZE: usize = 128;
         const FREQUENCY: &'static [f32] = &[4000.0, 5000.0];
-        const FRAME_SIZE: usize = 2;
+        const FRAME_SIZE: usize = 10;
         let mut layer = PhysicalLayer::new(FREQUENCY, SIZE);
         let header = layer.header.clone();
         let output_buffer = layer.output_buffer.clone();
