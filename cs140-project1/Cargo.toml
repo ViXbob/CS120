@@ -17,6 +17,7 @@ hound = "3.4.0"
 rodio = "0.14.0"
 rand="0.8.4"
 rand_pcg = "0.3.1"
+bitvec = "0.22.3"
 reed-solomon-erasure = { version = "4.0", features = ["simd-accel"] }
 
 [[bin]]

@@ -50,7 +50,7 @@ impl HandlePackage<IPPackage> for IPLayer {
             data.extend(ip_data.into_iter());
             data.resize(self.redundancy.byte_in_frame, 0);
             self.redundancy.send(RedundancyPackage { data });
-            println!("Package {} sent, len {}.", index, len)
+            println!("Package {} sent, len {}.", index, len);
         }
     }
 

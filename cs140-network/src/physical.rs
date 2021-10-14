@@ -5,8 +5,8 @@ use cs140_buffer::ring_buffer::RingBuffer;
 use cs140_common::buffer::Buffer;
 use cs140_common::descriptor::SoundDescriptor;
 use cs140_common::device::{InputDevice, OutputDevice};
-use std::sync::Arc;
 use cs140_common::padding::{padding, padding_range};
+use std::sync::Arc;
 
 type DefaultBuffer = RingBuffer<f32, 5000000, false>;
 
@@ -120,7 +120,11 @@ impl HandlePackage<PhysicalPackage> for PhysicalLayer {
             // segment push
             self.output_buffer.push_by_ref(segment);
         }
-        self.output_buffer.push_by_ref(&padding_range(-1.0,1.0).take(HEADER_LENGTH).collect::<Vec<f32>>());
+        self.output_buffer.push_by_ref(
+            &padding_range(-1.0, 1.0)
+                .take(HEADER_LENGTH)
+                .collect::<Vec<f32>>(),
+        );
     }
 
     fn receive(&mut self) -> PhysicalPackage {
