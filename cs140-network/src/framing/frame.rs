@@ -126,14 +126,14 @@ pub fn generate_frame_sample(
 
 pub fn generate_frame_sample_from_bitvec(
     data: &BitStore,
-    header: &Vec<f32>,
+    header: &[f32],
     multiplex_frequency: &[f32],
     sample_rate: u32,
     speed: u32,
 ) -> Vec<f32> {
     assert!(!multiplex_frequency.is_empty());
     let samples_per_bit: f32 = (sample_rate / speed) as f32;
-    let mut rtn: Vec<f32> = header.clone();
+    let mut rtn: Vec<f32> = header.to_owned();
     let sample_rate: f32 = sample_rate as f32;
     for (i, bits_group) in data.chunks(multiplex_frequency.len()).enumerate() {
         for time in i * (samples_per_bit as usize)..(i + 1) * (samples_per_bit as usize) {

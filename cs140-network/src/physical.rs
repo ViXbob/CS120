@@ -1,3 +1,4 @@
+use std::f32::consts::PI;
 use crate::encoding::{BitStore, HandlePackage, NetworkPackage};
 use crate::framing::frame;
 use crate::framing::header::create_header;
@@ -5,8 +6,8 @@ use cs140_buffer::ring_buffer::RingBuffer;
 use cs140_common::buffer::Buffer;
 use cs140_common::descriptor::SoundDescriptor;
 use cs140_common::device::{InputDevice, OutputDevice};
+use cs140_common::padding::padding_range;
 use std::sync::Arc;
-use cs140_common::padding::{padding, padding_range};
 
 type DefaultBuffer = RingBuffer<f32, 5000000, false>;
 
@@ -38,7 +39,7 @@ impl PhysicalLayer {
         buffer.push_by_iterator(
             30000,
             &mut (0..30000)
-                .map(|x| (x as f32 * 6.28 * 3000.0 / 48000.0).sin() * 0.5)
+                .map(|x| (x as f32 * 2.0 * PI * 3000.0 / 48000.0).sin() * 0.5)
                 .take(30000),
         );
     }
@@ -120,7 +121,11 @@ impl HandlePackage<PhysicalPackage> for PhysicalLayer {
             // segment push
             self.output_buffer.push_by_ref(segment);
         }
-        self.output_buffer.push_by_ref(&padding_range(-1.0,1.0).take(HEADER_LENGTH).collect::<Vec<f32>>());
+        self.output_buffer.push_by_ref(
+            &padding_range(-1.0, 1.0)
+                .take(HEADER_LENGTH)
+                .collect::<Vec<f32>>(),
+        );
     }
 
     fn receive(&mut self) -> PhysicalPackage {
@@ -130,20 +135,20 @@ impl HandlePackage<PhysicalPackage> for PhysicalLayer {
                     / self.speed as usize,
                 |data| {
                     // let current = std::time::Instant::now();
-                    let tmp = frame::frame_resolve_to_bitvec(
+                    frame::frame_resolve_to_bitvec(
                         data,
                         &self.header,
                         &self.multiplex_frequency,
                         self.input_descriptor.sample_rate,
                         self.speed,
                         self.frame_length,
-                    );
-                    // println!("begin_index = {}", tmp.1);
-                    tmp
+                    )
                 },
             );
-            if return_package.is_some() {
-                return PhysicalPackage(return_package.unwrap());
+            if let Some(package) = return_package {
+                return PhysicalPackage{
+                    0:package
+                }
             }
         }
     }

@@ -1,9 +1,7 @@
-use crate::encoding::{BitStore, HandlePackage, NetworkPackage};
+use crate::encoding::{HandlePackage, NetworkPackage};
 use crate::physical::PhysicalPackage;
 use crate::redundancy::{RedundancyLayer, RedundancyPackage};
-use bitvec::order::Lsb0;
-use bitvec::vec::BitVec;
-use bitvec::view::BitView;
+use cs140_common::padding;
 
 pub struct IPPackage {
     pub data: Vec<u8>,
@@ -11,7 +9,6 @@ pub struct IPPackage {
 
 impl IPPackage {
     pub fn new(data: Vec<u8>) -> Self {
-        assert!(data.len() < 65534);
         Self { data }
     }
 }
@@ -25,7 +22,7 @@ pub struct IPLayer {
 
 impl IPLayer {
     pub fn new(redundancy: RedundancyLayer) -> Self {
-        let byte_in_frame = redundancy.byte_in_frame - 3;
+        let byte_in_frame = redundancy.byte_in_frame;
         IPLayer {
             redundancy,
             byte_in_frame,
@@ -38,19 +35,11 @@ impl HandlePackage<IPPackage> for IPLayer {
         let chunks = package.data.chunks(self.byte_in_frame);
         let last_chunk_index = chunks.len() - 1;
         for (index, ip_data) in chunks.enumerate() {
-            let mut data = Vec::with_capacity(self.redundancy.byte_in_frame);
-            let len = ip_data.len() as u16;
-            data.push(((len & 0xff00) >> 8) as u8);
-            data.push((len & 0x00ff) as u8);
-            data.push(if index == last_chunk_index {
-                0b00000001
-            } else {
-                0
-            });
-            data.extend(ip_data.into_iter());
-            data.resize(self.redundancy.byte_in_frame, 0);
-            self.redundancy.send(RedundancyPackage { data });
-            println!("Package {} sent, len {}.", index, len)
+            if index == last_chunk_index{
+                self.redundancy.send(RedundancyPackage::new(ip_data.iter().cloned().chain(padding::padding()).take(self.redundancy.byte_in_frame),self.redundancy.byte_in_frame,false,0,0));
+            }else{
+                self.redundancy.send(RedundancyPackage::new(ip_data.iter().cloned(),self.redundancy.byte_in_frame,true,0,0));
+            }
         }
     }
 
@@ -106,6 +95,7 @@ mod test {
 
     const FREQUENCY: &'static [f32] = &[3000.0, 6000.0];
     const BYTE_PER_FRAME: usize = 128;
+
     fn generate_data(
         size: usize,
         header: &Vec<f32>,
