@@ -67,18 +67,18 @@ fn main() {
         1250,
     )
     .unwrap();
-    let ground_truth = read_bits_from_file("INPUT.txt", SIZE);
-    let error_count = data
-        .iter()
-        .zip(ground_truth.iter())
-        .fold(0, |old, (received, excepted)| {
-            if received != excepted {
-                println!("error: received {}, excepted {}", received, excepted);
-                old + 1
-            } else {
-                old
-            }
-        });
+    // let ground_truth = read_bits_from_file("INPUT.txt", SIZE);
+    // let error_count = data
+    //     .iter()
+    //     .zip(ground_truth.iter())
+    //     .fold(0, |old, (received, excepted)| {
+    //         if received != excepted {
+    //             println!("error: received {}, excepted {}", received, excepted);
+    //             old + 1
+    //         } else {
+    //             old
+    //         }
+    //     });
     let mut buffer = File::create(PATH).unwrap();
     let mut bits: Vec<u8> = Vec::new();
     // println!("{}", data.len());
@@ -93,7 +93,7 @@ fn main() {
     buffer.write(bits.as_slice());
     // let output : BitStore = BitStore::from_vec(data);
     // println!("{:?}", output);
-    println!("total error count: {}", error_count);
+    // println!("total error count: {}", error_count);
     // assert_eq!(data, ground_truth)
     // loop{
     //     let data:RedundancyPackage = ip_layer.receive();

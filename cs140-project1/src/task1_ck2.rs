@@ -4,7 +4,7 @@ use std::io::BufReader;
 
 fn main() -> Result<(), anyhow::Error> {
     // const PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/music.mp3");
-    const PATH: &str = "cs140-playground/output.wav";
+    const PATH: &str = "cs140-playground/music.mp3";
     println!("{}", PATH);
     // Get a output stream handle to the default physical sound device
     let (_stream, stream_handle) = OutputStream::try_default()?;
@@ -20,6 +20,6 @@ fn main() -> Result<(), anyhow::Error> {
 
     // const PATH1: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/recorded1.wav");
     const PATH1: &str = "cs140-playground/recorded1.wav";
-    cs140_util::record::record(PATH1, 2);
+    cs140_util::record::record(PATH1, 10);
     Ok(())
 }
