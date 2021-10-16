@@ -19,6 +19,7 @@ rand="0.8.4"
 rand_pcg = "0.3.1"
 bitvec = "0.22.3"
 reed-solomon-erasure = { version = "4.0", features = ["simd-accel"] }
+# reed-solomon-erasure = "4.0"
 
 [[bin]]
 name = "task1_ck1"
