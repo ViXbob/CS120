@@ -21,16 +21,19 @@ const PATH: &str = "OUTPUT.txt";
 
 fn main() {
     const BYTE_IN_FRAME: usize = 53;
-    let physical_layer = PhysicalLayer::new_receive_only(&[4000.0, 5000.0], BYTE_IN_FRAME);
+    const FREQUENCY: &'static [f32] = &[1000.0, 2000.0, 3000.0, 4000.0, 5000.0, 6000.0, 7000.0, 8000.0];
+    let physical_layer = PhysicalLayer::new_receive_only(FREQUENCY, BYTE_IN_FRAME);
     let redundancy_layer = RedundancyLayer::new(physical_layer);
     let mut ip_layer = IPLayer::new(redundancy_layer);
     let mut data: Vec<Option<Vec<u8>>> = Vec::new();
     let data_shard_count = 27;
     let parity_shard_count = 27;
     let mut package_received = 0;
+    let mut now_package = 0;
     loop {
         let package: IPPackage = ip_layer.receive();
         // println!("received: {}", package.data[0]);
+        now_package += 1;
         if package.data[0] >= data_shard_count + parity_shard_count {
             // println!("data corrupted, maximum index {}, found {}", data_shard_count  + parity_shard_count, package.data[0]);
             drop(package)
@@ -47,7 +50,8 @@ fn main() {
                 // println!("data corrupted")
             } else {
                 package_received += 1;
-                // println!("now we received {} packages",package_received);
+                println!("now total {} packages",now_package);
+                println!("now we received {} packages",package_received);
                 while data.len() < package.data[0] as usize {
                     data.push(None);
                 }

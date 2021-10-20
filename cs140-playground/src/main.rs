@@ -13,7 +13,6 @@ mod test {
     use std::fs::File;
     use std::io::BufReader;
     use std::sync::Arc;
-    #[test]
     fn read_from_file_to_vec(path: &str) -> Vec<f32> {
         println!("{}", path);
         // Load a sound from a file, using a path relative to Cargo.toml
@@ -105,6 +104,14 @@ mod test {
     fn test_u16() {
         let size: u16 = 3995;
         println!("{}, {}", size >> 8, size & 255);
+    }
+
+    #[test]
+    fn test_audio_card() {
+        let buffer: RingBuffer<f32, 100000, false> = RingBuffer::new();
+        let buffer_ptr = Arc::new(buffer);
+        let (output, config) = OutputDevice::new(buffer_ptr.clone());
+        // println!("{}", config.sample_rate);
     }
 }
 

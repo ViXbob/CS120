@@ -59,6 +59,7 @@ pub fn frame_resolve_to_bitvec(
         return (None, data.len() - header.len());
     }
     let begin_index = begin_index.unwrap();
+    println!("begin_index: {}", begin_index);
     let sample_per_bit = sample_rate / speed;
 
     if begin_index + frame_length * (sample_per_bit as usize) >= data.len() {
@@ -86,6 +87,9 @@ pub fn frame_resolve_to_bitvec(
                 result.push(true);
             } else {
                 result.push(false);
+                if !(value.im.abs() / (sample_per_bit as f32) * 2.0 > 0.01) {
+                    println!("{}", value.im);
+                }
             }
             // if (value.im.abs() / (sample_per_bit as f32) * 2.0 > 0.01) && (value.im > 0.0)
         }
@@ -133,6 +137,7 @@ pub fn generate_frame_sample_from_bitvec(
 ) -> Vec<f32> {
     assert!(!multiplex_frequency.is_empty());
     let samples_per_bit: f32 = (sample_rate / speed) as f32;
+    let scale: f32 = 2.0 / multiplex_frequency.len() as f32;
     let mut rtn: Vec<f32> = header.clone();
     let sample_rate: f32 = sample_rate as f32;
     for (i, bits_group) in data.chunks(multiplex_frequency.len()).enumerate() {
@@ -141,9 +146,9 @@ pub fn generate_frame_sample_from_bitvec(
             let mut value: f32 = 0.0;
             for (j, bit) in bits_group.iter().enumerate() {
                 value += if *bit {
-                    (phase * multiplex_frequency[j]).sin() * 1.0
+                    (phase * multiplex_frequency[j]).sin() * scale
                 } else {
-                    -(phase * multiplex_frequency[j]).sin() * 1.0
+                    -(phase * multiplex_frequency[j]).sin() * scale
                 }
             }
             rtn.push(value);
