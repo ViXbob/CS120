@@ -14,9 +14,9 @@ pub struct PhysicalPackage(pub BitStore);
 
 impl NetworkPackage for PhysicalPackage {}
 
-const HEADER_LENGTH: usize = 220;
+const HEADER_LENGTH: usize = 200;
 const MIN_FREQUENCY: f32 = 8000.0;
-const MAX_FREQUENCY: f32 = 16000.0;
+const MAX_FREQUENCY: f32 = 11000.0;
 const SPEED: u32 = 1000;
 
 // a frame in physical layer has #(frame_length * sample_per_bit) samples
@@ -190,10 +190,10 @@ mod test {
         multiplex_frequency: &[f32],
     ) -> BitVec<Lsb0, u8> {
         buffer.push_by_iterator(
-            30000,
-            &mut (0..30000)
+            12000,
+            &mut (0..12000)
                 .map(|x| (x as f32 * 6.28 * 3000.0 / 48000.0).sin() * 0.5)
-                .take(30000),
+                .take(12000),
         );
         let mut data = BitVec::new();
         for i in 0..frame_size {
@@ -254,7 +254,7 @@ mod test {
     #[test]
     fn record_samples() {
         const SIZE: usize = 50;
-        const FREQUENCY: &'static [f32] = &[2000.0, 3000.0, 4000.0, 5000.0, 6000.0];
+        const FREQUENCY: &'static [f32] = &[1000.0, 2000.0, 3000.0, 4000.0, 5000.0, 6000.0, 7000.0, 8000.0];
         const FRAME_SIZE: usize = 30;
         let header = create_header(HEADER_LENGTH, MIN_FREQUENCY, MAX_FREQUENCY, 48000);
         let mut tmp: Vec<_> = (0..30000)
@@ -267,15 +267,16 @@ mod test {
         }
         let tmp_: Vec<_> = std::iter::repeat(0.0).take(10000).collect();
         tmp.extend(tmp_.iter());
-        cs140_util::record::record_from_slice("/Users/vixbob/cs140/output.wav",tmp.as_slice());
-        // let buffer: RingBuffer<f32, 100000, false> = RingBuffer::new();
-        // let buffer_ptr = Arc::new(buffer);
-        // let (output, descriptor) = OutputDevice::new(buffer_ptr.clone());
-        // let close_output = output.play();
-        // for samples in tmp.chunks(100) {
-        //     buffer_ptr.push_by_ref(samples);
-        // }
-        // std::thread::sleep(std::time::Duration::from_secs(3));
-        // close_output();
+        // cs140_util::record::record_from_slice("/Users/vixbob/cs140/output.wav",tmp.as_slice());
+        let thread = std::thread::spawn(|| cs140_util::record::record("/Users/vixbob/cs140/output.wav", 10));
+        let buffer: RingBuffer<f32, 100000, false> = RingBuffer::new();
+        let buffer_ptr = Arc::new(buffer);
+        let (output, descriptor) = OutputDevice::new(buffer_ptr.clone());
+        let close_output = output.play();
+        for samples in tmp.chunks(100) {
+            buffer_ptr.push_by_ref(samples);
+        }
+        std::thread::sleep(std::time::Duration::from_secs(3));
+        close_output();
     }
 }
