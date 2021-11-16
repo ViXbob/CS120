@@ -36,10 +36,21 @@ where
     fn init_stream_config() -> (Device, StreamConfig, SampleFormat) {
         // Get the input device from user
         let host = cpal::default_host();
-        let input_device = host
-            .default_input_device()
-            .expect("no input device available");
+        let choose_device = || {
+            for input_ in host.input_devices().unwrap() {
+                if input_.name().contains(&"USB Audio Device") {
+                    // println!("{}", output_.name().unwrap());
+                    return input_;
+                }
+            }
+            return host.default_input_device().expect("no input device available");
+        };
+        // let input_device = host
+        //     .default_input_device()
+        //     .expect("no input device available");
+        let input_device = choose_device();
         // Choose the device that has the maximum of sample rates
+        println!("{}", input_device.name().unwrap());
         let config = input_device
             .default_input_config()
             .expect("error while querying configs");
@@ -145,9 +156,21 @@ where
     fn init_stream_config() -> (Device, StreamConfig, SampleFormat) {
         // Get the input device from user
         let host = cpal::default_host();
-        let output_device = host
-            .default_output_device()
-            .expect("no input device available");
+        let choose_device = || {
+            for output_ in host.output_devices().unwrap() {
+                if output_.name().contains(&"USB Audio Device") {
+                    // println!("{}", output_.name().unwrap());
+                    return output_;
+                }
+            }
+            return host.default_output_device().expect("no output device available");
+        };
+
+        // let output_device = host
+        //     .default_output_device()
+        //     .expect("no output device available");
+        let output_device = choose_device();
+        println!("{}", output_device.name().unwrap());
         // Choose the device that has the maximum of sample rates
         let config = output_device
             .default_output_config()
