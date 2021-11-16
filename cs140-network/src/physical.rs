@@ -36,10 +36,10 @@ pub struct PhysicalLayer {
 impl PhysicalLayer {
     fn push_warm_up_data_to_buffer(buffer: &Arc<DefaultBuffer>) {
         buffer.push_by_iterator(
-            30000,
-            &mut (0..30000)
-                .map(|x| (x as f32 * 2.0 * PI * 3000.0 / 48000.0).sin() * 0.5)
-                .take(30000),
+            480,
+            &mut (0..480)
+                .map(|x| (x as f32 * 2.0 * std::f32::consts::PI / 48000.0).sin() * 0.3)
+                .take(480),
         );
     }
 

@@ -10,6 +10,7 @@ cs140-common = {path= "../cs140-common" }
 cs140-buffer = {path= "../cs140-buffer" }
 cs140-network = {path= "../cs140-network" }
 cs140-util = {path= "../cs140-util" }
+cs140-project1 = {path= "../cs140-project1"}
 cpal = "0.13.4"
 clap = "2.0.0"
 anyhow = "1.0.44"
@@ -18,3 +19,11 @@ rodio = "0.14.0"
 rand="0.8.4"
 rand_pcg = "0.3.1"
 reed-solomon-erasure = { version = "4.0", features = ["simd-accel"] }
+
+[[bin]]
+name = "part1_check1_server"
+path = "src/part1_check1_server.rs"
+
+[[bin]]
+name = "part1_check1_client"
+path = "src/part1_check1_client.rs"

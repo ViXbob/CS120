@@ -1,6 +1,6 @@
 use crate::encoding::{HandlePackage, NetworkPackage};
 use crate::physical::PhysicalPackage;
-use crate::redundancy::{RedundancyLayer, RedundancyPackage};
+use crate::redundancy::{BYTE_IN_ADDRESS, BYTE_IN_ENDING, BYTE_IN_LENGTH, RedundancyLayer, RedundancyPackage};
 use cs140_common::padding;
 
 pub struct IPPackage {
@@ -45,16 +45,20 @@ impl HandlePackage<IPPackage> for IPLayer {
 
     fn receive(&mut self) -> IPPackage {
         let mut data: Vec<u8> = Vec::new();
+        let mut package_received = 0;
         loop {
             let package: RedundancyPackage = self.redundancy.receive();
-            let len = ((package.data[0] as usize) << 8) + package.data[1] as usize;
+            // let len = ((package.data[0] as usize) << 8) + package.data[1] as usize;
+            let len = package.data_len();
             // println!("we received a package with len:{}", len);
-            let ended = (package.data[2] & 1) == 1;
+            // let ended = (package.data[2] & 1) == 1;
+            let more_fragments = package.has_more_fragments();
             // if ended{
             //     println!("the package is ended");
             // }
-            data.extend(package.data.into_iter().skip(3).take(len));
-            if ended {
+            data.extend(package.data.into_iter().skip(BYTE_IN_LENGTH + BYTE_IN_ENDING + BYTE_IN_ADDRESS).take(len));
+            // println!("package_received:{}, {:?}", package_received, data);
+            if !more_fragments {
                 return IPPackage { data };
             }
         }

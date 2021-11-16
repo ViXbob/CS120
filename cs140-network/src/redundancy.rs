@@ -1,10 +1,12 @@
+use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::Ordering::Relaxed;
 use crate::encoding::{BitStore, HandlePackage, NetworkPackage};
 use crate::physical::{PhysicalLayer, PhysicalPackage};
 use bitvec::prelude::BitVec;
 
 use crc::{Crc, CRC_16_IBM_SDLC};
-
-enum Checksum {
+static REVC_COUNT:AtomicUsize = AtomicUsize::new(0);
+pub enum Checksum {
     CRC16(&'static Crc<u16>),
     CRC32(&'static Crc<u32>),
     CRC64(&'static Crc<u64>),
@@ -28,10 +30,17 @@ impl Checksum {
     }
 }
 
-const BYTE_IN_LENGTH: usize = 2;
-const BYTE_IN_ENDING: usize = 1;
-const CHECKSUM: Checksum = Checksum::CRC16(&Crc::<u16>::new(&CRC_16_IBM_SDLC));
-const BYTE_IN_ADDRESS: usize = 2;
+pub const BYTE_IN_LENGTH: usize = 2;
+pub const BYTE_IN_ENDING: usize = 1;
+pub const CHECKSUM: Checksum = Checksum::CRC16(&Crc::<u16>::new(&CRC_16_IBM_SDLC));
+pub const BYTE_IN_ADDRESS: usize = 2;
+
+// RedundancyPackage
+// length: BYTE_IN_LENGTH
+// has_more_fragments: BYTE_IN_ENDING
+// address: BYTE_IN_ADDRESS
+// data: len(data)
+// checksum: CHECKSUM::len()
 
 #[derive(Eq, PartialEq, Debug, Clone)]
 pub struct RedundancyPackage {
@@ -62,6 +71,8 @@ impl RedundancyPackage {
         if package.validate_checksum() {
             Some(package)
         } else {
+            let count = REVC_COUNT.fetch_add(1,Relaxed)+1;
+            println!("validate_checksum count: {}", count);
             None
         }
     }
@@ -83,6 +94,10 @@ impl RedundancyPackage {
             len = (len << 8) + (*data as usize);
         }
         len
+    }
+
+    pub fn data_len(&self) ->usize{
+        self.len() - BYTE_IN_LENGTH - BYTE_IN_ENDING - BYTE_IN_ADDRESS - CHECKSUM.len()
     }
 
     fn set_len(&mut self, mut len: usize) {
@@ -178,7 +193,7 @@ impl HandlePackage<RedundancyPackage> for RedundancyLayer {
         let package = PhysicalPackage {
             0: self.make_redundancy(package),
         };
-        assert_eq!(package.0.len(), self.physical.byte_in_frame);
+        assert_eq!(package.0.len(), self.physical.byte_in_frame * 8);
         self.physical.send(package);
     }
 

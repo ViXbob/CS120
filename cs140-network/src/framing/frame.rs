@@ -59,7 +59,7 @@ pub fn frame_resolve_to_bitvec(
         return (None, data.len() - header.len());
     }
     let begin_index = begin_index.unwrap();
-    println!("begin_index: {}", begin_index);
+    // println!("begin_index: {}", begin_index);
     let sample_per_bit = sample_rate / speed;
 
     if begin_index + frame_length * (sample_per_bit as usize) >= data.len() {
@@ -87,9 +87,9 @@ pub fn frame_resolve_to_bitvec(
                 result.push(true);
             } else {
                 result.push(false);
-                if !(value.im.abs() / (sample_per_bit as f32) * 2.0 > 0.01) {
-                    println!("{}", value.im);
-                }
+                // if !(value.im.abs() / (sample_per_bit as f32) * 2.0 > 0.01) {
+                //     println!("{}", value.im);
+                // }
             }
             // if (value.im.abs() / (sample_per_bit as f32) * 2.0 > 0.01) && (value.im > 0.0)
         }

@@ -37,7 +37,7 @@ pub fn detect_header<'a>(
             && now_correlation > max_correlation
             && now_correlation > 0.5
         {
-            println!("update: {}, {}, {}, {}", sum, now_correlation, max_correlation, power);
+            // println!("update: {}, {}, {}, {}", sum, now_correlation, max_correlation, power);
             max_correlation = now_correlation;
             start_index = index;
         } else if (index - start_index > 200) && start_index != 0 {
