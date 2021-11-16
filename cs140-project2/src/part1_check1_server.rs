@@ -9,12 +9,14 @@ const SIZE: usize = 6250;
 const PATH: &str = "/Users/vixbob/cs140/cs140-project2/INPUT.bin";
 
 fn main() {
-    const FREQUENCY: &'static [f32] = &[1000.0, 2000.0, 3000.0, 4000.0, 5000.0, 6000.0, 7000.0, 8000.0];
+    const FREQUENCY: &'static [f32] = &[1000.0, 2000.0, 3000.0, 4000.0, 5000.0, 6000.0, 7000.0, 8000.0, 9000.0, 10000.0, 11000.0, 12000.0, 13000.0, 14000.0, 15000.0, 16000.0];
+    // const FREQUENCY: &'static [f32] = &[1000.0, 2000.0, 3000.0, 4000.0, 5000.0, 6000.0, 7000.0, 8000.0, 9000.0, 10000.0, 11000.0, 12000.0];
+    // const FREQUENCY: &'static [f32] = &[1000.0, 2000.0, 3000.0, 4000.0, 5000.0, 6000.0, 7000.0, 8000.0];
     // const FREQUENCY: &'static [f32] = &[4000.0, 5000.0];
     let data = file_io::read_bytes_from_bin_file(PATH, SIZE);
     println!("{:?}", data);
     // let tmp = data;
-    let padding = 52;
+    let padding = 65;
     // let data : Vec<_> = (0..5000).map(|x| *tmp.get(x % padding).unwrap()).collect();
     let (packages, r) = make_redundancy(data, padding, 0.4);
 
