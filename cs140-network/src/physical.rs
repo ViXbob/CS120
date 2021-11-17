@@ -14,7 +14,7 @@ pub struct PhysicalPackage(pub BitStore);
 
 impl NetworkPackage for PhysicalPackage {}
 
-const HEADER_LENGTH: usize = 200;
+const HEADER_LENGTH: usize = 30;
 const MIN_FREQUENCY: f32 = 8000.0;
 const MAX_FREQUENCY: f32 = 11000.0;
 const SPEED: u32 = 1000;
@@ -37,11 +37,15 @@ pub struct PhysicalLayer {
 impl PhysicalLayer {
     fn push_warm_up_data_to_buffer(buffer: &Arc<DefaultBuffer>) {
         buffer.push_by_iterator(
-            480,
-            &mut (0..480)
+            30,
+            &mut (0..30)
                 .map(|x| (x as f32 * 2.0 * std::f32::consts::PI / 48000.0).sin() * 0.3)
-                .take(480),
+                .take(30),
         );
+    }
+
+    pub fn push_warm_up_data(&self) {
+        Self::push_warm_up_data_to_buffer(&self.output_buffer);
     }
 
     pub fn new(multiplex_frequency: &[f32], byte_in_frame: usize) -> Self {
@@ -49,6 +53,27 @@ impl PhysicalLayer {
         let (input_device, input_descriptor) = InputDevice::new(input_buffer.clone());
         let output_buffer = Arc::new(DefaultBuffer::new());
         let (output_device, output_descriptor) = OutputDevice::new(output_buffer.clone());
+        input_device.listen();
+        output_device.play();
+        let sample_rate = output_descriptor.sample_rate;
+        PhysicalLayer {
+            input_descriptor,
+            input_buffer,
+            output_descriptor,
+            output_buffer,
+            multiplex_frequency: multiplex_frequency.to_owned(),
+            speed: SPEED,
+            frame_length: byte_in_frame * 8 / multiplex_frequency.len(),
+            header: create_header(HEADER_LENGTH, MIN_FREQUENCY, MAX_FREQUENCY, sample_rate),
+            byte_in_frame,
+        }
+    }
+
+    pub fn new_with_specific_device(multiplex_frequency: &[f32], byte_in_frame: usize, device_name: usize) -> Self {
+        let input_buffer = Arc::new(DefaultBuffer::new());
+        let (input_device, input_descriptor) = InputDevice::new_with_specific_device(input_buffer.clone(), device_name);
+        let output_buffer = Arc::new(DefaultBuffer::new());
+        let (output_device, output_descriptor) = OutputDevice::new_with_specific_device(output_buffer.clone(), device_name);
         input_device.listen();
         output_device.play();
         let sample_rate = output_descriptor.sample_rate;
@@ -155,10 +180,16 @@ impl HandlePackage<PhysicalPackage> for PhysicalLayer {
 
     fn receive_time_out(&mut self) -> Option<PhysicalPackage> {
         let mut count = 0;
+        let gateway = self.frame_length * self.input_descriptor.sample_rate as usize
+            / self.speed as usize + HEADER_LENGTH + 10;
         loop {
+            if self.input_buffer.len() < gateway {
+                count += 1;
+                if count > TIME_OUT { return None; }
+                else { continue; }
+            }
             let return_package = self.input_buffer.pop_by_ref(
-                2 * self.frame_length * self.input_descriptor.sample_rate as usize
-                    / self.speed as usize,
+                gateway,
                 |data| {
                     // let current = std::time::Instant::now();
                     frame::frame_resolve_to_bitvec(

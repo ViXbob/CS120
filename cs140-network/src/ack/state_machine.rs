@@ -16,7 +16,7 @@ pub struct AckStateMachine {
     tx_offset: usize,
     tx: Vec<u8>,
     rx_offset: usize,
-    rx: Vec<u8>,
+    pub rx: Vec<u8>,
     state: AckState,
 }
 
@@ -24,8 +24,8 @@ const FREQUENCY: &'static [f32] = &[1000.0, 2000.0, 3000.0, 4000.0, 5000.0, 6000
 const BYTE_IN_FRAME : usize = 72;
 
 impl AckStateMachine {
-    pub fn new() -> Self {
-        let physical_layer = PhysicalLayer::new(FREQUENCY, BYTE_IN_FRAME);
+    pub fn new(device_name: usize) -> Self {
+        let physical_layer = PhysicalLayer::new_with_specific_device(FREQUENCY, BYTE_IN_FRAME, device_name);
         let ack_layer = AckLayer::new(physical_layer);
         let tx_offset = 0;
         let tx : Vec<u8> = Vec::new();
@@ -68,7 +68,9 @@ impl AckStateMachine {
                     }
                 },
                 AckState::Tx(package) => {
+                    println!("package {} need to be sent!", self.tx_offset);
                     loop {
+                        self.ack_layer.physical.push_warm_up_data();
                         self.ack_layer.send(package.clone());
                         let ack_package: Option<AckPackage> = self.ack_layer.receive_time_out();
                         if let Some(ack_package) = ack_package {
@@ -77,7 +79,9 @@ impl AckStateMachine {
                             }
                         }
                     }
+                    println!("package {} was sent successfully!", self.tx_offset);
                     self.tx_offset += 1;
+                    if !package.has_more_fragments() { return; }
                     AckState::FrameDetection
                 },
                 AckState::Rx(package) => {
@@ -86,12 +90,16 @@ impl AckStateMachine {
                     } else {
                         self.rx_offset = package.offset();
                         self.rx.extend(package.data.iter());
+                        println!("package {} was received successfully!", self.rx_offset);
+                        if !package.has_more_fragments() { return; }
                         AckState::TxAck
                     }
                 },
                 AckState::TxAck => {
                     let payload : Vec<u8> = Vec::new();
+                    self.ack_layer.physical.push_warm_up_data();
                     self.ack_layer.send(AckPackage::new(payload.iter().cloned(), 0, 0, false, true, 0, 0));
+                    println!("the acknowledgment of package {} was sent!", self.rx_offset - 1);
                     AckState::FrameDetection
                 }
             }

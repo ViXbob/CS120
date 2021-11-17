@@ -18,7 +18,7 @@ where
 {
     /// new returns InputDevice as well as some config about the device / stream
     pub fn new(audio_buffer: Arc<Buffer>) -> (Self, SoundDescriptor) {
-        let config = Self::init_stream_config();
+        let config = Self::init_stream_config(0);
         let descriptor = SoundDescriptor {
             channels: config.1.channels,
             sample_rate: config.1.sample_rate.0,
@@ -33,13 +33,32 @@ where
         )
     }
 
-    fn init_stream_config() -> (Device, StreamConfig, SampleFormat) {
+    pub fn new_with_specific_device(audio_buffer: Arc<Buffer>, device_name: usize) -> (Self, SoundDescriptor) {
+        let config = Self::init_stream_config(device_name);
+        let descriptor = SoundDescriptor {
+            channels: config.1.channels,
+            sample_rate: config.1.sample_rate.0,
+            sample_format: config.2.into(),
+        };
+        (
+            InputDevice {
+                stream_config: config,
+                audio_buffer,
+            },
+            descriptor,
+        )
+    }
+
+    fn init_stream_config(device_name: usize) -> (Device, StreamConfig, SampleFormat) {
         // Get the input device from user
         let host = cpal::default_host();
         let choose_device = || {
-            for input_ in host.input_devices().unwrap() {
-                if input_.name().contains(&"USB Audio Device") {
-                    // println!("{}", output_.name().unwrap());
+            for (index, input_) in host.input_devices().unwrap().enumerate() {
+                println!("input_device: {}", input_.name().unwrap());
+                // if input_.name().contains(&String::from( device_name)) {
+                //    return input_;
+                // }
+                if index == device_name {
                     return input_;
                 }
             }
@@ -130,7 +149,23 @@ where
 {
     /// new returns InputDevice as well as some config about the device / stream, for example: channels
     pub fn new(audio_buffer: Arc<Buffer>) -> (Self, SoundDescriptor) {
-        let config = Self::init_stream_config();
+        let config = Self::init_stream_config(0);
+        let descriptor = SoundDescriptor {
+            channels: config.1.channels,
+            sample_rate: config.1.sample_rate.0,
+            sample_format: config.2.into(),
+        };
+        (
+            OutputDevice {
+                stream_config: config,
+                audio_buffer,
+            },
+            descriptor,
+        )
+    }
+
+    pub fn new_with_specific_device(audio_buffer: Arc<Buffer>, device_name: usize) -> (Self, SoundDescriptor) {
+        let config = Self::init_stream_config(device_name);
         let descriptor = SoundDescriptor {
             channels: config.1.channels,
             sample_rate: config.1.sample_rate.0,
@@ -153,13 +188,16 @@ where
         }
     }
 
-    fn init_stream_config() -> (Device, StreamConfig, SampleFormat) {
+    fn init_stream_config(device_name: usize) -> (Device, StreamConfig, SampleFormat) {
         // Get the input device from user
         let host = cpal::default_host();
         let choose_device = || {
-            for output_ in host.output_devices().unwrap() {
-                if output_.name().contains(&"USB Audio Device") {
-                    // println!("{}", output_.name().unwrap());
+            for (index, output_) in host.output_devices().unwrap().enumerate() {
+                println!("output_device: {}", output_.name().unwrap());
+                // if output_.name().contains(&String::from( device_name)) {
+                //     return output_;
+                // }
+                if index == device_name {
                     return output_;
                 }
             }
