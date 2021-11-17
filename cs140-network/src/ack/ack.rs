@@ -3,39 +3,19 @@ use std::sync::atomic::Ordering::Relaxed;
 use crate::encoding::{BitStore, HandlePackage, NetworkPackage};
 use crate::physical::{PhysicalLayer, PhysicalPackage};
 use bitvec::prelude::BitVec;
-
+use crate::redundancy::Checksum;
 use crc::{Crc, CRC_16_IBM_SDLC};
+
 static REVC_COUNT:AtomicUsize = AtomicUsize::new(0);
-pub enum Checksum {
-    CRC16(&'static Crc<u16>),
-    CRC32(&'static Crc<u32>),
-    CRC64(&'static Crc<u64>),
-}
 
-impl Checksum {
-    pub fn len(&self) -> usize {
-        match self {
-            Checksum::CRC16(_) => 2,
-            Checksum::CRC32(_) => 4,
-            Checksum::CRC64(_) => 8,
-        }
-    }
-
-    pub fn checksum(&self, data: &[u8]) -> usize {
-        match self {
-            Checksum::CRC16(c) => c.checksum(data) as usize,
-            Checksum::CRC32(c) => c.checksum(data) as usize,
-            Checksum::CRC64(c) => c.checksum(data) as usize,
-        }
-    }
-}
 
 pub const BYTE_IN_LENGTH: usize = 2;
-pub const BYTE_IN_ENDING: usize = 1;
-pub const CHECKSUM: Checksum = Checksum::CRC16(&Crc::<u16>::new(&CRC_16_IBM_SDLC));
+pub const BYTE_IN_OFFSET: usize = 1;
+pub const BYTE_IN_ENDING_AND_ACK: usize = 1;
 pub const BYTE_IN_ADDRESS: usize = 2;
+pub const CHECKSUM: Checksum = Checksum::CRC16(&Crc::<u16>::new(&CRC_16_IBM_SDLC));
 
-// RedundancyPackage
+// AckPackage
 // length: BYTE_IN_LENGTH
 // has_more_fragments: BYTE_IN_ENDING
 // address: BYTE_IN_ADDRESS
@@ -43,23 +23,24 @@ pub const BYTE_IN_ADDRESS: usize = 2;
 // checksum: CHECKSUM::len()
 
 #[derive(Eq, PartialEq, Debug, Clone)]
-pub struct RedundancyPackage {
+pub struct AckPackage {
     pub data: Vec<u8>,
 }
 
-impl RedundancyPackage {
-    pub fn new(data: impl Iterator<Item=u8>, data_len:usize , has_more_fragments: bool, src: u8, dest: u8) -> Self {
+impl AckPackage {
+    pub fn new(data: impl Iterator<Item=u8>, data_len:usize, offset: usize, has_more_fragments: bool, has_ack: bool, src: u8, dest: u8) -> Self {
         let mut package = Self {
             data: Vec::with_capacity(
-                data_len + BYTE_IN_LENGTH + BYTE_IN_ENDING + BYTE_IN_ADDRESS + CHECKSUM.len(),
+                data_len + BYTE_IN_LENGTH + BYTE_IN_OFFSET + BYTE_IN_ENDING_AND_ACK + BYTE_IN_ADDRESS + CHECKSUM.len(),
             ),
         };
         package.set_len(
-            data_len + BYTE_IN_LENGTH + CHECKSUM.len() + BYTE_IN_ENDING + BYTE_IN_ADDRESS,
+            data_len + BYTE_IN_LENGTH + BYTE_IN_OFFSET + BYTE_IN_ENDING_AND_ACK + BYTE_IN_ADDRESS + CHECKSUM.len(),
         );
-        package.set_has_more_fragments(has_more_fragments);
+        package.set_offset(offset);
+        package.set_has_more_fragments_and_ack(has_more_fragments, has_ack);
         package.set_address(src, dest);
-        package.data.extend(data);
+        package.data.extend(data.take(data_len));
         package.set_checksum();
         package
     }
@@ -79,7 +60,7 @@ impl RedundancyPackage {
 
     pub fn extract(&self) -> Vec<u8> {
         Vec::from(
-            &self.data[BYTE_IN_LENGTH + BYTE_IN_ENDING + BYTE_IN_ADDRESS
+            &self.data[BYTE_IN_LENGTH + BYTE_IN_OFFSET + BYTE_IN_ENDING_AND_ACK + BYTE_IN_ADDRESS
                 ..self.data.len() - CHECKSUM.len()],
         )
     }
@@ -96,8 +77,19 @@ impl RedundancyPackage {
         len
     }
 
+    pub fn offset(&self) -> usize {
+        assert!(BYTE_IN_LENGTH >= 1);
+        assert!(BYTE_IN_LENGTH <= (std::mem::size_of::<usize>()));
+        let offset_data = &self.data[BYTE_IN_LENGTH..BYTE_IN_LENGTH + BYTE_IN_OFFSET];
+        let mut offset = 0;
+        for data in offset_data.iter().rev() {
+            offset = (offset << 8) + (*data as usize);
+        }
+        offset
+    }
+
     pub fn data_len(&self) ->usize{
-        self.len() - BYTE_IN_LENGTH - BYTE_IN_ENDING - BYTE_IN_ADDRESS - CHECKSUM.len()
+        self.len() - BYTE_IN_LENGTH - BYTE_IN_OFFSET - BYTE_IN_ENDING_AND_ACK - BYTE_IN_ADDRESS - CHECKSUM.len()
     }
 
     fn set_len(&mut self, mut len: usize) {
@@ -106,6 +98,15 @@ impl RedundancyPackage {
         for _ in 0..BYTE_IN_LENGTH {
             self.data.push((len & 0xff) as u8);
             len >>= 8;
+        }
+    }
+
+    fn set_offset(&mut self, mut offset: usize) {
+        assert!(BYTE_IN_OFFSET >= 1);
+        assert!(BYTE_IN_OFFSET <= (std::mem::size_of::<usize>()));
+        for _ in 0..BYTE_IN_OFFSET {
+            self.data.push((offset & 0xff) as u8);
+            offset >>= 8;
         }
     }
 
@@ -133,13 +134,19 @@ impl RedundancyPackage {
     }
 
     pub fn has_more_fragments(&self) -> bool {
-        assert_eq!(BYTE_IN_ENDING, 1);
-        self.data[BYTE_IN_LENGTH]!=0
+        assert_eq!(BYTE_IN_ENDING_AND_ACK, 1);
+        (self.data[BYTE_IN_LENGTH] & 0x01) != 0
     }
 
-    fn set_has_more_fragments(&mut self, has_more_fragments: bool) {
-        assert_eq!(BYTE_IN_ENDING, 1);
-        self.data.push(if has_more_fragments { 1 } else { 0 });
+    pub fn has_ack(&self) -> bool {
+        assert_eq!(BYTE_IN_ENDING_AND_ACK, 1);
+        ((self.data[BYTE_IN_LENGTH] >> 1) & 0x01) == 1
+    }
+
+    fn set_has_more_fragments_and_ack(&mut self, has_more_fragments: bool, has_ack : bool) {
+        assert_eq!(BYTE_IN_ENDING_AND_ACK, 1);
+        let mask = (has_more_fragments as u8) | ((has_ack as u8) << 1);
+        self.data.push(mask);
     }
 
     fn set_address(&mut self, src: u8, dest: u8) {
@@ -149,28 +156,30 @@ impl RedundancyPackage {
         self.data.push(src);
         self.data.push(dest);
     }
+
     pub fn address(&self) -> (u8, u8) {
         if BYTE_IN_ADDRESS != 2 {
             unimplemented!();
         }
-        let src = self.data[BYTE_IN_LENGTH + BYTE_IN_ENDING];
-        let dest = self.data[BYTE_IN_LENGTH + BYTE_IN_ENDING + 1];
+        let src = self.data[BYTE_IN_LENGTH  + BYTE_IN_OFFSET + BYTE_IN_ENDING_AND_ACK];
+        let dest = self.data[BYTE_IN_LENGTH + BYTE_IN_OFFSET + BYTE_IN_ENDING_AND_ACK + 1];
         (src, dest)
     }
 }
 
-impl NetworkPackage for RedundancyPackage {}
+impl NetworkPackage for AckPackage {}
 
-pub struct RedundancyLayer {
+pub struct AckLayer {
     pub(crate) physical: PhysicalLayer,
     pub(crate) byte_in_frame: usize,
 }
 
-impl RedundancyLayer {
+impl AckLayer {
     pub fn new(physical: PhysicalLayer) -> Self {
         let byte_in_frame = physical.byte_in_frame
             - BYTE_IN_ADDRESS
-            - BYTE_IN_ENDING
+            - BYTE_IN_OFFSET
+            - BYTE_IN_ENDING_AND_ACK
             - BYTE_IN_LENGTH
             - CHECKSUM.len();
         Self {
@@ -179,17 +188,17 @@ impl RedundancyLayer {
         }
     }
 
-    fn make_redundancy(&self, package: RedundancyPackage) -> BitStore {
+    fn make_redundancy(&self, package: AckPackage) -> BitStore {
         BitVec::from_vec(package.data)
     }
 
-    fn erase_redundancy(&self, data: BitStore) -> Option<RedundancyPackage> {
-        RedundancyPackage::build_from_raw(data)
+    fn erase_redundancy(&self, data: BitStore) -> Option<AckPackage> {
+        AckPackage::build_from_raw(data)
     }
 }
 
-impl HandlePackage<RedundancyPackage> for RedundancyLayer {
-    fn send(&mut self, package: RedundancyPackage) {
+impl HandlePackage<AckPackage> for AckLayer {
+    fn send(&mut self, package: AckPackage) {
         let package = PhysicalPackage {
             0: self.make_redundancy(package),
         };
@@ -197,7 +206,7 @@ impl HandlePackage<RedundancyPackage> for RedundancyLayer {
         self.physical.send(package);
     }
 
-    fn receive(&mut self) -> RedundancyPackage {
+    fn receive(&mut self) -> AckPackage {
         loop {
             let result = self.physical.receive().0;
             let result = self.erase_redundancy(result);
@@ -208,7 +217,7 @@ impl HandlePackage<RedundancyPackage> for RedundancyLayer {
     }
 }
 
-impl HandlePackage<PhysicalPackage> for RedundancyLayer {
+impl HandlePackage<PhysicalPackage> for AckLayer {
     fn send(&mut self, package: PhysicalPackage) {
         self.physical.send(package)
     }
@@ -224,27 +233,29 @@ mod tests {
     use cs140_common::padding::padding;
 
     #[test]
-    fn test_redundancy_package() {
+    fn test_ack_package() {
         let data: Vec<_> = padding().take(100).collect();
-        let package = RedundancyPackage::new(data.iter().cloned(), 100,false, 1, 2);
+        let package = AckPackage::new(data.iter().cloned(), 100,30, false, true, 1, 2);
         assert_eq!(
             package.len(),
-            100 + BYTE_IN_ENDING + BYTE_IN_LENGTH + BYTE_IN_ADDRESS + CHECKSUM.len()
+            100 + BYTE_IN_ENDING_AND_ACK + BYTE_IN_LENGTH + BYTE_IN_ADDRESS + CHECKSUM.len() + BYTE_IN_OFFSET
         );
+        assert_eq!(package.offset(), 30);
+        assert_eq!(package.has_ack(), true);
         assert_eq!(package.has_more_fragments(), false);
         assert_eq!(package.address(), (1, 2));
         assert_eq!(package.extract(), data);
 
         let encoded_package = BitStore::from_vec(package.data.clone());
         assert_eq!(
-            RedundancyPackage::build_from_raw(encoded_package),
+            AckPackage::build_from_raw(encoded_package),
             Some(package.clone())
         );
         for index in 0..package.len() * 8{
             let mut corrupted_package = BitStore::from_vec(package.data.clone());
             let reversed = !corrupted_package[index];
             corrupted_package.set(index, reversed);
-            assert_eq!(RedundancyPackage::build_from_raw(corrupted_package), None);
+            assert_eq!(AckPackage::build_from_raw(corrupted_package), None);
         }
     }
 }
