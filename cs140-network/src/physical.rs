@@ -18,6 +18,7 @@ const HEADER_LENGTH: usize = 200;
 const MIN_FREQUENCY: f32 = 8000.0;
 const MAX_FREQUENCY: f32 = 11000.0;
 const SPEED: u32 = 1000;
+const TIME_OUT: u32 = 30;
 
 // a frame in physical layer has #(frame_length * sample_per_bit) samples
 
@@ -148,6 +149,35 @@ impl HandlePackage<PhysicalPackage> for PhysicalLayer {
                 return PhysicalPackage{
                     0:package
                 }
+            }
+        }
+    }
+
+    fn receive_time_out(&mut self) -> Option<PhysicalPackage> {
+        let mut count = 0;
+        loop {
+            let return_package = self.input_buffer.pop_by_ref(
+                2 * self.frame_length * self.input_descriptor.sample_rate as usize
+                    / self.speed as usize,
+                |data| {
+                    // let current = std::time::Instant::now();
+                    frame::frame_resolve_to_bitvec(
+                        data,
+                        &self.header,
+                        &self.multiplex_frequency,
+                        self.input_descriptor.sample_rate,
+                        self.speed,
+                        self.frame_length,
+                    )
+                },
+            );
+            if let Some(package) = return_package {
+                return Some(PhysicalPackage{
+                    0:package
+                })
+            } else {
+                count += 1;
+                if count > TIME_OUT { return None; }
             }
         }
     }

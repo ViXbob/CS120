@@ -21,9 +21,17 @@ rand_pcg = "0.3.1"
 reed-solomon-erasure = { version = "4.0", features = ["simd-accel"] }
 
 [[bin]]
-name = "part1_check1_server"
-path = "src/part1_check1_server.rs"
+name = "part1_server"
+path = "src/part1_server.rs"
 
 [[bin]]
-name = "part1_check1_client"
-path = "src/part1_check1_client.rs"
+name = "part1_client"
+path = "src/part1_client.rs"
+
+[[bin]]
+name = "part2_client"
+path = "src/part2_client.rs"
+
+[[bin]]
+name = "part2_server"
+path = "src/part2_server.rs"

@@ -206,6 +206,10 @@ impl HandlePackage<RedundancyPackage> for RedundancyLayer {
             }
         }
     }
+
+    fn receive_time_out(&mut self) -> Option<RedundancyPackage> {
+        todo!()
+    }
 }
 
 impl HandlePackage<PhysicalPackage> for RedundancyLayer {
@@ -215,6 +219,10 @@ impl HandlePackage<PhysicalPackage> for RedundancyLayer {
 
     fn receive(&mut self) -> PhysicalPackage {
         self.physical.receive()
+    }
+
+    fn receive_time_out(&mut self) -> Option<PhysicalPackage> {
+        todo!()
     }
 }
 

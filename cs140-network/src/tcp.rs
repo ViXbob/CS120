@@ -21,6 +21,10 @@ impl HandlePackage<TCPPackage> for TCPLayer {
     fn receive(&mut self) -> TCPPackage {
         todo!()
     }
+
+    fn receive_time_out(&mut self) -> Option<TCPPackage> {
+        todo!()
+    }
 }
 
 impl HandlePackage<IPPackage> for TCPLayer {
@@ -30,6 +34,10 @@ impl HandlePackage<IPPackage> for TCPLayer {
 
     fn receive(&mut self) -> IPPackage {
         self.ip.receive()
+    }
+
+    fn receive_time_out(&mut self) -> Option<IPPackage> {
+        todo!()
     }
 }
 
@@ -41,6 +49,10 @@ impl HandlePackage<RedundancyPackage> for TCPLayer {
     fn receive(&mut self) -> RedundancyPackage {
         self.ip.receive()
     }
+
+    fn receive_time_out(&mut self) -> Option<RedundancyPackage> {
+        todo!()
+    }
 }
 
 impl HandlePackage<PhysicalPackage> for TCPLayer {
@@ -50,5 +62,9 @@ impl HandlePackage<PhysicalPackage> for TCPLayer {
 
     fn receive(&mut self) -> PhysicalPackage {
         self.ip.receive()
+    }
+
+    fn receive_time_out(&mut self) -> Option<PhysicalPackage> {
+        todo!()
     }
 }

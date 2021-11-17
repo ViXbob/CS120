@@ -63,6 +63,10 @@ impl HandlePackage<IPPackage> for IPLayer {
             }
         }
     }
+
+    fn receive_time_out(&mut self) -> Option<IPPackage> {
+        todo!()
+    }
 }
 
 impl HandlePackage<RedundancyPackage> for IPLayer {
@@ -73,6 +77,10 @@ impl HandlePackage<RedundancyPackage> for IPLayer {
     fn receive(&mut self) -> RedundancyPackage {
         self.redundancy.receive()
     }
+
+    fn receive_time_out(&mut self) -> Option<RedundancyPackage> {
+        todo!()
+    }
 }
 
 impl HandlePackage<PhysicalPackage> for IPLayer {
@@ -82,6 +90,10 @@ impl HandlePackage<PhysicalPackage> for IPLayer {
 
     fn receive(&mut self) -> PhysicalPackage {
         self.redundancy.receive()
+    }
+
+    fn receive_time_out(&mut self) -> Option<PhysicalPackage> {
+        todo!()
     }
 }
 

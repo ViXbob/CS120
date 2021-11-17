@@ -215,6 +215,16 @@ impl HandlePackage<AckPackage> for AckLayer {
             }
         }
     }
+
+    fn receive_time_out(&mut self) -> Option<AckPackage> {
+        let result = self.physical.receive_time_out();
+        if let Some(package) = result {
+            let data = self.erase_redundancy(package.0);
+            return data;
+        } else {
+            return None;
+        }
+    }
 }
 
 impl HandlePackage<PhysicalPackage> for AckLayer {
@@ -224,6 +234,10 @@ impl HandlePackage<PhysicalPackage> for AckLayer {
 
     fn receive(&mut self) -> PhysicalPackage {
         self.physical.receive()
+    }
+
+    fn receive_time_out(&mut self) -> Option<PhysicalPackage> {
+        todo!()
     }
 }
 

@@ -8,6 +8,7 @@ pub trait NetworkPackage {}
 pub trait HandlePackage<Package: NetworkPackage> {
     fn send(&mut self, package: Package);
     fn receive(&mut self) -> Package;
+    fn receive_time_out(&mut self) -> Option<Package>;
 }
 
 #[cfg(test)]
