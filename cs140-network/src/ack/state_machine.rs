@@ -24,7 +24,7 @@ const FREQUENCY: &'static [f32] = &[1000.0, 2000.0, 3000.0, 4000.0, 5000.0, 6000
 const BYTE_IN_FRAME : usize = 72;
 
 impl AckStateMachine {
-    pub fn new(device_name: usize) -> Self {
+    pub fn new(device_name: &str) -> Self {
         let physical_layer = PhysicalLayer::new_with_specific_device(FREQUENCY, BYTE_IN_FRAME, device_name);
         let ack_layer = AckLayer::new(physical_layer);
         let tx_offset = 0;
