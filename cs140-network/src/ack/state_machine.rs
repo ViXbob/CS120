@@ -25,7 +25,8 @@ const BYTE_IN_FRAME : usize = 72;
 
 impl AckStateMachine {
     pub fn new(device_name: &str) -> Self {
-        let physical_layer = PhysicalLayer::new_with_specific_device(FREQUENCY, BYTE_IN_FRAME, device_name);
+        // let physical_layer = PhysicalLayer::new_with_specific_device(FREQUENCY, BYTE_IN_FRAME, device_name);
+        let physical_layer = PhysicalLayer::new(FREQUENCY, BYTE_IN_FRAME);
         let ack_layer = AckLayer::new(physical_layer);
         let tx_offset = 0;
         let tx : Vec<u8> = Vec::new();

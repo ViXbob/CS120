@@ -14,7 +14,7 @@ pub struct PhysicalPackage(pub BitStore);
 
 impl NetworkPackage for PhysicalPackage {}
 
-const HEADER_LENGTH: usize = 30;
+const HEADER_LENGTH: usize = 60;
 const MIN_FREQUENCY: f32 = 8000.0;
 const MAX_FREQUENCY: f32 = 11000.0;
 const SPEED: u32 = 1000;
@@ -69,11 +69,11 @@ impl PhysicalLayer {
         }
     }
 
-    pub fn new_with_specific_device(multiplex_frequency: &[f32], byte_in_frame: usize, device_name: &str) -> Self {
+    pub fn new_with_specific_device(multiplex_frequency: &[f32], byte_in_frame: usize, device_name: usize) -> Self {
         let input_buffer = Arc::new(DefaultBuffer::new());
         let (input_device, input_descriptor) = InputDevice::new_with_specific_device(input_buffer.clone(), device_name);
         let output_buffer = Arc::new(DefaultBuffer::new());
-        let (output_device, output_descriptor) = OutputDevice::new_with_specific_device(output_buffer.clone(), device_name);
+        let (output_device, output_descriptor) = OutputDevice::new_with_specific_device(output_buffer.clone(), device_name ^ 1);
         input_device.listen();
         output_device.play();
         let sample_rate = output_descriptor.sample_rate;
@@ -147,7 +147,7 @@ impl HandlePackage<PhysicalPackage> for PhysicalLayer {
             self.output_buffer.push_by_ref(segment);
         }
         self.output_buffer.push_by_ref(
-            &padding_range(-1.0, 1.0)
+            &padding_range(-0.1, 0.1)
                 .take(HEADER_LENGTH)
                 .collect::<Vec<f32>>(),
         );
