@@ -25,7 +25,7 @@ pub fn detect_header<'a>(
     let mut max_correlation: f32 = 0.0;
 
     for (index, &value) in data_iter.enumerate() {
-        power = (power * 219.0 + value * value) / 220.0;
+        power = (power * (header_length - 1) as f32 + value * value) / (header_length as f32);
         sync.pop_front();
         sync.push_back(value);
         let now_correlation: f32 = correlation_value(&sync) / sum;
@@ -40,7 +40,7 @@ pub fn detect_header<'a>(
             // println!("update: {}, {}, {}, {}", sum, now_correlation, max_correlation, power);
             max_correlation = now_correlation;
             start_index = index;
-        } else if (index - start_index > 200) && start_index != 0 {
+        } else if (index - start_index > header_length) && start_index != 0 {
             // println!("detect: {}, {}, {}, {}, {}", sum, now_correlation, max_correlation, power, value);
             return Some(start_index + 1);
         }

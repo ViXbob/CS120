@@ -59,7 +59,7 @@ pub fn frame_resolve_to_bitvec(
         return (None, data.len() - header.len());
     }
     let begin_index = begin_index.unwrap();
-    // println!("begin_index: {}", begin_index);
+    println!("begin_index: {}", begin_index);
     let sample_per_bit = sample_rate / speed;
 
     if begin_index + frame_length * (sample_per_bit as usize) >= data.len() {

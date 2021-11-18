@@ -6,7 +6,7 @@ const SIZE: usize = 6250;
 
 fn main() {
     let data = read_bytes_from_bin_file(PATH, SIZE);
-    let mut server = AckStateMachine::new(&"USB Audio Device");
+    let mut server = AckStateMachine::new(0);
     server.append(data.iter().cloned());
     server.work();
 }

@@ -40,7 +40,7 @@ impl AckPackage {
         package.set_offset(offset);
         package.set_has_more_fragments_and_ack(has_more_fragments, has_ack);
         package.set_address(src, dest);
-        package.data.extend(data.take(data_len));
+        package.data.extend(data);
         package.set_checksum();
         package
     }
@@ -135,12 +135,12 @@ impl AckPackage {
 
     pub fn has_more_fragments(&self) -> bool {
         assert_eq!(BYTE_IN_ENDING_AND_ACK, 1);
-        (self.data[BYTE_IN_LENGTH] & 0x01) != 0
+        (self.data[BYTE_IN_LENGTH + BYTE_IN_OFFSET] & 0x01) != 0
     }
 
     pub fn has_ack(&self) -> bool {
         assert_eq!(BYTE_IN_ENDING_AND_ACK, 1);
-        ((self.data[BYTE_IN_LENGTH] >> 1) & 0x01) == 1
+        ((self.data[BYTE_IN_LENGTH + BYTE_IN_OFFSET] >> 1) & 0x01) == 1
     }
 
     fn set_has_more_fragments_and_ack(&mut self, has_more_fragments: bool, has_ack : bool) {

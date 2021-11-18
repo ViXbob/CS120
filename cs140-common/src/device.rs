@@ -273,7 +273,7 @@ where
         T: cpal::Sample,
     {
         let len = output.len() / channels;
-        audio_buffer.pop(len, move |first, second| {
+        audio_buffer.try_pop(len, move |first, second| {
             for (frame, value) in output
                 .chunks_mut(channels)
                 .zip(first.iter().chain(second.iter()))

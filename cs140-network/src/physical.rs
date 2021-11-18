@@ -15,8 +15,8 @@ pub struct PhysicalPackage(pub BitStore);
 impl NetworkPackage for PhysicalPackage {}
 
 const HEADER_LENGTH: usize = 60;
-const MIN_FREQUENCY: f32 = 8000.0;
-const MAX_FREQUENCY: f32 = 11000.0;
+const MIN_FREQUENCY: f32 = 5000.0;
+const MAX_FREQUENCY: f32 = 8000.0;
 const SPEED: u32 = 1000;
 const TIME_OUT: u32 = 30;
 
@@ -36,11 +36,10 @@ pub struct PhysicalLayer {
 
 impl PhysicalLayer {
     fn push_warm_up_data_to_buffer(buffer: &Arc<DefaultBuffer>) {
-        buffer.push_by_iterator(
-            30,
-            &mut (0..30)
-                .map(|x| (x as f32 * 2.0 * std::f32::consts::PI / 48000.0).sin() * 0.3)
-                .take(30),
+        buffer.push_by_ref(
+            &padding_range(-0.1, 0.1)
+                .take(HEADER_LENGTH)
+                .collect::<Vec<f32>>(),
         );
     }
 
@@ -73,7 +72,7 @@ impl PhysicalLayer {
         let input_buffer = Arc::new(DefaultBuffer::new());
         let (input_device, input_descriptor) = InputDevice::new_with_specific_device(input_buffer.clone(), device_name);
         let output_buffer = Arc::new(DefaultBuffer::new());
-        let (output_device, output_descriptor) = OutputDevice::new_with_specific_device(output_buffer.clone(), device_name ^ 1);
+        let (output_device, output_descriptor) = OutputDevice::new_with_specific_device(output_buffer.clone(), device_name);
         input_device.listen();
         output_device.play();
         let sample_rate = output_descriptor.sample_rate;
@@ -141,16 +140,21 @@ impl HandlePackage<PhysicalPackage> for PhysicalLayer {
             self.output_descriptor.sample_rate,
             self.speed,
         );
+        self.output_buffer.push_by_ref(
+            &padding_range(-0.05, 0.05)
+                .take(30)
+                .collect::<Vec<f32>>(),
+        );
         let segment_len = 100;
         for segment in samples.chunks(segment_len) {
             // segment push
             self.output_buffer.push_by_ref(segment);
         }
-        self.output_buffer.push_by_ref(
-            &padding_range(-0.1, 0.1)
-                .take(HEADER_LENGTH)
-                .collect::<Vec<f32>>(),
-        );
+        // self.output_buffer.push_by_ref(
+        //     &padding_range(-0.1, 0.1)
+        //         .take(30)
+        //         .collect::<Vec<f32>>(),
+        // );
     }
 
     fn receive(&mut self) -> PhysicalPackage {
@@ -180,9 +184,10 @@ impl HandlePackage<PhysicalPackage> for PhysicalLayer {
 
     fn receive_time_out(&mut self) -> Option<PhysicalPackage> {
         let mut count = 0;
-        let gateway = self.frame_length * self.input_descriptor.sample_rate as usize
-            / self.speed as usize + HEADER_LENGTH + 10;
+        let gateway = 2 * self.frame_length * self.input_descriptor.sample_rate as usize
+            / self.speed as usize + HEADER_LENGTH * 2 + 10;
         loop {
+            std::thread::sleep(std::time::Duration::from_millis(3));
             if self.input_buffer.len() < gateway {
                 count += 1;
                 if count > TIME_OUT { return None; }
