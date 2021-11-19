@@ -150,11 +150,11 @@ impl HandlePackage<PhysicalPackage> for PhysicalLayer {
             // segment push
             self.output_buffer.push_by_ref(segment);
         }
-        // self.output_buffer.push_by_ref(
-        //     &padding_range(-0.1, 0.1)
-        //         .take(30)
-        //         .collect::<Vec<f32>>(),
-        // );
+        self.output_buffer.push_by_ref(
+            &padding_range(-0.1, 0.1)
+                .take(30)
+                .collect::<Vec<f32>>(),
+        );
     }
 
     fn receive(&mut self) -> PhysicalPackage {
