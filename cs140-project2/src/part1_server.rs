@@ -28,8 +28,8 @@ fn main() {
         r.data_shard_count(),
         r.parity_shard_count()
     );
-    let physical_layer = PhysicalLayer::new_send_only(FREQUENCY, padding + 7);
-    // let physical_layer = PhysicalLayer::new_with_specific_device(FREQUENCY, padding + 7, 0);
+    // let physical_layer = PhysicalLayer::new_send_only(FREQUENCY, padding + 7);
+    let physical_layer = PhysicalLayer::new_with_specific_device(FREQUENCY, padding + 7, 1);
     physical_layer.push_warm_up_data();
     let redundancy_layer = RedundancyLayer::new(physical_layer);
     let mut ip_layer = IPLayer::new(redundancy_layer);

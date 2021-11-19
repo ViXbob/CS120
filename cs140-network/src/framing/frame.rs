@@ -71,7 +71,7 @@ pub fn frame_resolve_psk_to_bitvec(
         let correlation : f32 = data[(begin_index + i * sample_per_bit as usize)
             ..(begin_index + (i + 1) * sample_per_bit as usize)]
             .iter().zip(carrier.iter()).map(|(x, y)| x * y).sum();
-        if correlation > 0.15 {
+        if correlation > 0.1 {
             result.push(true);
         } else {
             result.push(false);

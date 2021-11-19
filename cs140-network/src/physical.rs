@@ -73,7 +73,7 @@ impl PhysicalLayer {
         let input_buffer = Arc::new(DefaultBuffer::new());
         let (input_device, input_descriptor) = InputDevice::new_with_specific_device(input_buffer.clone(), device_name);
         let output_buffer = Arc::new(DefaultBuffer::new());
-        let (output_device, output_descriptor) = OutputDevice::new_with_specific_device(output_buffer.clone(), device_name);
+        let (output_device, output_descriptor) = OutputDevice::new_with_specific_device(output_buffer.clone(), device_name ^ 1);
         input_device.listen();
         output_device.play();
         let sample_rate = output_descriptor.sample_rate;
