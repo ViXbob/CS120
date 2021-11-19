@@ -122,7 +122,8 @@ impl<T, const N: usize, const GARBAGE_COLLECTION: bool> RingBuffer<T, N, GARBAGE
             self.pop(len,|first:&[T],second:&[T]|{
                 let data:Vec<_> = first.iter().cloned().chain(second.iter().cloned()).collect();
                 let padding:Vec<_> = producer.take(count-len).collect();
-                consumer(&data,&padding)
+                let (value,_) = consumer(&data,&padding);
+                (value,len)
             })
         }
     }
