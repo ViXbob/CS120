@@ -1,12 +1,14 @@
-pub trait Buffer<Data>: Send + Sync where Data: Copy {
+use async_trait::async_trait;
+
+#[async_trait]
+pub trait Buffer<Data: Send + Sync>: Send + Sync {
     /// push the data into buffer, the process will be blocking when there is no space in the storage.
-    fn push(&self, count: usize, producer: impl FnOnce(&mut [Data], &mut [Data]) -> usize);
-    fn try_push(
+    async fn push(
         &self,
         count: usize,
-        producer: impl FnOnce(&mut [Data], &mut [Data]) -> usize,
-    ) -> Option<()>;
-    fn push_by_ref(&self, data: &[Data])
+        producer: impl for<'a> FnOnce(&'a mut [Data], &'a mut [Data]) -> usize + Send + 'async_trait,
+    );
+    async fn push_by_ref(&self, data: &[Data])
         where
             Data: Copy + Clone,
     {
@@ -17,10 +19,11 @@ pub trait Buffer<Data>: Send + Sync where Data: Copy {
                     *store = *data;
                 });
             data.len()
-        });
+        })
+            .await;
     }
 
-    fn push_by_iterator(&self, count: usize, data: &mut impl Iterator<Item=Data>)
+    async fn push_by_iterator(&self, count: usize, data: &mut (impl Iterator<Item = Data> + Send))
         where
             Data: Copy + Clone,
     {
@@ -32,18 +35,27 @@ pub trait Buffer<Data>: Send + Sync where Data: Copy {
                     count += 1;
                 });
             count
-        });
+        })
+            .await;
     }
 
     /// pop the data from the buffer, the data will be removed after the consumer call
-    fn pop<T>(&self, count: usize, consumer: impl FnOnce(&[Data], &[Data]) -> (T, usize)) -> T;
-    fn must_pop<T> (
+    async fn pop<T>(
         &self,
         count: usize,
-        consumer: impl FnOnce(&[Data], &[Data]) -> (T, usize),
-        producer: impl Iterator<Item=Data>,
+        consumer: impl for<'a> FnOnce(&'a [Data], &'a [Data]) -> (T, usize) + Send + 'async_trait,
     ) -> T;
-    fn pop_by_ref<T>(&self, count: usize, consumer: impl FnOnce(&[Data]) -> (T, usize)) -> T
+    fn must_pop<U>(
+        &self,
+        count: usize,
+        consumer: impl FnOnce(&[Data], &[Data]) -> (U, usize),
+        producer: impl Iterator<Item = Data>,
+    ) -> U;
+    async fn pop_by_ref<T>(
+        &self,
+        count: usize,
+        consumer: impl for<'a> FnOnce(&'a [Data]) -> (T, usize) + Send + 'async_trait,
+    ) -> T
         where
             Data: Copy + Clone,
     {
@@ -51,12 +63,15 @@ pub trait Buffer<Data>: Send + Sync where Data: Copy {
             let slice = [first, second].concat();
             consumer(&slice)
         })
+            .await
     }
 
-    fn pop_by_iterator<T>(
+    async fn pop_by_iterator<T>(
         &self,
         count: usize,
-        consumer: impl FnOnce(Box<dyn Iterator<Item=&Data> + '_>) -> (T, usize),
+        consumer: impl for<'b> FnOnce(Box<dyn Iterator<Item = &'b Data> + '_>) -> (T, usize)
+        + Send
+        + 'async_trait,
     ) -> T
         where
             Data: std::clone::Clone,
@@ -65,5 +80,6 @@ pub trait Buffer<Data>: Send + Sync where Data: Copy {
             let b = first.iter().chain(second.iter());
             consumer(Box::new(b))
         })
+            .await
     }
 }

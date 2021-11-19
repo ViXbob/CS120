@@ -1,4 +1,3 @@
-use std::slice::from_raw_parts_mut;
 use crate::buffer::Buffer as Buf;
 use crate::descriptor::SoundDescriptor;
 use std::sync::Arc;
@@ -6,6 +5,7 @@ use std::thread;
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{Device, SampleFormat, StreamConfig, StreamError, SupportedBufferSize};
+use tokio::runtime::{Builder, Runtime};
 use crate::padding::padding_range;
 
 pub struct InputDevice<Buffer: Buf<f32>> {
@@ -77,10 +77,10 @@ impl<Buffer> InputDevice<Buffer>
             .default_input_config()
             .expect("error while querying configs");
         let sample_format = config.sample_format();
-        let mut config : StreamConfig = config.into();
+        let mut config: StreamConfig = config.into();
         // config.buffer_size = cpal::BufferSize::Fixed(input_device.default_input_config().unwrap().buffer_size().into().min);
-        let buffer_size = match input_device.default_input_config().unwrap().buffer_size(){
-            SupportedBufferSize::Range{min,max} => {
+        let buffer_size = match input_device.default_input_config().unwrap().buffer_size() {
+            SupportedBufferSize::Range { min, max } => {
                 cpal::BufferSize::Fixed(*min)
             }
             SupportedBufferSize::Unknown => {
@@ -97,13 +97,14 @@ impl<Buffer> InputDevice<Buffer>
             let channels = stream_config.channels;
             let device = &self.stream_config.0;
             let audio_buffer = self.audio_buffer.clone();
+            let rt = Builder::new_multi_thread().enable_all().build().unwrap();
             // Build the stream
             let stream = match self.stream_config.2 {
                 SampleFormat::I16 => device
                     .build_input_stream(
                         stream_config,
                         move |data: &[i16], _: &_| {
-                            Self::listen_handler(data, channels as usize, audio_buffer.clone());
+                            Self::listen_handler(data, channels as usize, audio_buffer.clone(), &rt);
                         },
                         Self::listen_error_handler,
                     )
@@ -112,7 +113,7 @@ impl<Buffer> InputDevice<Buffer>
                     .build_input_stream(
                         stream_config,
                         move |data: &[u16], _: &_| {
-                            Self::listen_handler(data, channels as usize, audio_buffer.clone());
+                            Self::listen_handler(data, channels as usize, audio_buffer.clone(), &rt);
                         },
                         Self::listen_error_handler,
                     )
@@ -121,7 +122,7 @@ impl<Buffer> InputDevice<Buffer>
                     .build_input_stream(
                         stream_config,
                         move |data: &[f32], _: &_| {
-                            Self::listen_handler(data, channels as usize, audio_buffer.clone());
+                            Self::listen_handler(data, channels as usize, audio_buffer.clone(), &rt);
                         },
                         Self::listen_error_handler,
                     )
@@ -138,12 +139,12 @@ impl<Buffer> InputDevice<Buffer>
         }
     }
 
-    fn listen_handler<T>(input: &[T], channels: usize, audio_buffer: Arc<Buffer>)
+    fn listen_handler<T>(input: &[T], channels: usize, audio_buffer: Arc<Buffer>, rt: &Runtime)
         where
-            T: cpal::Sample,
+            T: cpal::Sample + Sync,
     {
         let mut iterator = input.iter().step_by(channels).map(|value| value.to_f32());
-        audio_buffer.push_by_iterator(input.len() / channels, &mut iterator);
+        rt.block_on(audio_buffer.push_by_iterator(input.len() / channels, &mut iterator));
     }
 
     fn listen_error_handler(err: StreamError) {
@@ -234,8 +235,8 @@ impl<Buffer> OutputDevice<Buffer>
             .expect("error while querying configs");
         let sample_format = config.sample_format();
         let mut config: StreamConfig = config.into();
-        let buffer_size = match output_device.default_output_config().unwrap().buffer_size(){
-            SupportedBufferSize::Range{min,max} => {
+        let buffer_size = match output_device.default_output_config().unwrap().buffer_size() {
+            SupportedBufferSize::Range { min, max } => {
                 cpal::BufferSize::Fixed(*min)
             }
             SupportedBufferSize::Unknown => {

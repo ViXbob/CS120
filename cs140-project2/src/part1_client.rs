@@ -17,7 +17,8 @@ fn generate_random_data() -> Vec<u8> {
 const SIZE: usize = 6250;
 // const PATH: &str = "/Users/vixbob/cs140/cs140-project2/OUTPUT.bin";
 const PATH: &str = "C:\\Users\\Leomund\\Sources\\ShanghaiTech\\cs140\\cs140-project2\\OUTPUT.bin";
-fn main() {
+#[tokio::main]
+async fn main() {
     const BYTE_IN_FRAME: usize = 7 + 65;
     const FREQUENCY: &'static [f32] = &[1000.0, 2000.0, 3000.0, 4000.0, 5000.0, 6000.0, 7000.0, 8000.0, 9000.0, 10000.0, 11000.0, 12000.0, 13000.0, 14000.0, 15000.0, 16000.0];
     // const FREQUENCY: &'static [f32] = &[1000.0, 2000.0, 3000.0, 4000.0, 5000.0, 6000.0, 7000.0, 8000.0, 9000.0, 10000.0, 11000.0, 12000.0];
@@ -37,7 +38,7 @@ fn main() {
     let mut package_received = 0;
     let mut now_package = 0;
     loop {
-        let package: IPPackage = ip_layer.receive();
+        let package: IPPackage = ip_layer.receive().await;
         // println!("received: {}", package.data[0]);
         now_package += 1;
         if package.data[0] >= data_shard_count + parity_shard_count {

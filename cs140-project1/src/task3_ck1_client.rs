@@ -30,7 +30,7 @@ fn main() {
     let mut package_received = 0;
     let mut now_package = 0;
     loop {
-        let package: IPPackage = ip_layer.receive();
+        let package: IPPackage = ip_layer.receive().await;
         // println!("received: {}", package.data[0]);
         now_package += 1;
         if package.data[0] >= data_shard_count + parity_shard_count {

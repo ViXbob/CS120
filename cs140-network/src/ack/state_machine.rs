@@ -51,7 +51,7 @@ impl AckStateMachine {
     pub fn append(&mut self, data: impl Iterator<Item=u8>) {
         self.tx.extend(data);
     }
-    pub fn work(&mut self) {
+    pub async fn work(&mut self) {
         let byte_in_frame = self.ack_layer.byte_in_frame;
         loop {
             let now_state = &self.state;
@@ -79,7 +79,7 @@ impl AckStateMachine {
                     trace!("{:?}", package.data);
                     loop {
                         // self.ack_layer.physical.push_warm_up_data();
-                        self.ack_layer.send(package.clone());
+                        self.ack_layer.send(package.clone()).await;
                         trace!("send: {:?}", package.data);
                         std::thread::sleep(std::time::Duration::from_millis(70));
                         // self.ack_layer.physical.push_warm_up_data(25);
@@ -95,7 +95,7 @@ impl AckStateMachine {
                             trace!("recv: {:?}", ack_package.data);
                             let has_ack = ack_package.has_ack();
                             let now_offset = ack_package.offset();
-                            if (has_ack && (now_offset >= self.tx_offset)) {
+                            if has_ack && (now_offset >= self.tx_offset) {
                                 debug!("package {} was sent successfully!", self.tx_offset);
                                 self.tx_offset = now_offset + 1;
                                 break;

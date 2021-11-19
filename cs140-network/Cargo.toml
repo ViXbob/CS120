@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 cs140-common = { path = "../cs140-common" }
 cs140-buffer = { path = "../cs140-buffer" }
+async-trait = "0.1.51"
 cpal = "0.13.4"
 clap = "2.0.0"
 crc = "2.0.0"
@@ -17,6 +18,7 @@ rodio = "0.14.0"
 rustfft = "6.0.1"
 bitvec = "0.22.3"
 rand_pcg = "0.3.1"
+tokio = { version = "1", features = ["full"] }
 log="0.4.14"
 env_logger = "0.9.0"
 [dev-dependencies]

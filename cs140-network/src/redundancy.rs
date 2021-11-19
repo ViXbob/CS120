@@ -187,19 +187,21 @@ impl RedundancyLayer {
         RedundancyPackage::build_from_raw(data)
     }
 }
+use async_trait::async_trait;
 
+#[async_trait]
 impl HandlePackage<RedundancyPackage> for RedundancyLayer {
-    fn send(&mut self, package: RedundancyPackage) {
+    async fn send(&mut self, package: RedundancyPackage) {
         let package = PhysicalPackage {
             0: self.make_redundancy(package),
         };
         assert_eq!(package.0.len(), self.physical.byte_in_frame * 8);
-        self.physical.send(package);
+        self.physical.send(package).await;
     }
 
-    fn receive(&mut self) -> RedundancyPackage {
+    async fn receive(&mut self) -> RedundancyPackage {
         loop {
-            let result = self.physical.receive().0;
+            let result = self.physical.receive().await.0;
             let result = self.erase_redundancy(result);
             if let Some(result) = result {
                 return result;
@@ -212,19 +214,19 @@ impl HandlePackage<RedundancyPackage> for RedundancyLayer {
     }
 }
 
-impl HandlePackage<PhysicalPackage> for RedundancyLayer {
-    fn send(&mut self, package: PhysicalPackage) {
-        self.physical.send(package)
-    }
-
-    fn receive(&mut self) -> PhysicalPackage {
-        self.physical.receive()
-    }
-
-    fn receive_time_out(&mut self) -> Option<PhysicalPackage> {
-        todo!()
-    }
-}
+// impl HandlePackage<PhysicalPackage> for RedundancyLayer {
+//     fn send(&mut self, package: PhysicalPackage) {
+//         self.physical.send(package)
+//     }
+//
+//     fn receive(&mut self) -> PhysicalPackage {
+//         self.physical.receive()
+//     }
+//
+//     fn receive_time_out(&mut self) -> Option<PhysicalPackage> {
+//         todo!()
+//     }
+// }
 
 #[cfg(test)]
 mod tests {

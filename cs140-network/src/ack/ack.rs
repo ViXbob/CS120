@@ -200,18 +200,21 @@ impl AckLayer {
     }
 }
 
+use async_trait::async_trait;
+
+#[async_trait]
 impl HandlePackage<AckPackage> for AckLayer {
-    fn send(&mut self, package: AckPackage) {
+    async fn send(&mut self, package: AckPackage) {
         let package = PhysicalPackage {
             0: self.make_redundancy(package),
         };
         assert_eq!(package.0.len(), self.physical.byte_in_frame * 8);
-        self.physical.send(package);
+        self.physical.send(package).await;
     }
 
-    fn receive(&mut self) -> AckPackage {
+    async fn receive(&mut self) -> AckPackage {
         loop {
-            let result = self.physical.receive().0;
+            let result = self.physical.receive().await.0;
             let result = self.erase_redundancy(result);
             if let Some(result) = result {
                 return result;
@@ -230,19 +233,19 @@ impl HandlePackage<AckPackage> for AckLayer {
     }
 }
 
-impl HandlePackage<PhysicalPackage> for AckLayer {
-    fn send(&mut self, package: PhysicalPackage) {
-        self.physical.send(package)
-    }
-
-    fn receive(&mut self) -> PhysicalPackage {
-        self.physical.receive()
-    }
-
-    fn receive_time_out(&mut self) -> Option<PhysicalPackage> {
-        todo!()
-    }
-}
+// impl HandlePackage<PhysicalPackage> for AckLayer {
+//     fn send(&mut self, package: PhysicalPackage) {
+//         self.physical.send(package)
+//     }
+//
+//     fn receive(&mut self) -> PhysicalPackage {
+//         self.physical.receive()
+//     }
+//
+//     fn receive_time_out(&mut self) -> Option<PhysicalPackage> {
+//         todo!()
+//     }
+// }
 
 #[cfg(test)]
 mod tests {

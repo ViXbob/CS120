@@ -7,8 +7,8 @@ use cs140_project1::make_redundancy;
 
 const SIZE: usize = 6250;
 const PATH: &str = "C:\\Users\\Leomund\\Sources\\ShanghaiTech\\cs140\\cs140-project2\\INPUT.bin";
-
-fn main() {
+#[tokio::main]
+async fn main() {
     const FREQUENCY: &'static [f32] = &[1000.0, 2000.0, 3000.0, 4000.0, 5000.0, 6000.0, 7000.0, 8000.0, 9000.0, 10000.0, 11000.0, 12000.0, 13000.0, 14000.0, 15000.0, 16000.0];
     // const FREQUENCY: &'static [f32] = &[1000.0, 2000.0, 3000.0, 4000.0, 5000.0, 6000.0, 7000.0, 8000.0, 9000.0, 10000.0, 11000.0, 12000.0];
     // const FREQUENCY: &'static [f32] = &[1000.0, 2000.0, 3000.0, 4000.0, 5000.0, 6000.0, 7000.0, 8000.0];
@@ -35,7 +35,7 @@ fn main() {
     let mut ip_layer = IPLayer::new(redundancy_layer);
     for p in packages {
         // println!("{:?}", p);
-        ip_layer.send(IPPackage::new(p));
+        ip_layer.send(IPPackage::new(p)).await;
     }
     // ip_layer.send(IPPackage::new(data));
     println!("OK");

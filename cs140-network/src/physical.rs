@@ -8,7 +8,7 @@ use cs140_common::device::{InputDevice, OutputDevice};
 use cs140_common::padding::{padding, padding_range};
 use std::sync::Arc;
 
-type DefaultBuffer = RingBuffer<f32, 5000000, false>;
+type DefaultBuffer = RingBuffer<f32, 5000000>;
 
 pub struct PhysicalPackage(pub BitStore);
 
@@ -18,7 +18,7 @@ const HEADER_LENGTH: usize = 60;
 const MIN_FREQUENCY: f32 = 8000.0;
 const MAX_FREQUENCY: f32 = 11000.0;
 const SPEED: u32 = 1000;
-const TIME_OUT: u32 = 30;
+const TIME_OUT: std::time::Duration = std::time::Duration::from_millis(90);
 const SPEED_OF_PSK: u32 = 12000;
 
 // a frame in physical layer has #(frame_length * sample_per_bit) samples
@@ -132,8 +132,11 @@ impl PhysicalLayer {
     }
 }
 
+use async_trait::async_trait;
+
+#[async_trait]
 impl HandlePackage<PhysicalPackage> for PhysicalLayer {
-    fn send(&mut self, package: PhysicalPackage) {
+    async fn send(&mut self, package: PhysicalPackage) {
         let samples = frame::generate_frame_sample_from_bitvec(
             &package.0,
             &self.header,
@@ -141,19 +144,14 @@ impl HandlePackage<PhysicalPackage> for PhysicalLayer {
             self.output_descriptor.sample_rate,
             self.speed,
         );
-        let segment_len = 100;
-        for segment in samples.chunks(segment_len) {
-            // segment push
-            self.output_buffer.push_by_ref(segment);
-        }
-        self.output_buffer.push_by_ref(
-            &padding_range(-0.1, 0.1)
-                .take(30)
-                .collect::<Vec<f32>>(),
-        );
+        self.output_buffer.push_by_ref(&samples).await;
+        let noise = &padding_range(-0.1, 0.1)
+            .take(30)
+            .collect::<Vec<f32>>();
+        self.output_buffer.push_by_ref(noise).await;
     }
 
-    fn receive(&mut self) -> PhysicalPackage {
+    async fn receive(&mut self) -> PhysicalPackage {
         loop {
             let return_package = self.input_buffer.pop_by_ref(
                 2 * self.frame_length * self.input_descriptor.sample_rate as usize
@@ -168,67 +166,23 @@ impl HandlePackage<PhysicalPackage> for PhysicalLayer {
                         self.speed,
                         self.frame_length,
                     )
-                    // frame::frame_resolve_psk_to_bitvec(
-                    //     data,
-                    //     &self.header,
-                    //     &[(2.0 * std::f32::consts::PI / 4.0).sin(), (4.0 * std::f32::consts::PI / 4.0).sin(), (6.0 * std::f32::consts::PI / 4.0).sin()],
-                    //     self.input_descriptor.sample_rate,
-                    //     SPEED_OF_PSK,
-                    //     self.frame_length,
-                    // )
                 },
-            );
+            ).await;
             if let Some(package) = return_package {
-                return PhysicalPackage{
-                    0:package
-                }
+                return PhysicalPackage {
+                    0: package
+                };
             }
         }
     }
 
     fn receive_time_out(&mut self) -> Option<PhysicalPackage> {
-        let mut count = 0;
-        let gateway = self.frame_length * self.input_descriptor.sample_rate as usize
-            / self.speed as usize + HEADER_LENGTH * 2 + 60;
-        loop {
-            std::thread::sleep(std::time::Duration::from_millis(3));
-            // self.push_warm_up_data(2);
-            if self.input_buffer.len() < gateway {
-                count += 1;
-                if count > TIME_OUT { return None; }
-                else { continue; }
-            }
-            let return_package = self.input_buffer.pop_by_ref(
-                gateway,
-                |data| {
-                    // let current = std::time::Instant::now();
-                    frame::frame_resolve_to_bitvec(
-                        data,
-                        &self.header,
-                        &self.multiplex_frequency,
-                        self.input_descriptor.sample_rate,
-                        self.speed,
-                        self.frame_length,
-                    )
-                    // frame::frame_resolve_psk_to_bitvec(
-                    //     data,
-                    //     &self.header,
-                    //     &[(2.0 * std::f32::consts::PI / 3.0).sin(), (4.0 * std::f32::consts::PI / 3.0).sin()],
-                    //     self.input_descriptor.sample_rate,
-                    //     SPEED_OF_PSK,
-                    //     self.frame_length,
-                    // )
-                },
-            );
-            if let Some(package) = return_package {
-                return Some(PhysicalPackage{
-                    0:package
-                })
-            } else {
-                count += 1;
-                if count > TIME_OUT { return None; }
-            }
+        let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+        let return_package = rt.block_on(tokio::time::timeout(TIME_OUT, self.receive()));
+        if let Ok(package) = return_package {
+            return Some(package)
         }
+        return None
     }
 }
 
@@ -317,7 +271,7 @@ mod test {
         // cs140_util::record::record();
         let mut response: super::BitStore = BitVec::new();
         for _ in 0..FRAME_SIZE {
-            response.extend(layer.receive().0.iter());
+            response.extend(layer.receive().await.0.iter());
         }
         println!("result:\t{:?}", response);
         let mut errors = 0;
@@ -348,7 +302,7 @@ mod test {
         tmp.extend(tmp_.iter());
         // cs140_util::record::record_from_slice("/Users/vixbob/cs140/output.wav",tmp.as_slice());
         let thread = std::thread::spawn(|| cs140_util::record::record("/Users/vixbob/cs140/output.wav", 10));
-        let buffer: RingBuffer<f32, 100000, false> = RingBuffer::new();
+        let buffer: RingBuffer<f32, 100000> = RingBuffer::new();
         let buffer_ptr = Arc::new(buffer);
         let (output, descriptor) = OutputDevice::new(buffer_ptr.clone());
         let close_output = output.play();
