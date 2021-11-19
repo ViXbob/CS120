@@ -81,13 +81,13 @@ impl<Buffer> InputDevice<Buffer>
         // config.buffer_size = cpal::BufferSize::Fixed(input_device.default_input_config().unwrap().buffer_size().into().min);
         let buffer_size = match input_device.default_input_config().unwrap().buffer_size(){
             SupportedBufferSize::Range{min,max} => {
-                *min
+                cpal::BufferSize::Fixed(*min)
             }
             SupportedBufferSize::Unknown => {
-                panic!("error")
+                config.buffer_size
             }
         };
-        config.buffer_size = cpal::BufferSize::Fixed(buffer_size);
+        config.buffer_size = buffer_size;
         (input_device, config, sample_format)
     }
 
@@ -236,13 +236,13 @@ impl<Buffer> OutputDevice<Buffer>
         let mut config: StreamConfig = config.into();
         let buffer_size = match output_device.default_output_config().unwrap().buffer_size(){
             SupportedBufferSize::Range{min,max} => {
-                *min
+                cpal::BufferSize::Fixed(*min)
             }
             SupportedBufferSize::Unknown => {
-                panic!("error")
+                config.buffer_size
             }
         };
-        config.buffer_size = cpal::BufferSize::Fixed(buffer_size);
+        config.buffer_size = buffer_size;
         (output_device, config, sample_format)
     }
 
