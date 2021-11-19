@@ -191,7 +191,7 @@ impl HandlePackage<PhysicalPackage> for PhysicalLayer {
         let gateway = self.frame_length * self.input_descriptor.sample_rate as usize
             / self.speed as usize + HEADER_LENGTH * 2 + 60;
         loop {
-            std::thread::sleep(std::time::Duration::from_millis(2));
+            std::thread::sleep(std::time::Duration::from_millis(3));
             // self.push_warm_up_data(2);
             if self.input_buffer.len() < gateway {
                 count += 1;

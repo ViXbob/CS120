@@ -79,7 +79,7 @@ impl AckStateMachine {
                         self.ack_layer.send(package.clone());
                         println!("send: {:?}", package.data);
                         // std::thread::sleep(std::time::Duration::from_millis(155));
-                        self.ack_layer.physical.push_warm_up_data(15);
+                        self.ack_layer.physical.push_warm_up_data(25);
                         // let ack_package: Option<AckPackage> = self.ack_layer.receive_time_out();
                         let package = self.ack_layer.physical.receive_time_out();
                         let ack_package =
@@ -117,7 +117,7 @@ impl AckStateMachine {
                     }
                 },
                 AckState::TxAck => {
-                    // self.ack_layer.physical.push_warm_up_data();
+                    self.ack_layer.physical.push_warm_up_data(25);
                     self.ack_layer.send(AckPackage::new(padding::padding().take(byte_in_frame), 0, self.rx_offset - 1, false, true, 0, 0));
                     println!("the acknowledgment of package {} was sent!", self.rx_offset - 1);
                     AckState::FrameDetection
