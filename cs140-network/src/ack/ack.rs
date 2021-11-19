@@ -50,7 +50,7 @@ impl AckPackage {
             data: raw_data.into_vec(),
         };
         // log
-        println!("{:?}", package.data);
+        println!("recv: {:?}", package.data);
         if package.validate_checksum() {
             Some(package)
         } else {

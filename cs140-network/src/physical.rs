@@ -15,8 +15,8 @@ pub struct PhysicalPackage(pub BitStore);
 impl NetworkPackage for PhysicalPackage {}
 
 const HEADER_LENGTH: usize = 60;
-const MIN_FREQUENCY: f32 = 5000.0;
-const MAX_FREQUENCY: f32 = 8000.0;
+const MIN_FREQUENCY: f32 = 8000.0;
+const MAX_FREQUENCY: f32 = 11000.0;
 const SPEED: u32 = 1000;
 const TIME_OUT: u32 = 30;
 const SPEED_OF_PSK: u32 = 12000;
@@ -36,16 +36,16 @@ pub struct PhysicalLayer {
 }
 
 impl PhysicalLayer {
-    fn push_warm_up_data_to_buffer(buffer: &Arc<DefaultBuffer>) {
+    fn push_warm_up_data_to_buffer(buffer: &Arc<DefaultBuffer>, time: usize) {
         buffer.push_by_ref(
             &padding_range(-0.1, 0.1)
-                .take(HEADER_LENGTH)
+                .take(48 * time)
                 .collect::<Vec<f32>>(),
         );
     }
 
-    pub fn push_warm_up_data(&self) {
-        Self::push_warm_up_data_to_buffer(&self.output_buffer);
+    pub fn push_warm_up_data(&self, time: usize) {
+        Self::push_warm_up_data_to_buffer(&self.output_buffer, time);
     }
 
     pub fn new(multiplex_frequency: &[f32], byte_in_frame: usize) -> Self {
@@ -95,7 +95,7 @@ impl PhysicalLayer {
         let (_, input_descriptor) = InputDevice::new(input_buffer.clone());
         let output_buffer = Arc::new(DefaultBuffer::new());
         let (output_device, output_descriptor) = OutputDevice::new(output_buffer.clone());
-        Self::push_warm_up_data_to_buffer(&output_buffer);
+        Self::push_warm_up_data_to_buffer(&output_buffer, 10);
         output_device.play();
         let sample_rate = output_descriptor.sample_rate;
         PhysicalLayer {
@@ -188,10 +188,11 @@ impl HandlePackage<PhysicalPackage> for PhysicalLayer {
 
     fn receive_time_out(&mut self) -> Option<PhysicalPackage> {
         let mut count = 0;
-        let gateway = 2 * self.frame_length * self.input_descriptor.sample_rate as usize
-            / self.speed as usize + HEADER_LENGTH * 2 + 10;
+        let gateway = self.frame_length * self.input_descriptor.sample_rate as usize
+            / self.speed as usize + HEADER_LENGTH * 2 + 60;
         loop {
-            std::thread::sleep(std::time::Duration::from_millis(3));
+            std::thread::sleep(std::time::Duration::from_millis(2));
+            // self.push_warm_up_data(2);
             if self.input_buffer.len() < gateway {
                 count += 1;
                 if count > TIME_OUT { return None; }

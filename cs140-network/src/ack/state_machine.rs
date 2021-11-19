@@ -21,9 +21,9 @@ pub struct AckStateMachine {
     state: AckState,
 }
 
-// const FREQUENCY: &'static [f32] = &[1000.0, 2000.0, 3000.0, 4000.0, 5000.0, 6000.0, 7000.0, 8000.0, 9000.0, 10000.0, 11000.0, 12000.0, 13000.0, 14000.0, 15000.0, 16000.0];
+const FREQUENCY: &'static [f32] = &[1000.0, 2000.0, 3000.0, 4000.0, 5000.0, 6000.0, 7000.0, 8000.0, 9000.0, 10000.0, 11000.0, 12000.0, 13000.0, 14000.0, 15000.0, 16000.0];
 // const FREQUENCY: &'static [f32] = &[1000.0, 2000.0, 3000.0, 4000.0, 5000.0, 6000.0, 7000.0, 8000.0];
-const FREQUENCY: &'static [f32] = &[1000.0, 2000.0, 3000.0, 4000.0];
+// const FREQUENCY: &'static [f32] = &[1000.0, 2000.0, 3000.0, 4000.0];
 const BYTE_IN_FRAME : usize = 72;
 
 impl AckStateMachine {
@@ -77,18 +77,29 @@ impl AckStateMachine {
                     loop {
                         // self.ack_layer.physical.push_warm_up_data();
                         self.ack_layer.send(package.clone());
-                        std::thread::sleep(std::time::Duration::from_millis(65));
-                        let ack_package: Option<AckPackage> = self.ack_layer.receive_time_out();
+                        println!("send: {:?}", package.data);
+                        // std::thread::sleep(std::time::Duration::from_millis(155));
+                        self.ack_layer.physical.push_warm_up_data(15);
+                        // let ack_package: Option<AckPackage> = self.ack_layer.receive_time_out();
+                        let package = self.ack_layer.physical.receive_time_out();
+                        let ack_package =
+                        if let Some(package) = package {
+                            Some(AckPackage{data: package.0.into_vec()})
+                        } else {
+                            None
+                        };
                         if let Some(ack_package) = ack_package {
+                            println!("recv: {:?}", ack_package.data);
                             let has_ack = ack_package.has_ack();
                             let now_offset = ack_package.offset();
-                            if (has_ack && (now_offset == self.tx_offset)) {
+                            if (has_ack && (now_offset >= self.tx_offset)) {
+                                println!("package {} was sent successfully!", self.tx_offset);
+                                self.tx_offset = now_offset + 1;
                                 break;
                             }
                         }
                     }
-                    println!("package {} was sent successfully!", self.tx_offset);
-                    self.tx_offset += 1;
+                    // self.tx_offset += 1;
                     if !package.has_more_fragments() { return; }
                     AckState::FrameDetection
                 },
