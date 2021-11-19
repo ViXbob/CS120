@@ -78,8 +78,8 @@ mod test {
         let fft_len = 48;
         let fft = planner.plan_fft_forward(fft_len);
         // let mut buffer = vec![Complex{ re: 0.0f32, im: 0.0f32 }; 4096];
-        // let fre1: f32 = 1000.0 * 2.0 * std::f32::consts::PI;
-        // let fre2: f32 = 2000.0 * 2.0 * std::f32::consts::PI;
+        let fre1: f32 = 1000.0 * 2.0 * std::f32::consts::PI;
+        let fre2: f32 = 2000.0 * 2.0 * std::f32::consts::PI;
         let fre3: f32 = 3000.0 * 2.0 * std::f32::consts::PI;
         // 48, 24, 16
         //
@@ -87,8 +87,8 @@ mod test {
             .map(|x| {
                 let x: f32 = x as f32 / 48000.0f32;
                 Complex {
-                    // re: (x * fre1).sin() + (x * fre2).cos() + (x * fre3).sin(),
-                    re: (x * fre3).sin(),
+                    re: (x * fre1).sin() + (x * fre2).cos() + (x * fre3).sin() + (x * fre1).cos(),
+                    // re: (x * fre3).sin(),
                     im: 0.0f32,
                 }
             })

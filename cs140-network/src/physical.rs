@@ -20,6 +20,7 @@ const MAX_FREQUENCY: f32 = 11000.0;
 const SPEED: u32 = 1000;
 const TIME_OUT: u32 = 30;
 const SPEED_OF_PSK: u32 = 12000;
+const DOUBLE_ON: bool = false;
 
 // a frame in physical layer has #(frame_length * sample_per_bit) samples
 
@@ -63,7 +64,7 @@ impl PhysicalLayer {
             output_buffer,
             multiplex_frequency: multiplex_frequency.to_owned(),
             speed: SPEED,
-            frame_length: byte_in_frame * 8 / multiplex_frequency.len(),
+            frame_length: byte_in_frame * 8 / multiplex_frequency.len() / (DOUBLE_ON as usize + 1),
             header: create_header(HEADER_LENGTH, MIN_FREQUENCY, MAX_FREQUENCY, sample_rate),
             byte_in_frame,
         }
@@ -84,7 +85,7 @@ impl PhysicalLayer {
             output_buffer,
             multiplex_frequency: multiplex_frequency.to_owned(),
             speed: SPEED,
-            frame_length: byte_in_frame * 8 / multiplex_frequency.len(),
+            frame_length: byte_in_frame * 8 / multiplex_frequency.len() / (DOUBLE_ON as usize + 1),
             header: create_header(HEADER_LENGTH, MIN_FREQUENCY, MAX_FREQUENCY, sample_rate),
             byte_in_frame,
         }
@@ -105,7 +106,7 @@ impl PhysicalLayer {
             output_buffer,
             multiplex_frequency: multiplex_frequency.to_owned(),
             speed: SPEED,
-            frame_length: byte_in_frame * 8 / multiplex_frequency.len(),
+            frame_length: byte_in_frame * 8 / multiplex_frequency.len() / (DOUBLE_ON as usize + 1),
             header: create_header(HEADER_LENGTH, MIN_FREQUENCY, MAX_FREQUENCY, sample_rate),
             byte_in_frame,
         }
@@ -125,7 +126,7 @@ impl PhysicalLayer {
             output_buffer,
             multiplex_frequency: multiplex_frequency.to_owned(),
             speed: SPEED,
-            frame_length: byte_in_frame * 8 / multiplex_frequency.len(),
+            frame_length: byte_in_frame * 8 / multiplex_frequency.len() / (DOUBLE_ON as usize + 1),
             header: create_header(HEADER_LENGTH, MIN_FREQUENCY, MAX_FREQUENCY, sample_rate),
             byte_in_frame,
         }
@@ -140,6 +141,7 @@ impl HandlePackage<PhysicalPackage> for PhysicalLayer {
             &self.multiplex_frequency,
             self.output_descriptor.sample_rate,
             self.speed,
+            DOUBLE_ON,
         );
         let segment_len = 100;
         for segment in samples.chunks(segment_len) {
@@ -167,6 +169,7 @@ impl HandlePackage<PhysicalPackage> for PhysicalLayer {
                         self.input_descriptor.sample_rate,
                         self.speed,
                         self.frame_length,
+                        DOUBLE_ON,
                     )
                     // frame::frame_resolve_psk_to_bitvec(
                     //     data,
@@ -209,6 +212,7 @@ impl HandlePackage<PhysicalPackage> for PhysicalLayer {
                         self.input_descriptor.sample_rate,
                         self.speed,
                         self.frame_length,
+                        DOUBLE_ON,
                     )
                     // frame::frame_resolve_psk_to_bitvec(
                     //     data,

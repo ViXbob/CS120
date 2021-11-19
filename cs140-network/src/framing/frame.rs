@@ -91,6 +91,7 @@ pub fn frame_resolve_to_bitvec(
     sample_rate: u32,
     speed: u32,
     frame_length: usize,
+    double_on: bool
 ) -> (Option<BitStore>, usize) {
     let begin_index = header::detect_header(data.iter(), header); //.expect("detection failed");
     if begin_index.is_none() {
@@ -121,15 +122,12 @@ pub fn frame_resolve_to_bitvec(
             let index: usize = (*frequency as usize) / ((sample_rate / sample_per_bit) as usize);
             let value = buffer[index];
             // println!("{}", value.im / (sample_per_bit as f32) * 2.0);
-            if (value.im.abs() / (sample_per_bit as f32) * 2.0 > 0.01) && (value.im < 0.0) {
-                result.push(true);
-            } else {
-                result.push(false);
-                // if !(value.im.abs() / (sample_per_bit as f32) * 2.0 > 0.01) {
-                //     println!("{}", value.im);
-                // }
-            }
-            // if (value.im.abs() / (sample_per_bit as f32) * 2.0 > 0.01) && (value.im > 0.0)
+            // let first_bit = ((value.im.abs() / (sample_per_bit as f32) * 2.0 > 0.05) && (value.im < 0.0));
+            // let second_bit = ((value.re.abs() / (sample_per_bit as f32) * 2.0 > 0.05) && (value.re > 0.0));
+            let first_bit = (value.im < 0.0);
+            let second_bit = (value.re > 0.0);
+            result.push(first_bit);
+            if double_on { result.push(second_bit); }
         }
     }
     (
@@ -172,21 +170,24 @@ pub fn generate_frame_sample_from_bitvec(
     multiplex_frequency: &[f32],
     sample_rate: u32,
     speed: u32,
+    double_on: bool,
 ) -> Vec<f32> {
     assert!(!multiplex_frequency.is_empty());
     let samples_per_bit: f32 = (sample_rate / speed) as f32;
     let scale: f32 = 2.0 / multiplex_frequency.len() as f32;
     let mut rtn: Vec<f32> = header.to_owned();
     let sample_rate: f32 = sample_rate as f32;
-    for (i, bits_group) in data.chunks(multiplex_frequency.len()).enumerate() {
+    for (i, bits_group) in data.chunks(multiplex_frequency.len() * (1 + double_on as usize)).enumerate() {
         for time in i * (samples_per_bit as usize)..(i + 1) * (samples_per_bit as usize) {
             let phase: f32 = 2.0 * std::f32::consts::PI * time as f32 / sample_rate;
             let mut value: f32 = 0.0;
-            for (j, bit) in bits_group.iter().enumerate() {
-                value += if *bit {
-                    (phase * multiplex_frequency[j]).sin() * scale
-                } else {
-                    -(phase * multiplex_frequency[j]).sin() * scale
+            for (j, bits) in bits_group.chunks(1 + double_on as usize).enumerate() {
+                for (k, bit) in bits.iter().enumerate() {
+                    value += if *bit {
+                        (phase * multiplex_frequency[j] + std::f32::consts::PI / 2.0 * k as f32).sin() * scale
+                    } else {
+                        -(phase * multiplex_frequency[j] + std::f32::consts::PI / 2.0 * k as f32).sin() * scale
+                    }
                 }
             }
             rtn.push(value);

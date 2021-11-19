@@ -18,13 +18,16 @@ const SIZE: usize = 6250;
 const PATH: &str = "/Users/vixbob/cs140/cs140-project2/OUTPUT.bin";
 
 fn main() {
+    let mut builder = env_logger::Builder::from_default_env();
+    builder.format_timestamp_millis().init();
     const BYTE_IN_FRAME: usize = 7 + 65;
+    // const FREQUENCY: &'static [f32] = &[1000.0, 2000.0, 3000.0, 4000.0, 5000.0, 6000.0, 7000.0, 8000.0, 9000.0, 10000.0, 11000.0, 12000.0, 13000.0, 14000.0, 15000.0, 16000.0, 17000.0, 18000.0, 19000.0, 20000.0, 21000.0, 22000.0, 23000.0, 24000.0];
     // const FREQUENCY: &'static [f32] = &[1000.0, 2000.0, 3000.0, 4000.0, 5000.0, 6000.0, 7000.0, 8000.0, 9000.0, 10000.0, 11000.0, 12000.0, 13000.0, 14000.0, 15000.0, 16000.0];
-    // const FREQUENCY: &'static [f32] = &[1000.0, 2000.0, 3000.0, 4000.0, 5000.0, 6000.0, 7000.0, 8000.0, 9000.0, 10000.0, 11000.0, 12000.0];
+    const FREQUENCY: &'static [f32] = &[1000.0, 2000.0, 3000.0, 4000.0, 5000.0, 6000.0, 7000.0, 8000.0, 9000.0, 10000.0, 11000.0, 12000.0];
     // const FREQUENCY: &'static [f32] = &[1000.0, 2000.0, 3000.0, 4000.0, 5000.0, 6000.0, 7000.0, 8000.0];
     // const FREQUENCY: &'static [f32] = &[1000.0, 2000.0, 3000.0, 4000.0, 5000.0, 6000.0];
     // const FREQUENCY: &'static [f32] = &[4000.0, 5000.0];
-    const FREQUENCY: &'static [f32] = &[4000.0];
+    // const FREQUENCY: &'static [f32] = &[4000.0];
     let physical_layer = PhysicalLayer::new_receive_only(FREQUENCY, BYTE_IN_FRAME);
     // let physical_layer = PhysicalLayer::new_with_specific_device(FREQUENCY, BYTE_IN_FRAME, &"USB Audio Device");
     // let physical_layer = PhysicalLayer::new(FREQUENCY, BYTE_IN_FRAME);
