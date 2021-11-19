@@ -84,17 +84,14 @@ impl HandlePackage<PhysicalPackage> for PhysicalLayer {
                     2 * self.frame_length * self.input_descriptor.sample_rate as usize
                         / self.speed as usize,
                     |data| {
-                        // let current = std::time::Instant::now();
-                        let tmp = frame::frame_resolve_to_bitvec(
+                        frame::frame_resolve_to_bitvec(
                             data,
                             &self.header,
                             &self.multiplex_frequency,
                             self.input_descriptor.sample_rate,
                             self.speed,
                             self.frame_length,
-                        );
-                        // println!("begin_index = {}", tmp.1);
-                        tmp
+                        )
                     },
                 )
                 .await;

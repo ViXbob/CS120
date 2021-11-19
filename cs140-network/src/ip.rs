@@ -46,7 +46,7 @@ impl HandlePackage<IPPackage> for IPLayer {
             } else {
                 0
             });
-            data.extend(ip_data.into_iter());
+            data.extend(ip_data.iter());
             data.resize(self.redundancy.byte_in_frame, 0);
             self.redundancy.send(RedundancyPackage { data }).await;
             println!("Package {} sent, len {}.", index, len);
@@ -105,7 +105,7 @@ mod test {
     use cs140_common::buffer::Buffer;
     use rand::Rng;
 
-    const FREQUENCY: &'static [f32] = &[3000.0, 6000.0];
+    const FREQUENCY: &[f32] = &[3000.0, 6000.0];
     const BYTE_PER_FRAME: usize = 128;
     fn generate_data(
         size: usize,
@@ -116,7 +116,7 @@ mod test {
         for i in 0..size {
             data.push(rand::thread_rng().gen::<bool>());
         }
-        let mut samples = frame::generate_frame_sample_from_bitvec(
+        let samples = frame::generate_frame_sample_from_bitvec(
             &data,
             header,
             multiplex_frequency,
@@ -140,7 +140,7 @@ mod test {
                 .map(|x| (x as f32 * 6.28 * 3000.0 / 48000.0).sin() * 0.5)
                 .take(30000),
         );
-        let mut data = BitVec::new();
+        let data = BitVec::new();
         let (samples, data_) = generate_data(size, header, multiplex_frequency);
         // buffer.push_by_ref(&samples);
         ip.send(IPPackage {
@@ -156,7 +156,7 @@ mod test {
         let output_buffer = physical.output_buffer.clone();
         let redundancy: RedundancyLayer = RedundancyLayer::new(physical);
         let mut ip_server: IPLayer = IPLayer::new(redundancy);
-        let ground_truth = push_data_to_buffer(
+        let _ground_truth = push_data_to_buffer(
             &*output_buffer,
             &mut ip_server,
             10000,

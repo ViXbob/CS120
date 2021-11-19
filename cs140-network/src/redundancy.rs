@@ -24,13 +24,13 @@ impl RedundancyLayer {
     }
 
     fn make_redundancy(&self, package: RedundancyPackage) -> BitStore {
-        return BitVec::from_vec(package.data);
+        BitVec::from_vec(package.data)
     }
 
     fn erase_redundancy(&self, data: BitStore) -> Option<RedundancyPackage> {
-        return Some(RedundancyPackage {
+        Some(RedundancyPackage {
             data: data.into_vec(),
-        });
+        })
     }
 }
 #[async_trait]

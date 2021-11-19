@@ -26,6 +26,6 @@ mod test {
     fn test_padding() {
         let p = padding();
         let vec: Vec<u8> = p.take(100000).collect();
-        assert!(vec.len() > 0)
+        assert!(!vec.is_empty())
     }
 }

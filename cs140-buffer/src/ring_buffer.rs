@@ -227,7 +227,7 @@ mod tests {
         let buffer_for_producer = buffer;
         std::thread::spawn(move || {
             let array = vec![3.0; 4];
-            let push = buffer_for_consumer.push(4, |par1, par2| {
+            let push = buffer_for_consumer.push(4, |par1, _par2| {
                 par1[..array.len()].copy_from_slice(&array);
                 array.len()
             });
@@ -238,7 +238,7 @@ mod tests {
             std::thread::sleep(std::time::Duration::from_secs(1));
             rt.block_on(push);
         });
-        let pop = buffer_for_producer.pop(2, |par1, par2| (par1[0], 1));
+        let pop = buffer_for_producer.pop(2, |par1, _par2| (par1[0], 1));
         let timeout = tokio::time::timeout(std::time::Duration::from_millis(1000), pop);
         match timeout.await {
             Ok(value) => {
