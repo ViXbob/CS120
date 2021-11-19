@@ -6,6 +6,8 @@ use async_trait::async_trait;
 use bitvec::prelude::BitVec;
 
 use crc::{Crc, CRC_16_IBM_SDLC};
+use log::trace;
+
 static REVC_COUNT:AtomicUsize = AtomicUsize::new(0);
 pub enum Checksum {
     CRC16(&'static Crc<u16>),
@@ -69,6 +71,7 @@ impl RedundancyPackage {
         let package = Self {
             data: raw_data.into_vec(),
         };
+        trace!("{:?}", package.data);
         if package.validate_checksum() {
             Some(package)
         } else {

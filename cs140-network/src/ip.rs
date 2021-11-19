@@ -39,9 +39,10 @@ impl HandlePackage<IPPackage> for IPLayer {
         let last_chunk_index = chunks.len() - 1;
         for (index, ip_data) in chunks.enumerate() {
             if index == last_chunk_index{
-                self.redundancy.send(RedundancyPackage::new(ip_data.iter().cloned().chain(padding::padding()).take(self.redundancy.byte_in_frame),self.redundancy.byte_in_frame,false,0,0));
+                let package = RedundancyPackage::new(ip_data.iter().cloned().chain(padding::padding()).take(self.redundancy.byte_in_frame),self.redundancy.byte_in_frame,false,0,0);
+                self.redundancy.send(package).await;
             }else{
-                self.redundancy.send(RedundancyPackage::new(ip_data.iter().cloned(),self.redundancy.byte_in_frame,true,0,0));
+                self.redundancy.send(RedundancyPackage::new(ip_data.iter().cloned(),self.redundancy.byte_in_frame,true,0,0)).await;
             }
         }
     }
@@ -50,7 +51,7 @@ impl HandlePackage<IPPackage> for IPLayer {
         let mut data: Vec<u8> = Vec::new();
         let mut package_received = 0;
         loop {
-            let package: RedundancyPackage = self.redundancy.receive();
+            let package: RedundancyPackage = self.redundancy.receive().await;
             // let len = ((package.data[0] as usize) << 8) + package.data[1] as usize;
             let len = package.data_len();
             // println!("we received a package with len:{}", len);

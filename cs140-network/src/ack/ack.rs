@@ -6,6 +6,7 @@ use bitvec::prelude::BitVec;
 use crate::redundancy::Checksum;
 use crc::{Crc, CRC_16_IBM_SDLC};
 use log::{debug, trace};
+use async_trait::async_trait;
 
 static REVC_COUNT:AtomicUsize = AtomicUsize::new(0);
 
@@ -200,48 +201,36 @@ impl AckLayer {
     }
 }
 
+#[async_trait]
 impl HandlePackage<AckPackage> for AckLayer {
-    fn send(&mut self, package: AckPackage) {
+    async fn send(&mut self, package: AckPackage) {
         let package = PhysicalPackage {
             0: self.make_redundancy(package),
         };
         assert_eq!(package.0.len(), self.physical.byte_in_frame * 8);
-        self.physical.send(package);
+        self.physical.send(package).await;
     }
 
-    fn receive(&mut self) -> AckPackage {
+    async fn receive(&mut self) -> AckPackage {
         loop {
-            let result = self.physical.receive().0;
+            let result = self.physical.receive().await.0;
             let result = self.erase_redundancy(result);
             if let Some(result) = result {
                 return result;
             }
         }
     }
-
-    fn receive_time_out(&mut self) -> Option<AckPackage> {
-        let result = self.physical.receive_time_out();
-        if let Some(package) = result {
-            let data = self.erase_redundancy(package.0);
-            return data;
-        } else {
-            return None;
-        }
-    }
 }
-
+#[async_trait]
 impl HandlePackage<PhysicalPackage> for AckLayer {
-    fn send(&mut self, package: PhysicalPackage) {
-        self.physical.send(package)
+    async fn send(&mut self, package: PhysicalPackage) {
+        self.physical.send(package).await
     }
 
-    fn receive(&mut self) -> PhysicalPackage {
-        self.physical.receive()
+    async fn receive(&mut self) -> PhysicalPackage {
+        self.physical.receive().await
     }
 
-    fn receive_time_out(&mut self) -> Option<PhysicalPackage> {
-        todo!()
-    }
 }
 
 #[cfg(test)]

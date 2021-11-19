@@ -4,6 +4,8 @@ use std::pin::Pin;
 use std::sync::Mutex;
 use std::task::{Context, Poll, Waker};
 
+use log::trace;
+
 pub struct BlockingRingBuffer<T, const N: usize> {
     buffer: Box<[T; N]>,
     head: usize,
@@ -34,6 +36,7 @@ impl<T, const N: usize> RingBuffer<T, N> {
         } else {
             guard.pop_blocking(len,|first:&[T],second:&[T]|{
                 let data:Vec<_> = first.iter().cloned().chain(second.iter().cloned()).collect();
+                assert_eq!(data.len(),len);
                 let padding:Vec<_> = producer.take(count-len).collect();
                 let (value,_) = consumer(&data,&padding);
                 (value,len)
@@ -98,7 +101,6 @@ where
         if guard.capacity() - guard.len() >= self.push_len_required {
             let push_fn: PushCallback = unsafe { std::mem::transmute_copy(&self.push_fn) };
             guard.push_blocking(push_fn);
-            guard.push_waker.pop_front();
             let pop_waker = guard.pop_waker.pop_front();
             if let Some(pop_waker) = pop_waker {
                 pop_waker.wake();
@@ -122,7 +124,6 @@ where
         if guard.len() >= self.pop_len_required {
             let pop_fn: PopCallback = unsafe { std::mem::transmute_copy(&self.pop_fn) };
             let result = guard.pop_blocking(self.pop_len_required, pop_fn);
-            guard.pop_waker.pop_front();
             let push_waker = guard.push_waker.pop_front();
             if let Some(push_waker) = push_waker {
                 push_waker.wake();

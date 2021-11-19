@@ -23,10 +23,6 @@ impl HandlePackage<TCPPackage> for TCPLayer {
     async fn receive(&mut self) -> TCPPackage {
         todo!()
     }
-
-    fn receive_time_out(&mut self) -> Option<TCPPackage> {
-        todo!()
-    }
 }
 
 #[async_trait]
@@ -37,10 +33,6 @@ impl HandlePackage<IPPackage> for TCPLayer {
 
     async fn receive(&mut self) -> IPPackage {
         self.ip.receive().await
-    }
-
-    fn receive_time_out(&mut self) -> Option<IPPackage> {
-        todo!()
     }
 }
 
@@ -54,9 +46,6 @@ impl HandlePackage<RedundancyPackage> for TCPLayer {
         self.ip.receive().await
     }
 
-    fn receive_time_out(&mut self) -> Option<RedundancyPackage> {
-        todo!()
-    }
 }
 
 #[async_trait]
@@ -69,7 +58,4 @@ impl HandlePackage<PhysicalPackage> for TCPLayer {
         self.ip.receive().await
     }
 
-    fn receive_time_out(&mut self) -> Option<PhysicalPackage> {
-        todo!()
-    }
 }

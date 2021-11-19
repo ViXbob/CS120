@@ -1,3 +1,4 @@
+use std::ops::Add;
 use std::thread::sleep;
 use crate::encoding::HandlePackage;
 use crate::ip::*;
@@ -28,6 +29,7 @@ const FREQUENCY: &'static [f32] = &[1000.0, 2000.0, 3000.0, 4000.0, 5000.0, 6000
 // const FREQUENCY: &'static [f32] = &[1000.0, 2000.0, 3000.0, 4000.0, 5000.0, 6000.0, 7000.0, 8000.0];
 // const FREQUENCY: &'static [f32] = &[1000.0, 2000.0, 3000.0, 4000.0];
 const BYTE_IN_FRAME : usize = 72;
+const RECV_TIME_OUT: std::time::Duration = std::time::Duration::from_millis(90);
 
 impl AckStateMachine {
     pub fn new(device_name: usize) -> Self {
@@ -51,18 +53,23 @@ impl AckStateMachine {
     pub fn append(&mut self, data: impl Iterator<Item=u8>) {
         self.tx.extend(data);
     }
-    pub fn work(&mut self) {
+    pub async fn work(&mut self) {
         let byte_in_frame = self.ack_layer.byte_in_frame;
         loop {
             let now_state = &self.state;
             self.state = match now_state {
                 AckState::FrameDetection => {
                     if self.tx.is_empty() {
-                        let package = self.ack_layer.receive_time_out();
-                        if let Some(package) = package {
-                            AckState::Rx(package)
-                        } else {
-                            AckState::FrameDetection
+                        // let package = self.ack_layer.receive_time_out();
+                        let future = self.ack_layer.receive();
+                        let timeout = tokio::time::timeout(RECV_TIME_OUT, future).await;
+                        match timeout {
+                            Ok(package) => {
+                                AckState::Rx(package)
+                            },
+                            Err(_) => {
+                                AckState::FrameDetection
+                            }
                         }
                     } else {
                         let begin_index = self.tx_offset * byte_in_frame;
@@ -79,26 +86,27 @@ impl AckStateMachine {
                     trace!("{:?}", package.data);
                     loop {
                         // self.ack_layer.physical.push_warm_up_data();
-                        self.ack_layer.send(package.clone());
+                        self.ack_layer.send(package.clone()).await;
                         trace!("send: {:?}", package.data);
                         std::thread::sleep(std::time::Duration::from_millis(70));
                         // self.ack_layer.physical.push_warm_up_data(25);
                         // let ack_package: Option<AckPackage> = self.ack_layer.receive_time_out();
-                        let package = self.ack_layer.physical.receive_time_out();
-                        let ack_package =
-                        if let Some(package) = package {
-                            Some(AckPackage{data: package.0.into_vec()})
-                        } else {
-                            None
-                        };
-                        if let Some(ack_package) = ack_package {
-                            trace!("recv: {:?}", ack_package.data);
-                            let has_ack = ack_package.has_ack();
-                            let now_offset = ack_package.offset();
-                            if (has_ack && (now_offset >= self.tx_offset)) {
-                                debug!("package {} was sent successfully!", self.tx_offset);
-                                self.tx_offset = now_offset + 1;
-                                break;
+                        let future = self.ack_layer.physical.receive();
+                        let timeout = tokio::time::timeout(std::time::Duration::from_millis(160), future).await;
+                        match timeout {
+                            Ok(package) => {
+                                let ack_package = AckPackage { data: package.0.into_vec()};
+                                trace!("recv: {:?}", ack_package.data);
+                                let has_ack = ack_package.has_ack();
+                                let now_offset = ack_package.offset();
+                                if (has_ack & & (now_offset >= self.tx_offset)) {
+                                    debug!("package {} was sent successfully!", self.tx_offset);
+                                    self.tx_offset = now_offset + 1;
+                                    break;
+                                }
+                            },
+                            Err(_) => {
+
                             }
                         }
                     }
@@ -122,7 +130,7 @@ impl AckStateMachine {
                 AckState::TxAck => {
                     // std::thread::sleep(std::time::Duration::from_millis(25));
                     // self.ack_layer.physical.push_warm_up_data(25);
-                    self.ack_layer.send(AckPackage::new(padding::padding().take(byte_in_frame), 0, self.rx_offset - 1, false, true, 0, 0));
+                    self.ack_layer.send(AckPackage::new(padding::padding().take(byte_in_frame), 0, self.rx_offset - 1, false, true, 0, 0)).await;
                     debug!("the acknowledgment of package {} was sent!", self.rx_offset - 1);
                     AckState::FrameDetection
                 }

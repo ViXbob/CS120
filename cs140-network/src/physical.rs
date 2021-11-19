@@ -37,16 +37,16 @@ pub struct PhysicalLayer {
 }
 
 impl PhysicalLayer {
-    fn push_warm_up_data_to_buffer(buffer: &Arc<DefaultBuffer>, time: usize) {
+    async fn push_warm_up_data_to_buffer(buffer: &Arc<DefaultBuffer>, time: usize) {
         buffer.push_by_ref(
             &padding_range(-0.1, 0.1)
                 .take(48 * time)
                 .collect::<Vec<f32>>(),
-        );
+        ).await;
     }
 
-    pub fn push_warm_up_data(&self, time: usize) {
-        Self::push_warm_up_data_to_buffer(&self.output_buffer, time);
+    pub async fn push_warm_up_data(&self, time: usize) {
+        Self::push_warm_up_data_to_buffer(&self.output_buffer, time).await;
     }
 
     pub fn new(multiplex_frequency: &[f32], byte_in_frame: usize) -> Self {
@@ -91,12 +91,12 @@ impl PhysicalLayer {
         }
     }
 
-    pub fn new_send_only(multiplex_frequency: &[f32], byte_in_frame: usize) -> Self {
+    pub async fn new_send_only(multiplex_frequency: &[f32], byte_in_frame: usize) -> Self {
         let input_buffer = Arc::new(DefaultBuffer::new());
         let (_, input_descriptor) = InputDevice::new(input_buffer.clone());
         let output_buffer = Arc::new(DefaultBuffer::new());
         let (output_device, output_descriptor) = OutputDevice::new(output_buffer.clone());
-        Self::push_warm_up_data_to_buffer(&output_buffer, 10);
+        Self::push_warm_up_data_to_buffer(&output_buffer, 10).await;
         output_device.play();
         let sample_rate = output_descriptor.sample_rate;
         PhysicalLayer {
@@ -117,9 +117,7 @@ impl PhysicalLayer {
         let (input_device, input_descriptor) = InputDevice::new(input_buffer.clone());
         let output_buffer = Arc::new(DefaultBuffer::new());
         let (_, output_descriptor) = OutputDevice::new(output_buffer.clone());
-        input_device.listen();
         let _ = input_device.listen();
-        let _ = output_device.play();
         let sample_rate = output_descriptor.sample_rate;
         PhysicalLayer {
             input_descriptor,
@@ -146,6 +144,7 @@ impl HandlePackage<PhysicalPackage> for PhysicalLayer {
             self.speed,
         );
         self.output_buffer.push_by_ref(&samples).await;
+        log::trace!("a package was sent!");
         let noise = padding_range(-0.1, 0.1)
             .take(HEADER_LENGTH)
             .collect::<Vec<f32>>();

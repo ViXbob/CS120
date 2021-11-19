@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 async-trait = "0.1.51"
 cpal = "0.13.4"
+log="0.4.14"
 hound = "3.4.0"
 tokio = {version = "1",features=["full"]}
 rand="0.8.4"
