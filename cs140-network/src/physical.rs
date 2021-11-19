@@ -134,23 +134,12 @@ impl PhysicalLayer {
 
 impl HandlePackage<PhysicalPackage> for PhysicalLayer {
     fn send(&mut self, package: PhysicalPackage) {
-        // let samples = frame::generate_frame_sample_from_bitvec(
-        //     &package.0,
-        //     &self.header,
-        //     &self.multiplex_frequency,
-        //     self.output_descriptor.sample_rate,
-        //     self.speed,
-        // );
-        let samples = frame::generate_frame_sample_psk_from_bitvec(
+        let samples = frame::generate_frame_sample_from_bitvec(
             &package.0,
             &self.header,
+            &self.multiplex_frequency,
             self.output_descriptor.sample_rate,
-            SPEED_OF_PSK,
-        );
-        self.output_buffer.push_by_ref(
-            &padding_range(-0.05, 0.05)
-                .take(30)
-                .collect::<Vec<f32>>(),
+            self.speed,
         );
         let segment_len = 100;
         for segment in samples.chunks(segment_len) {
@@ -170,23 +159,23 @@ impl HandlePackage<PhysicalPackage> for PhysicalLayer {
                 2 * self.frame_length * self.input_descriptor.sample_rate as usize
                     / self.speed as usize,
                 |data| {
-                    // let current = std::time::Instant::now();
-                    // frame::frame_resolve_to_bitvec(
-                    //     data,
-                    //     &self.header,
-                    //     &self.multiplex_frequency,
-                    //     self.input_descriptor.sample_rate,
-                    //     self.speed,
-                    //     self.frame_length,
-                    // )
-                    frame::frame_resolve_psk_to_bitvec(
+                    let current = std::time::Instant::now();
+                    frame::frame_resolve_to_bitvec(
                         data,
                         &self.header,
-                        &[(2.0 * std::f32::consts::PI / 4.0).sin(), (4.0 * std::f32::consts::PI / 4.0).sin(), (6.0 * std::f32::consts::PI / 4.0).sin()],
+                        &self.multiplex_frequency,
                         self.input_descriptor.sample_rate,
-                        SPEED_OF_PSK,
+                        self.speed,
                         self.frame_length,
                     )
+                    // frame::frame_resolve_psk_to_bitvec(
+                    //     data,
+                    //     &self.header,
+                    //     &[(2.0 * std::f32::consts::PI / 4.0).sin(), (4.0 * std::f32::consts::PI / 4.0).sin(), (6.0 * std::f32::consts::PI / 4.0).sin()],
+                    //     self.input_descriptor.sample_rate,
+                    //     SPEED_OF_PSK,
+                    //     self.frame_length,
+                    // )
                 },
             );
             if let Some(package) = return_package {
@@ -212,22 +201,22 @@ impl HandlePackage<PhysicalPackage> for PhysicalLayer {
                 gateway,
                 |data| {
                     // let current = std::time::Instant::now();
-                    // frame::frame_resolve_to_bitvec(
-                    //     data,
-                    //     &self.header,
-                    //     &self.multiplex_frequency,
-                    //     self.input_descriptor.sample_rate,
-                    //     self.speed,
-                    //     self.frame_length,
-                    // )
-                    frame::frame_resolve_psk_to_bitvec(
+                    frame::frame_resolve_to_bitvec(
                         data,
                         &self.header,
-                        &[(2.0 * std::f32::consts::PI / 3.0).sin(), (4.0 * std::f32::consts::PI / 3.0).sin()],
+                        &self.multiplex_frequency,
                         self.input_descriptor.sample_rate,
-                        SPEED_OF_PSK,
+                        self.speed,
                         self.frame_length,
                     )
+                    // frame::frame_resolve_psk_to_bitvec(
+                    //     data,
+                    //     &self.header,
+                    //     &[(2.0 * std::f32::consts::PI / 3.0).sin(), (4.0 * std::f32::consts::PI / 3.0).sin()],
+                    //     self.input_descriptor.sample_rate,
+                    //     SPEED_OF_PSK,
+                    //     self.frame_length,
+                    // )
                 },
             );
             if let Some(package) = return_package {
