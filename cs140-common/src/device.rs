@@ -1,3 +1,4 @@
+use std::slice::from_raw_parts_mut;
 use crate::buffer::Buffer as Buf;
 use crate::descriptor::SoundDescriptor;
 use std::sync::Arc;
@@ -273,6 +274,8 @@ where
     where
         T: cpal::Sample,
     {
+        let output_len = output.len();
+        let ptr = output.as_ptr() as usize;
         let len = output.len() / channels;
         let result = audio_buffer.try_pop(len, move |first, second| {
             for (frame, value) in output
@@ -287,6 +290,9 @@ where
         });
         if result.is_none(){
             let rand = padding_range(-0.1f32,0.1f32);
+            let output = ptr as *const T;
+            let output = output as *mut T;
+            let output = unsafe{from_raw_parts_mut(output,output_len)};
             output.iter_mut().zip(rand).for_each(|(output,rand)|{
                 *output = cpal::Sample::from(&rand)
             })
