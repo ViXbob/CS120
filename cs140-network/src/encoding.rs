@@ -11,7 +11,6 @@ use async_trait::async_trait;
 pub trait HandlePackage<Package: NetworkPackage> {
     async fn send(&mut self, package: Package);
     async fn receive(&mut self) -> Package;
-    fn receive_time_out(&mut self) -> Option<Package>;
 }
 
 #[cfg(test)]

@@ -208,7 +208,6 @@ impl HandlePackage<AckPackage> for AckLayer {
         let package = PhysicalPackage {
             0: self.make_redundancy(package),
         };
-        assert_eq!(package.0.len(), self.physical.byte_in_frame * 8);
         self.physical.send(package).await;
     }
 
@@ -222,15 +221,15 @@ impl HandlePackage<AckPackage> for AckLayer {
         }
     }
 
-    fn receive_time_out(&mut self) -> Option<AckPackage> {
-        let result = self.physical.receive_time_out();
-        if let Some(package) = result {
-            let data = self.erase_redundancy(package.0);
-            return data;
-        } else {
-            return None;
-        }
-    }
+    // fn receive_time_out(&mut self) -> Option<AckPackage> {
+    //     let result = self.physical.receive_time_out();
+    //     if let Some(package) = result {
+    //         let data = self.erase_redundancy(package.0);
+    //         return data;
+    //     } else {
+    //         return None;
+    //     }
+    // }
 }
 
 // impl HandlePackage<PhysicalPackage> for AckLayer {

@@ -66,10 +66,6 @@ impl HandlePackage<IPPackage> for IPLayer {
             }
         }
     }
-
-    fn receive_time_out(&mut self) -> Option<IPPackage> {
-        todo!()
-    }
 }
 
 // impl HandlePackage<RedundancyPackage> for IPLayer {

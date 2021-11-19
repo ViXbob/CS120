@@ -18,7 +18,6 @@ const HEADER_LENGTH: usize = 60;
 const MIN_FREQUENCY: f32 = 8000.0;
 const MAX_FREQUENCY: f32 = 11000.0;
 const SPEED: u32 = 1000;
-const TIME_OUT: std::time::Duration = std::time::Duration::from_millis(90);
 const SPEED_OF_PSK: u32 = 12000;
 
 // a frame in physical layer has #(frame_length * sample_per_bit) samples
@@ -145,10 +144,9 @@ impl HandlePackage<PhysicalPackage> for PhysicalLayer {
             self.speed,
         );
         self.output_buffer.push_by_ref(&samples).await;
-        let noise = &padding_range(-0.1, 0.1)
-            .take(30)
+        let noise = samples.iter().cloned().skip(samples.len() - 30)
             .collect::<Vec<f32>>();
-        self.output_buffer.push_by_ref(noise).await;
+        self.output_buffer.push_by_ref(&noise).await;
     }
 
     async fn receive(&mut self) -> PhysicalPackage {
@@ -176,14 +174,14 @@ impl HandlePackage<PhysicalPackage> for PhysicalLayer {
         }
     }
 
-    fn receive_time_out(&mut self) -> Option<PhysicalPackage> {
-        let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
-        let return_package = rt.block_on(tokio::time::timeout(TIME_OUT, self.receive()));
-        if let Ok(package) = return_package {
-            return Some(package)
-        }
-        return None
-    }
+    // fn receive_time_out(&mut self) -> Option<PhysicalPackage> {
+    //     let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+    //     let return_package = rt.block_on(tokio::time::timeout(TIME_OUT, self.receive()));
+    //     if let Ok(package) = return_package {
+    //         return Some(package)
+    //     }
+    //     return None
+    // }
 }
 
 #[cfg(test)]
