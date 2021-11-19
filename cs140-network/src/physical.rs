@@ -17,8 +17,9 @@ impl NetworkPackage for PhysicalPackage {}
 const HEADER_LENGTH: usize = 60;
 const MIN_FREQUENCY: f32 = 5000.0;
 const MAX_FREQUENCY: f32 = 8000.0;
-const SPEED: u32 = 1000;
+const SPEED: u32 = 12000;
 const TIME_OUT: u32 = 30;
+const SPEED_OF_PSK: u32 = 12000;
 
 // a frame in physical layer has #(frame_length * sample_per_bit) samples
 
@@ -140,11 +141,6 @@ impl HandlePackage<PhysicalPackage> for PhysicalLayer {
             self.output_descriptor.sample_rate,
             self.speed,
         );
-        self.output_buffer.push_by_ref(
-            &padding_range(-0.05, 0.05)
-                .take(30)
-                .collect::<Vec<f32>>(),
-        );
         let segment_len = 100;
         for segment in samples.chunks(segment_len) {
             // segment push
@@ -163,7 +159,7 @@ impl HandlePackage<PhysicalPackage> for PhysicalLayer {
                 2 * self.frame_length * self.input_descriptor.sample_rate as usize
                     / self.speed as usize,
                 |data| {
-                    // let current = std::time::Instant::now();
+                    let current = std::time::Instant::now();
                     frame::frame_resolve_to_bitvec(
                         data,
                         &self.header,
@@ -172,6 +168,14 @@ impl HandlePackage<PhysicalPackage> for PhysicalLayer {
                         self.speed,
                         self.frame_length,
                     )
+                    // frame::frame_resolve_psk_to_bitvec(
+                    //     data,
+                    //     &self.header,
+                    //     &[(2.0 * std::f32::consts::PI / 4.0).sin(), (4.0 * std::f32::consts::PI / 4.0).sin(), (6.0 * std::f32::consts::PI / 4.0).sin()],
+                    //     self.input_descriptor.sample_rate,
+                    //     SPEED_OF_PSK,
+                    //     self.frame_length,
+                    // )
                 },
             );
             if let Some(package) = return_package {
@@ -205,6 +209,14 @@ impl HandlePackage<PhysicalPackage> for PhysicalLayer {
                         self.speed,
                         self.frame_length,
                     )
+                    // frame::frame_resolve_psk_to_bitvec(
+                    //     data,
+                    //     &self.header,
+                    //     &[(2.0 * std::f32::consts::PI / 3.0).sin(), (4.0 * std::f32::consts::PI / 3.0).sin()],
+                    //     self.input_descriptor.sample_rate,
+                    //     SPEED_OF_PSK,
+                    //     self.frame_length,
+                    // )
                 },
             );
             if let Some(package) = return_package {

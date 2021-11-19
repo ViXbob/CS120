@@ -46,6 +46,43 @@ use rustfft::{num_complex::Complex, FftPlanner};
 //     ))
 // }
 
+pub fn frame_resolve_psk_to_bitvec(
+    data: &[f32],
+    header: &[f32],
+    carrier: &[f32],
+    sample_rate: u32,
+    speed: u32,
+    frame_length: usize,
+) -> (Option<BitStore>, usize) {
+    let begin_index = header::detect_header(data.iter(), header); //.expect("detection failed");
+    if begin_index.is_none() {
+        return (None, data.len() - header.len());
+    }
+    let begin_index = begin_index.unwrap();
+    println!("begin_index: {}", begin_index);
+    let sample_per_bit = sample_rate / speed;
+
+    if begin_index + frame_length * (sample_per_bit as usize) >= data.len() {
+        return (None, begin_index - header.len() * 2);
+    }
+
+    let mut result: BitStore = BitVec::new();
+    for i in 0..frame_length {
+        let correlation : f32 = data[(begin_index + i * sample_per_bit as usize)
+            ..(begin_index + (i + 1) * sample_per_bit as usize)]
+            .iter().zip(carrier.iter()).map(|(x, y)| x * y).sum();
+        if correlation > 0.15 {
+            result.push(true);
+        } else {
+            result.push(false);
+        }
+    }
+    (
+        Some(result),
+        (begin_index + frame_length * sample_per_bit as usize) as usize,
+    )
+}
+
 pub fn frame_resolve_to_bitvec(
     data: &[f32],
     header: &[f32],
@@ -152,6 +189,26 @@ pub fn generate_frame_sample_from_bitvec(
                 }
             }
             rtn.push(value);
+        }
+    }
+    rtn
+}
+
+pub fn generate_frame_sample_psk_from_bitvec(
+    data: &BitStore,
+    header: &[f32],
+    sample_rate: u32,
+    speed: u32,
+) -> Vec<f32> {
+    let samples_per_bit: f32 = (sample_rate / speed) as f32;
+    let scale: f32 = 1.0;
+    let mut rtn: Vec<f32> = header.to_owned();
+    let sample_rate: f32 = sample_rate as f32;
+    for (i, bit) in data.iter().enumerate() {
+        for j in 1..(samples_per_bit as usize) + 1 {
+            let value = scale * (j as f32 * 2.0 * std::f32::consts::PI / (samples_per_bit + 1.0)).sin();
+            if *bit { rtn.push(value); }
+            else { rtn.push(-value); }
         }
     }
     rtn
