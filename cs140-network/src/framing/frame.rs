@@ -1,6 +1,7 @@
 use super::header;
 use crate::encoding::BitStore;
 use bitvec::vec::BitVec;
+use log::trace;
 use rustfft::{num_complex::Complex, FftPlanner};
 
 // pub fn frame_resolve(
@@ -59,7 +60,7 @@ pub fn frame_resolve_psk_to_bitvec(
         return (None, data.len() - header.len());
     }
     let begin_index = begin_index.unwrap();
-    println!("begin_index: {}", begin_index);
+    trace!("begin_index: {}", begin_index);
     let sample_per_bit = sample_rate / speed;
 
     if begin_index + frame_length * (sample_per_bit as usize) >= data.len() {

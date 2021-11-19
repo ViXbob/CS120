@@ -5,6 +5,7 @@ use crate::physical::{PhysicalLayer, PhysicalPackage};
 use bitvec::prelude::BitVec;
 use crate::redundancy::Checksum;
 use crc::{Crc, CRC_16_IBM_SDLC};
+use log::{debug, trace};
 
 static REVC_COUNT:AtomicUsize = AtomicUsize::new(0);
 
@@ -50,12 +51,12 @@ impl AckPackage {
             data: raw_data.into_vec(),
         };
         // log
-        println!("recv: {:?}", package.data);
+        trace!("recv: {:?}", package.data);
         if package.validate_checksum() {
             Some(package)
         } else {
             let count = REVC_COUNT.fetch_add(1,Relaxed)+1;
-            println!("validate_checksum count: {}", count);
+            debug!("validate_checksum count: {}", count);
             None
         }
     }
