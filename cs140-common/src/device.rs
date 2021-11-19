@@ -5,7 +5,7 @@ use std::sync::Arc;
 use std::thread;
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use cpal::{Device, SampleFormat, StreamConfig, StreamError};
+use cpal::{Device, SampleFormat, StreamConfig, StreamError, SupportedBufferSize};
 use crate::padding::padding_range;
 
 pub struct InputDevice<Buffer: Buf<f32>> {
@@ -79,7 +79,15 @@ impl<Buffer> InputDevice<Buffer>
         let sample_format = config.sample_format();
         let mut config : StreamConfig = config.into();
         // config.buffer_size = cpal::BufferSize::Fixed(input_device.default_input_config().unwrap().buffer_size().into().min);
-        config.buffer_size = cpal::BufferSize::Fixed(16);
+        let buffer_size = match input_device.default_input_config().unwrap().buffer_size(){
+            SupportedBufferSize::Range{min,max} => {
+                *min
+            }
+            SupportedBufferSize::Unknown => {
+                panic!("error")
+            }
+        };
+        config.buffer_size = cpal::BufferSize::Fixed(buffer_size);
         (input_device, config, sample_format)
     }
 
@@ -226,8 +234,15 @@ impl<Buffer> OutputDevice<Buffer>
             .expect("error while querying configs");
         let sample_format = config.sample_format();
         let mut config: StreamConfig = config.into();
-        // config.buffer_size = cpal::BufferSize::Fixed(config.0.default_output_config().unwrap().buffer_size().min);
-        config.buffer_size = cpal::BufferSize::Fixed(16);
+        let buffer_size = match output_device.default_output_config().unwrap().buffer_size(){
+            SupportedBufferSize::Range{min,max} => {
+                *min
+            }
+            SupportedBufferSize::Unknown => {
+                panic!("error")
+            }
+        };
+        config.buffer_size = cpal::BufferSize::Fixed(buffer_size);
         (output_device, config, sample_format)
     }
 
