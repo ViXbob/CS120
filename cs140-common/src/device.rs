@@ -15,8 +15,8 @@ pub struct InputDevice<Buffer: Buf<f32>> {
 }
 
 impl<Buffer> InputDevice<Buffer>
-where
-    Buffer: Buf<f32> + 'static,
+    where
+        Buffer: Buf<f32> + 'static,
 {
     /// new returns InputDevice as well as some config about the device / stream
     pub fn new(audio_buffer: Arc<Buffer>) -> (Self, SoundDescriptor) {
@@ -128,8 +128,8 @@ where
     }
 
     fn listen_handler<T>(input: &[T], channels: usize, audio_buffer: Arc<Buffer>)
-    where
-        T: cpal::Sample,
+        where
+            T: cpal::Sample,
     {
         let mut iterator = input.iter().step_by(channels).map(|value| value.to_f32());
         audio_buffer.push_by_iterator(input.len() / channels, &mut iterator);
@@ -147,8 +147,8 @@ pub struct OutputDevice<Buffer: Buf<f32>> {
 }
 
 impl<Buffer> OutputDevice<Buffer>
-where
-    Buffer: Buf<f32> + 'static,
+    where
+        Buffer: Buf<f32> + 'static,
 {
     /// new returns InputDevice as well as some config about the device / stream, for example: channels
     pub fn new(audio_buffer: Arc<Buffer>) -> (Self, SoundDescriptor) {
@@ -271,13 +271,11 @@ where
     }
 
     fn play_handler<T>(output: &mut [T], channels: usize, audio_buffer: Arc<Buffer>)
-    where
-        T: cpal::Sample,
+        where
+            T: cpal::Sample,
     {
-        let output_len = output.len();
-        let ptr = output.as_ptr() as usize;
         let len = output.len() / channels;
-        let result = audio_buffer.try_pop(len, move |first, second| {
+        audio_buffer.must_pop(len, move |first, second| {
             for (frame, value) in output
                 .chunks_mut(channels)
                 .zip(first.iter().chain(second.iter()))
@@ -287,16 +285,7 @@ where
                 }
             }
             ((), len)
-        });
-        if result.is_none(){
-            let rand = padding_range(-0.1f32,0.1f32);
-            let output = ptr as *const T;
-            let output = output as *mut T;
-            let output = unsafe{from_raw_parts_mut(output,output_len)};
-            output.iter_mut().zip(rand).for_each(|(output,rand)|{
-                *output = cpal::Sample::from(&rand)
-            })
-        }
+        }, padding_range(-0.1, 0.1));
     }
 
     fn play_error_handler(err: StreamError) {

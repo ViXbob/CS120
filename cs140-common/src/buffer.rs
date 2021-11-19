@@ -1,4 +1,4 @@
-pub trait Buffer<Data>: Send + Sync {
+pub trait Buffer<Data>: Send + Sync where Data: Copy {
     /// push the data into buffer, the process will be blocking when there is no space in the storage.
     fn push(&self, count: usize, producer: impl FnOnce(&mut [Data], &mut [Data]) -> usize);
     fn try_push(
@@ -7,8 +7,8 @@ pub trait Buffer<Data>: Send + Sync {
         producer: impl FnOnce(&mut [Data], &mut [Data]) -> usize,
     ) -> Option<()>;
     fn push_by_ref(&self, data: &[Data])
-    where
-        Data: Copy + Clone,
+        where
+            Data: Copy + Clone,
     {
         self.push(data.len(), |first, second| {
             data.iter()
@@ -20,9 +20,9 @@ pub trait Buffer<Data>: Send + Sync {
         });
     }
 
-    fn push_by_iterator(&self, count: usize, data: &mut impl Iterator<Item = Data>)
-    where
-        Data: Copy + Clone,
+    fn push_by_iterator(&self, count: usize, data: &mut impl Iterator<Item=Data>)
+        where
+            Data: Copy + Clone,
     {
         self.push(count, |first, second| {
             let mut count = 0;
@@ -37,14 +37,15 @@ pub trait Buffer<Data>: Send + Sync {
 
     /// pop the data from the buffer, the data will be removed after the consumer call
     fn pop<T>(&self, count: usize, consumer: impl FnOnce(&[Data], &[Data]) -> (T, usize)) -> T;
-    fn try_pop<T>(
+    fn must_pop<T> (
         &self,
         count: usize,
         consumer: impl FnOnce(&[Data], &[Data]) -> (T, usize),
-    ) -> Option<T>;
+        producer: impl Iterator<Item=Data>,
+    ) -> T;
     fn pop_by_ref<T>(&self, count: usize, consumer: impl FnOnce(&[Data]) -> (T, usize)) -> T
-    where
-        Data: Copy + Clone,
+        where
+            Data: Copy + Clone,
     {
         self.pop(count, |first, second| {
             let slice = [first, second].concat();
@@ -55,10 +56,10 @@ pub trait Buffer<Data>: Send + Sync {
     fn pop_by_iterator<T>(
         &self,
         count: usize,
-        consumer: impl FnOnce(Box<dyn Iterator<Item = &Data> + '_>) -> (T, usize),
+        consumer: impl FnOnce(Box<dyn Iterator<Item=&Data> + '_>) -> (T, usize),
     ) -> T
-    where
-        Data: std::clone::Clone,
+        where
+            Data: std::clone::Clone,
     {
         self.pop(count, |first, second| {
             let b = first.iter().chain(second.iter());

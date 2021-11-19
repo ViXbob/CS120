@@ -20,7 +20,7 @@ impl<T, const N: usize, const GARBAGE_COLLECTION: bool> Default
     }
 }
 
-impl<T, const N: usize, const GARBAGE_COLLECTION: bool> RingBuffer<T, N, GARBAGE_COLLECTION> {
+impl<T, const N: usize, const GARBAGE_COLLECTION: bool> RingBuffer<T, N, GARBAGE_COLLECTION>{
     #[allow(clippy::uninit_assumed_init)]
     pub fn new() -> Self {
         RingBuffer {
@@ -109,15 +109,21 @@ impl<T, const N: usize, const GARBAGE_COLLECTION: bool> RingBuffer<T, N, GARBAGE
         }
     }
 
-    pub fn try_pop<U>(
+    pub fn must_pop<U>(
         &self,
         count: usize,
         consumer: impl FnOnce(&[T], &[T]) -> (U, usize),
-    ) -> Option<U> {
-        if count <= self.len() {
-            Some(self.pop(count, consumer))
+        producer: impl Iterator<Item=T>
+    ) -> U where T:Copy{
+        let len = self.len();
+        if count <= len {
+            self.pop(count, consumer)
         } else {
-            None
+            self.pop(len,|first:&[T],second:&[T]|{
+                let data:Vec<_> = first.iter().cloned().chain(second.iter().cloned()).collect();
+                let padding:Vec<_> = producer.take(count-len).collect();
+                consumer(&data,&padding)
+            })
         }
     }
 
