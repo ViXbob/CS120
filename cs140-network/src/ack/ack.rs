@@ -49,6 +49,8 @@ impl AckPackage {
         let package = Self {
             data: raw_data.into_vec(),
         };
+        // log
+        println!("{:?}", package.data);
         if package.validate_checksum() {
             Some(package)
         } else {

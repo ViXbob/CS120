@@ -17,7 +17,7 @@ impl NetworkPackage for PhysicalPackage {}
 const HEADER_LENGTH: usize = 60;
 const MIN_FREQUENCY: f32 = 5000.0;
 const MAX_FREQUENCY: f32 = 8000.0;
-const SPEED: u32 = 12000;
+const SPEED: u32 = 1000;
 const TIME_OUT: u32 = 30;
 const SPEED_OF_PSK: u32 = 12000;
 
