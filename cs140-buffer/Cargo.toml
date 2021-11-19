@@ -6,5 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-cs140-common = {path = "../cs140-common"}
+cs140-common = { path = "../cs140-common" }
+async-trait = "0.1.51"
 cpal = "0.13.4"
+[dev-dependencies]
+tokio = { version = "1", features = ["full"] }

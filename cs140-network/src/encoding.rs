@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 use bitvec::order::Lsb0;
 use bitvec::vec::BitVec;
 
@@ -5,10 +6,10 @@ pub type BitStore = BitVec<Lsb0, u8>;
 
 pub trait NetworkPackage {}
 
+#[async_trait]
 pub trait HandlePackage<Package: NetworkPackage> {
-    fn send(&mut self, package: Package);
-    fn receive(&mut self) -> Package;
-    fn receive_time_out(&mut self) -> Option<Package>;
+    async fn send(&mut self, package: Package);
+    async fn receive(&mut self) -> Package;
 }
 
 #[cfg(test)]

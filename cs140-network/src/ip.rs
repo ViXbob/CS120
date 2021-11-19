@@ -1,5 +1,6 @@
 use crate::encoding::{HandlePackage, NetworkPackage};
 use crate::physical::PhysicalPackage;
+use async_trait::async_trait;
 use crate::redundancy::{BYTE_IN_ADDRESS, BYTE_IN_ENDING, BYTE_IN_LENGTH, RedundancyLayer, RedundancyPackage};
 use cs140_common::padding;
 
@@ -9,6 +10,7 @@ pub struct IPPackage {
 
 impl IPPackage {
     pub fn new(data: Vec<u8>) -> Self {
+        assert!(data.len() < 65534);
         Self { data }
     }
 }
@@ -30,8 +32,9 @@ impl IPLayer {
     }
 }
 
+#[async_trait]
 impl HandlePackage<IPPackage> for IPLayer {
-    fn send(&mut self, package: IPPackage) {
+    async fn send(&mut self, package: IPPackage) {
         let chunks = package.data.chunks(self.byte_in_frame);
         let last_chunk_index = chunks.len() - 1;
         for (index, ip_data) in chunks.enumerate() {
@@ -43,7 +46,7 @@ impl HandlePackage<IPPackage> for IPLayer {
         }
     }
 
-    fn receive(&mut self) -> IPPackage {
+    async fn receive(&mut self) -> IPPackage {
         let mut data: Vec<u8> = Vec::new();
         let mut package_received = 0;
         loop {
@@ -63,37 +66,27 @@ impl HandlePackage<IPPackage> for IPLayer {
             }
         }
     }
-
-    fn receive_time_out(&mut self) -> Option<IPPackage> {
-        todo!()
-    }
 }
 
+#[async_trait]
 impl HandlePackage<RedundancyPackage> for IPLayer {
-    fn send(&mut self, package: RedundancyPackage) {
-        self.redundancy.send(package)
+    async fn send(&mut self, package: RedundancyPackage) {
+        self.redundancy.send(package).await
     }
 
-    fn receive(&mut self) -> RedundancyPackage {
-        self.redundancy.receive()
-    }
-
-    fn receive_time_out(&mut self) -> Option<RedundancyPackage> {
-        todo!()
+    async fn receive(&mut self) -> RedundancyPackage {
+        self.redundancy.receive().await
     }
 }
 
+#[async_trait]
 impl HandlePackage<PhysicalPackage> for IPLayer {
-    fn send(&mut self, package: PhysicalPackage) {
-        self.redundancy.send(package)
+    async fn send(&mut self, package: PhysicalPackage) {
+        self.redundancy.send(package).await
     }
 
-    fn receive(&mut self) -> PhysicalPackage {
-        self.redundancy.receive()
-    }
-
-    fn receive_time_out(&mut self) -> Option<PhysicalPackage> {
-        todo!()
+    async fn receive(&mut self) -> PhysicalPackage {
+        self.redundancy.receive().await
     }
 }
 
@@ -109,7 +102,7 @@ mod test {
     use cs140_common::buffer::Buffer;
     use rand::Rng;
 
-    const FREQUENCY: &'static [f32] = &[3000.0, 6000.0];
+    const FREQUENCY: &[f32] = &[3000.0, 6000.0];
     const BYTE_PER_FRAME: usize = 128;
 
     fn generate_data(
@@ -121,7 +114,7 @@ mod test {
         for i in 0..size {
             data.push(rand::thread_rng().gen::<bool>());
         }
-        let mut samples = frame::generate_frame_sample_from_bitvec(
+        let samples = frame::generate_frame_sample_from_bitvec(
             &data,
             header,
             multiplex_frequency,
@@ -145,7 +138,7 @@ mod test {
                 .map(|x| (x as f32 * 6.28 * 3000.0 / 48000.0).sin() * 0.5)
                 .take(30000),
         );
-        let mut data = BitVec::new();
+        let data = BitVec::new();
         let (samples, data_) = generate_data(size, header, multiplex_frequency);
         // buffer.push_by_ref(&samples);
         ip.send(IPPackage {
@@ -161,7 +154,7 @@ mod test {
         let output_buffer = physical.output_buffer.clone();
         let redundancy: RedundancyLayer = RedundancyLayer::new(physical);
         let mut ip_server: IPLayer = IPLayer::new(redundancy);
-        let ground_truth = push_data_to_buffer(
+        let _ground_truth = push_data_to_buffer(
             &*output_buffer,
             &mut ip_server,
             10000,

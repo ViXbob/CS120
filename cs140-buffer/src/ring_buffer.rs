@@ -1,86 +1,170 @@
-use std::sync::atomic::AtomicUsize;
-use std::sync::atomic::Ordering::Relaxed;
+use std::collections::VecDeque;
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::Mutex;
-use std::thread;
-use std::thread::Thread;
+use std::task::{Context, Poll, Waker};
 
-pub struct RingBuffer<T, const N: usize, const GARBAGE_COLLECTION: bool> {
+pub struct BlockingRingBuffer<T, const N: usize> {
     buffer: Box<[T; N]>,
-    head: AtomicUsize,
-    len: AtomicUsize,
-    blocking_reader: Mutex<Option<(Thread, usize)>>,
-    blocking_writer: Mutex<Option<(Thread, usize)>>,
+    head: usize,
+    len: usize,
+    push_waker: VecDeque<Waker>,
+    pop_waker: VecDeque<Waker>,
 }
 
-impl<T, const N: usize, const GARBAGE_COLLECTION: bool> Default
-    for RingBuffer<T, N, GARBAGE_COLLECTION>
+pub struct RingBuffer<T, const N: usize>(Mutex<BlockingRingBuffer<T, N>>);
+
+impl<T, const N: usize> RingBuffer<T, N> {
+    pub fn new() -> Self {
+        Self {
+            0: Mutex::new(BlockingRingBuffer::new()),
+        }
+    }
+
+    pub fn must_pop<U>(
+        &self,
+        count: usize,
+        consumer: impl FnOnce(&[T], &[T]) -> (U, usize),
+        producer: impl Iterator<Item=T>
+    ) -> U where T:Copy{
+        let mut guard = self.0.lock().unwrap();
+        let len = guard.len();
+        if count <= len {
+            guard.pop_blocking(count, consumer)
+        } else {
+            guard.pop_blocking(len,|first:&[T],second:&[T]|{
+                let data:Vec<_> = first.iter().cloned().chain(second.iter().cloned()).collect();
+                let padding:Vec<_> = producer.take(count-len).collect();
+                let (value,_) = consumer(&data,&padding);
+                (value,len)
+            })
+        }
+    }
+
+
+    pub async fn push(
+        &self,
+        count: usize,
+        producer: impl for<'a> FnOnce(&'a mut [T], &'a mut [T]) -> usize,
+    ) {
+        RingBufferPushFuture {
+            buffer: &self.0,
+            push_len_required: count,
+            push_fn: producer,
+        }
+        .await
+    }
+
+    pub async fn pop<U>(
+        &self,
+        count: usize,
+        consumer: impl for<'a> FnOnce(&'a [T], &'a [T]) -> (U, usize),
+    ) -> U {
+        RingBufferPopFuture {
+            buffer: &self.0,
+            pop_len_required: count,
+            pop_fn: consumer,
+        }
+        .await
+    }
+}
+
+pub struct RingBufferPushFuture<'a, PushCallback, T, const N: usize>
+where
+    PushCallback: for<'b> FnOnce(&'b mut [T], &'b mut [T]) -> usize,
 {
+    buffer: &'a Mutex<BlockingRingBuffer<T, N>>,
+    push_len_required: usize,
+    push_fn: PushCallback,
+}
+
+pub struct RingBufferPopFuture<'a, U, PopCallback, T, const N: usize>
+where
+    PopCallback: for<'b> FnOnce(&'b [T], &'b [T]) -> (U, usize),
+{
+    buffer: &'a Mutex<BlockingRingBuffer<T, N>>,
+    pop_len_required: usize,
+    pop_fn: PopCallback,
+}
+
+impl<'a, PushCallback, T, const N: usize> Future for RingBufferPushFuture<'a, PushCallback, T, N>
+where
+    PushCallback: for<'b> FnOnce(&'b mut [T], &'b mut [T]) -> usize,
+{
+    type Output = ();
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let mut guard = self.buffer.lock().unwrap();
+        if guard.capacity() - guard.len() >= self.push_len_required {
+            let push_fn: PushCallback = unsafe { std::mem::transmute_copy(&self.push_fn) };
+            guard.push_blocking(push_fn);
+            guard.push_waker.pop_front();
+            let pop_waker = guard.pop_waker.pop_front();
+            if let Some(pop_waker) = pop_waker {
+                pop_waker.wake();
+            }
+            Poll::Ready(())
+        } else {
+            guard.push_waker.push_back(cx.waker().clone());
+            Poll::Pending
+        }
+    }
+}
+
+impl<'a, U, PopCallback, T, const N: usize> Future for RingBufferPopFuture<'a, U, PopCallback, T, N>
+where
+    PopCallback: for<'b> FnOnce(&'b [T], &'b [T]) -> (U, usize),
+{
+    type Output = U;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let mut guard = self.buffer.lock().unwrap();
+        if guard.len() >= self.pop_len_required {
+            let pop_fn: PopCallback = unsafe { std::mem::transmute_copy(&self.pop_fn) };
+            let result = guard.pop_blocking(self.pop_len_required, pop_fn);
+            guard.pop_waker.pop_front();
+            let push_waker = guard.push_waker.pop_front();
+            if let Some(push_waker) = push_waker {
+                push_waker.wake();
+            }
+            Poll::Ready(result)
+        } else {
+            guard.pop_waker.push_back(cx.waker().clone());
+            Poll::Pending
+        }
+    }
+}
+
+impl<T, const N: usize> Default for BlockingRingBuffer<T, N> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<T, const N: usize, const GARBAGE_COLLECTION: bool> RingBuffer<T, N, GARBAGE_COLLECTION>{
+impl<T, const N: usize> BlockingRingBuffer<T, N> {
     #[allow(clippy::uninit_assumed_init)]
     pub fn new() -> Self {
-        RingBuffer {
+        BlockingRingBuffer {
             buffer: unsafe { Box::new_uninit().assume_init() },
-            head: AtomicUsize::new(0),
-            len: AtomicUsize::new(0),
-            blocking_reader: Mutex::new(None),
-            blocking_writer: Mutex::new(None),
+            head: 0,
+            len: 0,
+            push_waker: Default::default(),
+            pop_waker: Default::default(),
         }
     }
 
-    pub fn len(&self) -> usize {
-        self.len.load(Relaxed)
+    fn len(&self) -> usize {
+        self.len
     }
 
-    pub fn capacity(&self) -> usize {
+    fn capacity(&self) -> usize {
         N
     }
 
-    fn get_available_count(&self) -> usize {
-        N - self.len()
-    }
-
-    pub fn try_push(
-        &self,
-        count: usize,
-        producer: impl FnOnce(&mut [T], &mut [T]) -> usize,
-    ) -> Option<()> {
-        if count <= self.get_available_count() {
-            self.push(count, producer);
-            Some(())
-        } else {
-            None
-        }
-    }
-
-    pub fn push(&self, count: usize, producer: impl FnOnce(&mut [T], &mut [T]) -> usize) {
-        assert_ne!(count, 0);
-        if count > N / 2 {
-            panic!("Can not push more than {} elements", N / 2);
-        }
-        let mut parked = false;
-        {
-            let mut lock_guard = self.blocking_writer.lock().unwrap();
-            let capacity = self.get_available_count();
-            if capacity < count {
-                if lock_guard.is_some() {
-                    panic!("RingBuffer is intend to used in two threads.");
-                }
-                *lock_guard = Some((thread::current(), count));
-                parked = true;
-            }
-        }
-        if parked {
-            thread::park();
-            drop(self.blocking_writer.lock().unwrap()); // to ensure that blocking_writer is set to None
-        }
-        let head = self.head.load(Relaxed);
+    fn push_blocking(&mut self, producer: impl for<'a> FnOnce(&'a mut [T], &'a mut [T]) -> usize) {
+        let head = self.head;
         let tail = (head + self.len()) % N;
-        // This is safe because only one thread can access the variable
+
         let count = unsafe {
             if head <= tail {
                 let first_ptr = self.buffer[tail..].as_ptr();
@@ -92,185 +176,77 @@ impl<T, const N: usize, const GARBAGE_COLLECTION: bool> RingBuffer<T, N, GARBAGE
                     std::slice::from_raw_parts_mut(second_ptr, head),
                 )
             } else {
-                let ptr = self.buffer[tail..head].as_ptr();
-                let ptr = ptr as *mut T;
-                producer(std::slice::from_raw_parts_mut(ptr, head - tail), &mut [])
+                let first = &mut self.buffer[tail..head];
+                producer(first, &mut [])
             }
         };
 
-        self.len.fetch_add(count, Relaxed);
-
-        let mut lock_guard = self.blocking_reader.lock().unwrap();
-        if let Some((reader_thread, need_count)) = lock_guard.as_ref() {
-            if *need_count <= self.len() {
-                reader_thread.unpark();
-                *lock_guard = None;
-            }
-        }
+        self.len += count;
     }
 
-    pub fn must_pop<U>(
-        &self,
+    fn pop_blocking<U>(
+        &mut self,
         count: usize,
-        consumer: impl FnOnce(&[T], &[T]) -> (U, usize),
-        producer: impl Iterator<Item=T>
-    ) -> U where T:Copy{
-        let len = self.len();
-        if count <= len {
-            self.pop(count, consumer)
-        } else {
-            self.pop(len,|first:&[T],second:&[T]|{
-                let data:Vec<_> = first.iter().cloned().chain(second.iter().cloned()).collect();
-                let padding:Vec<_> = producer.take(count-len).collect();
-                let (value,_) = consumer(&data,&padding);
-                (value,len)
-            })
-        }
-    }
-
-    pub fn pop<U>(&self, count: usize, consumer: impl FnOnce(&[T], &[T]) -> (U, usize)) -> U {
-        if count == 0 {
-            return consumer(&[], &[]).0;
-        }
-        if count > N / 2 {
-            panic!("Can not acquire more than {} elements", N / 2);
-        }
-        let mut parked = false;
-        {
-            let mut lock_guard = self.blocking_reader.lock().unwrap();
-            let len = self.len();
-            if len < count {
-                if lock_guard.is_some() {
-                    panic!("RingBuffer is intend to used in two threads.");
-                }
-                *lock_guard = Some((thread::current(), count));
-                parked = true;
-            }
-        }
-        if parked {
-            thread::park();
-            drop(self.blocking_reader.lock().unwrap()); // to ensure that blocking_writer is set to None
-        }
-
-        let head = self.head.load(Relaxed);
+        consumer: impl for<'a> FnOnce(&'a [T], &'a [T]) -> (U, usize),
+    ) -> U {
+        let head = self.head;
         let tail = (head + self.len()) % N;
-        // This is safe because only one thread can access the variable
-        let (result, count) = unsafe {
+        let (result, count) = {
             if head < tail {
-                let ptr = self.buffer[head..tail].as_ptr();
-                let ptr = ptr as *mut T;
-                let slice = std::slice::from_raw_parts_mut(ptr, count);
-
+                let slice = &self.buffer[head..tail];
                 let (value, count) = consumer(slice, &[]);
-                if GARBAGE_COLLECTION {
-                    (0..count).for_each(|i| std::ptr::drop_in_place(&mut slice[i]));
-                }
                 (value, count)
             } else {
-                let first_ptr = self.buffer[head..].as_ptr();
-                let first_ptr = first_ptr as *mut T;
-                let mut first_slice = std::slice::from_raw_parts_mut(first_ptr, N - head);
+                let first_slice = &self.buffer[head..];
                 if first_slice.len() >= count {
-                    first_slice = &mut first_slice[..count];
+                    let first_slice = &first_slice[..count];
                     let (value, count) = consumer(first_slice, &[]);
-                    if GARBAGE_COLLECTION {
-                        (0..count).for_each(|i| std::ptr::drop_in_place(&mut first_slice[i]));
-                    }
                     (value, count)
                 } else {
-                    let second_ptr = self.buffer.as_ptr(); // this pointer is started from zero
-                    let second_ptr = second_ptr as *mut T;
-                    let second_slice =
-                        std::slice::from_raw_parts_mut(second_ptr, count - first_slice.len());
+                    let second_slice = &self.buffer[..count - first_slice.len()];
                     let (value, count) = consumer(first_slice, second_slice);
-                    if GARBAGE_COLLECTION {
-                        if count <= first_slice.len() {
-                            (0..count).for_each(|i| std::ptr::drop_in_place(&mut first_slice[i]));
-                        } else {
-                            (0..first_slice.len())
-                                .for_each(|i| std::ptr::drop_in_place(&mut first_slice[i]));
-
-                            (0..count - first_slice.len())
-                                .for_each(|i| std::ptr::drop_in_place(&mut second_slice[i]));
-                        }
-                    }
                     (value, count)
                 }
             }
         };
-
-        self.head.store((head + count) % N, Relaxed);
-        self.len.fetch_sub(count, Relaxed);
-
-        let mut lock_guard = self.blocking_writer.lock().unwrap();
-        if let Some((write_thread, space_need)) = lock_guard.as_ref() {
-            if *space_need <= self.get_available_count() {
-                write_thread.unpark();
-                *lock_guard = None;
-            }
-        }
+        self.head = (head + count) % N;
+        self.len -= count;
         result
-    }
-}
-
-impl<T, const N: usize, const GARBAGE_COLLECTION: bool> Drop
-    for RingBuffer<T, N, GARBAGE_COLLECTION>
-{
-    fn drop(&mut self) {
-        if GARBAGE_COLLECTION {
-            let head = self.head.load(Relaxed);
-            let tail = (self.len() + head) % N;
-            (head..{
-                if head > tail {
-                    tail + N
-                } else {
-                    tail
-                }
-            })
-                .for_each(|index| unsafe { std::ptr::drop_in_place(&mut self.buffer[index % N]) });
-        }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    // Note this useful idiom: importing names from outer (for mod tests) scope.
     use super::*;
-    use cs140_common::buffer::Buffer;
     use std::sync::Arc;
-    use std::thread;
 
-    use std::time::Instant;
-
-    #[test]
-    fn test_ring_buffer() {
-        let buffer = Arc::new(RingBuffer::<f32, 1000000, false>::new());
+    #[tokio::test]
+    async fn test_timeout() {
+        let buffer = Arc::new(RingBuffer::<f32, 1000000>::new());
         let buffer_for_consumer = buffer.clone();
         let buffer_for_producer = buffer;
-        let consumer = thread::spawn(move || {
-            for _ in 0..1000 {
-                let start = Instant::now();
-                buffer_for_consumer.pop_by_ref(4000, |_| ((), 4000));
-                println!("pop cost: {} ns", start.elapsed().as_nanos())
-            }
-            loop {
-                if buffer_for_consumer
-                    .try_pop(1000, |_, _| ((), 1000))
-                    .is_none()
-                {
-                    break;
-                }
-            }
+        std::thread::spawn(move || {
+            let array = vec![3.0; 4];
+            let push = buffer_for_consumer.push(4, |par1, _par2| {
+                par1[..array.len()].copy_from_slice(&array);
+                array.len()
+            });
+            let rt = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .unwrap();
+            std::thread::sleep(std::time::Duration::from_secs(1));
+            rt.block_on(push);
         });
-        let producer = thread::spawn(move || {
-            for _ in 0..100 {
-                let data: Vec<_> = (0..40000).map(|x| (x as f32).sin()).collect();
-                let start = Instant::now();
-                buffer_for_producer.push_by_ref(&data);
-                println!("push cost: {} ns", start.elapsed().as_nanos())
+        let pop = buffer_for_producer.pop(2, |par1, _par2| (par1[0], 1));
+        let timeout = tokio::time::timeout(std::time::Duration::from_millis(1000), pop);
+        match timeout.await {
+            Ok(value) => {
+                println!("value is {}", value);
             }
-        });
-        consumer.join().unwrap();
-        producer.join().unwrap();
+            Err(_) => {
+                println!("timeout");
+            }
+        }
     }
 }

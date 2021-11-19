@@ -2,6 +2,7 @@ use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::Relaxed;
 use crate::encoding::{BitStore, HandlePackage, NetworkPackage};
 use crate::physical::{PhysicalLayer, PhysicalPackage};
+use async_trait::async_trait;
 use bitvec::prelude::BitVec;
 
 use crc::{Crc, CRC_16_IBM_SDLC};
@@ -187,72 +188,33 @@ impl RedundancyLayer {
         RedundancyPackage::build_from_raw(data)
     }
 }
-
+#[async_trait]
 impl HandlePackage<RedundancyPackage> for RedundancyLayer {
-    fn send(&mut self, package: RedundancyPackage) {
-        let package = PhysicalPackage {
-            0: self.make_redundancy(package),
-        };
-        assert_eq!(package.0.len(), self.physical.byte_in_frame * 8);
-        self.physical.send(package);
+    async fn send(&mut self, package: RedundancyPackage) {
+        self.physical
+            .send(PhysicalPackage {
+                0: self.make_redundancy(package),
+            })
+            .await
     }
 
-    fn receive(&mut self) -> RedundancyPackage {
+    async fn receive(&mut self) -> RedundancyPackage {
         loop {
-            let result = self.physical.receive().0;
+            let result = self.physical.receive().await.0;
             let result = self.erase_redundancy(result);
             if let Some(result) = result {
                 return result;
             }
         }
     }
-
-    fn receive_time_out(&mut self) -> Option<RedundancyPackage> {
-        todo!()
-    }
 }
-
+#[async_trait]
 impl HandlePackage<PhysicalPackage> for RedundancyLayer {
-    fn send(&mut self, package: PhysicalPackage) {
-        self.physical.send(package)
+    async fn send(&mut self, package: PhysicalPackage) {
+        self.physical.send(package).await
     }
 
-    fn receive(&mut self) -> PhysicalPackage {
-        self.physical.receive()
-    }
-
-    fn receive_time_out(&mut self) -> Option<PhysicalPackage> {
-        todo!()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use cs140_common::padding::padding;
-
-    #[test]
-    fn test_redundancy_package() {
-        let data: Vec<_> = padding().take(100).collect();
-        let package = RedundancyPackage::new(data.iter().cloned(), 100,false, 1, 2);
-        assert_eq!(
-            package.len(),
-            100 + BYTE_IN_ENDING + BYTE_IN_LENGTH + BYTE_IN_ADDRESS + CHECKSUM.len()
-        );
-        assert_eq!(package.has_more_fragments(), false);
-        assert_eq!(package.address(), (1, 2));
-        assert_eq!(package.extract(), data);
-
-        let encoded_package = BitStore::from_vec(package.data.clone());
-        assert_eq!(
-            RedundancyPackage::build_from_raw(encoded_package),
-            Some(package.clone())
-        );
-        for index in 0..package.len() * 8{
-            let mut corrupted_package = BitStore::from_vec(package.data.clone());
-            let reversed = !corrupted_package[index];
-            corrupted_package.set(index, reversed);
-            assert_eq!(RedundancyPackage::build_from_raw(corrupted_package), None);
-        }
+    async fn receive(&mut self) -> PhysicalPackage {
+        self.physical.receive().await
     }
 }
