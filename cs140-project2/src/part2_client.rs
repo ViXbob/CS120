@@ -4,6 +4,8 @@ use cs140_util::file_io::write_bytes_into_bin_file;
 const PATH: &str = "/Users/vixbob/cs140/cs140-project2/OUTPUT.bin";
 
 fn main() {
+    let mut builder = env_logger::Builder::from_default_env();
+    builder.format_timestamp_millis().init();
     let mut client = AckStateMachine::new(0);
     client.work();
     write_bytes_into_bin_file(PATH, client.rx.as_slice());

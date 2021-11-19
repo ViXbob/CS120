@@ -73,11 +73,14 @@ impl<Buffer> InputDevice<Buffer>
         let input_device = choose_device();
         // Choose the device that has the maximum of sample rates
         println!("{}", input_device.name().unwrap());
-        let config = input_device
+        let mut config = input_device
             .default_input_config()
             .expect("error while querying configs");
         let sample_format = config.sample_format();
-        (input_device, config.into(), sample_format)
+        let mut config : StreamConfig = config.into();
+        // config.buffer_size = cpal::BufferSize::Fixed(input_device.default_input_config().unwrap().buffer_size().into().min);
+        config.buffer_size = cpal::BufferSize::Fixed(16);
+        (input_device, config, sample_format)
     }
 
     pub fn listen(self) -> impl FnOnce() -> Self {
@@ -214,11 +217,18 @@ impl<Buffer> OutputDevice<Buffer>
         let output_device = choose_device();
         println!("{}", output_device.name().unwrap());
         // Choose the device that has the maximum of sample rates
-        let config = output_device
+        // for _config in output_device.supported_output_configs().unwrap() {
+        //     println!("{:?}", _config.max_sample_rate());
+        //     println!("{:?}", _config.buffer_size());
+        // }
+        let mut config = output_device
             .default_output_config()
             .expect("error while querying configs");
         let sample_format = config.sample_format();
-        (output_device, config.into(), sample_format)
+        let mut config: StreamConfig = config.into();
+        // config.buffer_size = cpal::BufferSize::Fixed(config.0.default_output_config().unwrap().buffer_size().min);
+        config.buffer_size = cpal::BufferSize::Fixed(16);
+        (output_device, config, sample_format)
     }
 
     pub fn play(self) -> impl FnOnce() -> Self {

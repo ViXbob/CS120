@@ -4,6 +4,7 @@ use crate::ip::*;
 use crate::physical::*;
 use crate::ack::ack::{AckPackage, AckLayer};
 use cs140_common::padding;
+use log::{trace, debug, info, warn, error};
 
 pub enum AckState {
     FrameDetection,
@@ -24,7 +25,7 @@ pub struct AckStateMachine {
 const FREQUENCY: &'static [f32] = &[1000.0, 2000.0, 3000.0, 4000.0, 5000.0, 6000.0, 7000.0, 8000.0, 9000.0, 10000.0, 11000.0, 12000.0, 13000.0, 14000.0, 15000.0, 16000.0];
 // const FREQUENCY: &'static [f32] = &[1000.0, 2000.0, 3000.0, 4000.0, 5000.0, 6000.0, 7000.0, 8000.0];
 // const FREQUENCY: &'static [f32] = &[1000.0, 2000.0, 3000.0, 4000.0];
-const BYTE_IN_FRAME : usize = 72;
+const BYTE_IN_FRAME : usize = 60;
 
 impl AckStateMachine {
     pub fn new(device_name: usize) -> Self {
@@ -72,14 +73,14 @@ impl AckStateMachine {
                     }
                 },
                 AckState::Tx(package) => {
-                    println!("package {} need to be sent!", self.tx_offset);
-                    println!("{:?}", package.data);
+                    debug!("package {} need to be sent!", self.tx_offset);
+                    trace!("{:?}", package.data);
                     loop {
                         // self.ack_layer.physical.push_warm_up_data();
                         self.ack_layer.send(package.clone());
-                        println!("send: {:?}", package.data);
-                        // std::thread::sleep(std::time::Duration::from_millis(155));
-                        self.ack_layer.physical.push_warm_up_data(25);
+                        trace!("send: {:?}", package.data);
+                        std::thread::sleep(std::time::Duration::from_millis(70));
+                        // self.ack_layer.physical.push_warm_up_data(25);
                         // let ack_package: Option<AckPackage> = self.ack_layer.receive_time_out();
                         let package = self.ack_layer.physical.receive_time_out();
                         let ack_package =
@@ -89,11 +90,11 @@ impl AckStateMachine {
                             None
                         };
                         if let Some(ack_package) = ack_package {
-                            println!("recv: {:?}", ack_package.data);
+                            trace!("recv: {:?}", ack_package.data);
                             let has_ack = ack_package.has_ack();
                             let now_offset = ack_package.offset();
                             if (has_ack && (now_offset >= self.tx_offset)) {
-                                println!("package {} was sent successfully!", self.tx_offset);
+                                debug!("package {} was sent successfully!", self.tx_offset);
                                 self.tx_offset = now_offset + 1;
                                 break;
                             }
@@ -111,15 +112,16 @@ impl AckStateMachine {
                     } else {
                         self.rx_offset = package.offset() + 1;
                         self.rx.extend(package.extract().iter().take(package.data_len()));
-                        println!("package {} was received successfully!", self.rx_offset);
+                        debug!("package {} was received successfully!", self.rx_offset);
                         if !package.has_more_fragments() { return; }
                         AckState::TxAck
                     }
                 },
                 AckState::TxAck => {
-                    self.ack_layer.physical.push_warm_up_data(25);
+                    // std::thread::sleep(std::time::Duration::from_millis(25));
+                    // self.ack_layer.physical.push_warm_up_data(25);
                     self.ack_layer.send(AckPackage::new(padding::padding().take(byte_in_frame), 0, self.rx_offset - 1, false, true, 0, 0));
-                    println!("the acknowledgment of package {} was sent!", self.rx_offset - 1);
+                    debug!("the acknowledgment of package {} was sent!", self.rx_offset - 1);
                     AckState::FrameDetection
                 }
             }
