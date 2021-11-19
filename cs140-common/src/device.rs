@@ -5,6 +5,7 @@ use std::thread;
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{Device, SampleFormat, StreamConfig, StreamError};
+use crate::padding::padding_range;
 
 pub struct InputDevice<Buffer: Buf<f32>> {
     stream_config: (Device, StreamConfig, SampleFormat),
@@ -273,7 +274,7 @@ where
         T: cpal::Sample,
     {
         let len = output.len() / channels;
-        audio_buffer.try_pop(len, move |first, second| {
+        let result = audio_buffer.try_pop(len, move |first, second| {
             for (frame, value) in output
                 .chunks_mut(channels)
                 .zip(first.iter().chain(second.iter()))
@@ -284,6 +285,12 @@ where
             }
             ((), len)
         });
+        if result.is_none(){
+            let rand = padding_range(-0.1f32,0.1f32);
+            output.iter_mut().zip(rand).for_each(|(output,rand)|{
+                *output = cpal::Sample::from(&rand)
+            })
+        }
     }
 
     fn play_error_handler(err: StreamError) {
