@@ -1,5 +1,6 @@
 use crate::encoding::{BitStore, HandlePackage, NetworkPackage};
 use crate::physical::{PhysicalLayer, PhysicalPackage};
+use async_trait::async_trait;
 use bitvec::prelude::BitVec;
 
 pub struct RedundancyPackage {
@@ -32,17 +33,19 @@ impl RedundancyLayer {
         });
     }
 }
-
+#[async_trait]
 impl HandlePackage<RedundancyPackage> for RedundancyLayer {
-    fn send(&mut self, package: RedundancyPackage) {
-        self.physical.send(PhysicalPackage {
-            0: self.make_redundancy(package),
-        })
+    async fn send(&mut self, package: RedundancyPackage) {
+        self.physical
+            .send(PhysicalPackage {
+                0: self.make_redundancy(package),
+            })
+            .await
     }
 
-    fn receive(&mut self) -> RedundancyPackage {
+    async fn receive(&mut self) -> RedundancyPackage {
         loop {
-            let result = self.physical.receive().0;
+            let result = self.physical.receive().await.0;
             let result = self.erase_redundancy(result);
             if let Some(result) = result {
                 return result;
@@ -50,13 +53,13 @@ impl HandlePackage<RedundancyPackage> for RedundancyLayer {
         }
     }
 }
-
+#[async_trait]
 impl HandlePackage<PhysicalPackage> for RedundancyLayer {
-    fn send(&mut self, package: PhysicalPackage) {
-        self.physical.send(package)
+    async fn send(&mut self, package: PhysicalPackage) {
+        self.physical.send(package).await
     }
 
-    fn receive(&mut self) -> PhysicalPackage {
-        self.physical.receive()
+    async fn receive(&mut self) -> PhysicalPackage {
+        self.physical.receive().await
     }
 }

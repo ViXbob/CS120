@@ -1,32 +1,33 @@
 use crate::ring_buffer::RingBuffer;
+use async_trait::async_trait;
 use cs140_common::buffer::Buffer;
 
-impl<T, const N: usize, const GARBAGE_COLLECTION: bool> Buffer<T>
-    for RingBuffer<T, N, GARBAGE_COLLECTION>
+#[async_trait]
+impl<T, const N: usize> Buffer<T> for RingBuffer<T, N>
 where
-    T: Sync + Send,
+    T: Sync + Send + Copy,
 {
-    fn push(&self, count: usize, producer: impl FnOnce(&mut [T], &mut [T]) -> usize) {
-        self.push(count, producer);
-    }
-
-    fn try_push(
+    async fn push(
         &self,
         count: usize,
-        producer: impl FnOnce(&mut [T], &mut [T]) -> usize,
-    ) -> Option<()> {
-        self.try_push(count, producer)
+        producer: impl for<'a> FnOnce(&'a mut [T], &'a mut [T]) -> usize + Send + 'async_trait,
+    ) {
+        self.push(count, producer).await
     }
 
-    fn pop<U>(&self, count: usize, consumer: impl FnOnce(&[T], &[T]) -> (U, usize)) -> U {
-        self.pop(count, consumer)
+    async fn pop<U>(
+        &self,
+        count: usize,
+        consumer: impl for<'a> FnOnce(&'a [T], &'a [T]) -> (U, usize) + Send + 'async_trait,
+    ) -> U {
+        self.pop(count, consumer).await
     }
-
-    fn try_pop<U>(
+    fn must_pop<U>(
         &self,
         count: usize,
         consumer: impl FnOnce(&[T], &[T]) -> (U, usize),
-    ) -> Option<U> {
-        self.try_pop(count, consumer)
+        producer: impl Iterator<Item = T>,
+    ) -> U {
+        self.must_pop(count, consumer, producer)
     }
 }

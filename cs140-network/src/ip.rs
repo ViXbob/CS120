@@ -1,9 +1,7 @@
-use crate::encoding::{BitStore, HandlePackage, NetworkPackage};
+use crate::encoding::{HandlePackage, NetworkPackage};
 use crate::physical::PhysicalPackage;
 use crate::redundancy::{RedundancyLayer, RedundancyPackage};
-use bitvec::order::Lsb0;
-use bitvec::vec::BitVec;
-use bitvec::view::BitView;
+use async_trait::async_trait;
 
 pub struct IPPackage {
     pub data: Vec<u8>,
@@ -33,8 +31,9 @@ impl IPLayer {
     }
 }
 
+#[async_trait]
 impl HandlePackage<IPPackage> for IPLayer {
-    fn send(&mut self, package: IPPackage) {
+    async fn send(&mut self, package: IPPackage) {
         let chunks = package.data.chunks(self.byte_in_frame);
         let last_chunk_index = chunks.len() - 1;
         for (index, ip_data) in chunks.enumerate() {
@@ -49,15 +48,15 @@ impl HandlePackage<IPPackage> for IPLayer {
             });
             data.extend(ip_data.into_iter());
             data.resize(self.redundancy.byte_in_frame, 0);
-            self.redundancy.send(RedundancyPackage { data });
+            self.redundancy.send(RedundancyPackage { data }).await;
             println!("Package {} sent, len {}.", index, len);
         }
     }
 
-    fn receive(&mut self) -> IPPackage {
+    async fn receive(&mut self) -> IPPackage {
         let mut data: Vec<u8> = Vec::new();
         loop {
-            let package: RedundancyPackage = self.redundancy.receive();
+            let package: RedundancyPackage = self.redundancy.receive().await;
             let len = ((package.data[0] as usize) << 8) + package.data[1] as usize;
             // println!("we received a package with len:{}", len);
             let ended = (package.data[2] & 1) == 1;
@@ -72,23 +71,25 @@ impl HandlePackage<IPPackage> for IPLayer {
     }
 }
 
+#[async_trait]
 impl HandlePackage<RedundancyPackage> for IPLayer {
-    fn send(&mut self, package: RedundancyPackage) {
-        self.redundancy.send(package)
+    async fn send(&mut self, package: RedundancyPackage) {
+        self.redundancy.send(package).await
     }
 
-    fn receive(&mut self) -> RedundancyPackage {
-        self.redundancy.receive()
+    async fn receive(&mut self) -> RedundancyPackage {
+        self.redundancy.receive().await
     }
 }
 
+#[async_trait]
 impl HandlePackage<PhysicalPackage> for IPLayer {
-    fn send(&mut self, package: PhysicalPackage) {
-        self.redundancy.send(package)
+    async fn send(&mut self, package: PhysicalPackage) {
+        self.redundancy.send(package).await
     }
 
-    fn receive(&mut self) -> PhysicalPackage {
-        self.redundancy.receive()
+    async fn receive(&mut self) -> PhysicalPackage {
+        self.redundancy.receive().await
     }
 }
 

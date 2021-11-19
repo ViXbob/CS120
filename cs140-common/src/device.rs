@@ -3,6 +3,7 @@ use crate::descriptor::SoundDescriptor;
 use std::sync::Arc;
 use std::thread;
 
+use crate::padding::padding_range;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{Device, SampleFormat, StreamConfig, StreamError};
 
@@ -53,13 +54,23 @@ where
             let channels = stream_config.channels;
             let device = &self.stream_config.0;
             let audio_buffer = self.audio_buffer.clone();
+            let rt = tokio::runtime::Builder::new_multi_thread()
+                .worker_threads(1)
+                .enable_all()
+                .build()
+                .unwrap();
             // Build the stream
             let stream = match self.stream_config.2 {
                 SampleFormat::I16 => device
                     .build_input_stream(
                         stream_config,
                         move |data: &[i16], _: &_| {
-                            Self::listen_handler(data, channels as usize, audio_buffer.clone());
+                            Self::listen_handler(
+                                data,
+                                channels as usize,
+                                audio_buffer.clone(),
+                                &rt,
+                            );
                         },
                         Self::listen_error_handler,
                     )
@@ -68,7 +79,12 @@ where
                     .build_input_stream(
                         stream_config,
                         move |data: &[u16], _: &_| {
-                            Self::listen_handler(data, channels as usize, audio_buffer.clone());
+                            Self::listen_handler(
+                                data,
+                                channels as usize,
+                                audio_buffer.clone(),
+                                &rt,
+                            );
                         },
                         Self::listen_error_handler,
                     )
@@ -77,7 +93,12 @@ where
                     .build_input_stream(
                         stream_config,
                         move |data: &[f32], _: &_| {
-                            Self::listen_handler(data, channels as usize, audio_buffer.clone());
+                            Self::listen_handler(
+                                data,
+                                channels as usize,
+                                audio_buffer.clone(),
+                                &rt,
+                            );
                         },
                         Self::listen_error_handler,
                     )
@@ -85,6 +106,7 @@ where
             };
             stream.play().unwrap();
             thread::park();
+            stream.pause().unwrap();
             self
         });
 
@@ -94,12 +116,16 @@ where
         }
     }
 
-    fn listen_handler<T>(input: &[T], channels: usize, audio_buffer: Arc<Buffer>)
-    where
-        T: cpal::Sample,
+    fn listen_handler<T>(
+        input: &[T],
+        channels: usize,
+        audio_buffer: Arc<Buffer>,
+        rt: &tokio::runtime::Runtime,
+    ) where
+        T: cpal::Sample + Sync,
     {
         let mut iterator = input.iter().step_by(channels).map(|value| value.to_f32());
-        audio_buffer.push_by_iterator(input.len() / channels, &mut iterator);
+        rt.block_on(audio_buffer.push_by_iterator(input.len() / channels, &mut iterator));
     }
 
     fn listen_error_handler(err: StreamError) {
@@ -196,6 +222,7 @@ where
 
             stream.play().unwrap();
             thread::park();
+            stream.pause().unwrap();
             self
         });
 
@@ -207,20 +234,24 @@ where
 
     fn play_handler<T>(output: &mut [T], channels: usize, audio_buffer: Arc<Buffer>)
     where
-        T: cpal::Sample,
+        T: cpal::Sample + Send,
     {
         let len = output.len() / channels;
-        audio_buffer.pop(len, move |first, second| {
-            for (frame, value) in output
-                .chunks_mut(channels)
-                .zip(first.iter().chain(second.iter()))
-            {
-                for sample in frame.iter_mut() {
-                    *sample = cpal::Sample::from(value);
+        audio_buffer.must_pop(
+            len,
+            move |first, second| {
+                for (frame, value) in output
+                    .chunks_mut(channels)
+                    .zip(first.iter().chain(second.iter()))
+                {
+                    for sample in frame.iter_mut() {
+                        *sample = cpal::Sample::from(value);
+                    }
                 }
-            }
-            ((), len)
-        });
+                ((), len)
+            },
+            padding_range(-0.1, 0.1),
+        );
     }
 
     fn play_error_handler(err: StreamError) {
