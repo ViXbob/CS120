@@ -10,7 +10,7 @@ async fn main() {
     let mut client = AckStateMachine::new(0,0,2);
     let begin_time = std::time::Instant::now();
     client.work().await;
-    write_bytes_into_bin_file(PATH, client.rx.as_slice());
+    write_bytes_into_bin_file(PATH, client.rx.map(|x|x.unwrap()).concat().as_slice());
     let duration = begin_time.elapsed();
     println!("Transmission Complete!");
     println!("runtime is {}ms", duration.as_millis());
