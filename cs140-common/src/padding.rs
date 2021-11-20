@@ -6,7 +6,7 @@ where
     Standard: Distribution<T>,
 {
     let mut rng = rand::thread_rng();
-    return std::iter::repeat(0).map(move |_| rng.gen());
+    std::iter::repeat(0).map(move |_| rng.gen())
 }
 
 pub fn padding_range<T>(start: T, end: T) -> impl Iterator<Item = T>
@@ -15,7 +15,7 @@ where
 {
     let mut rng = rand::thread_rng();
     let range = std::ops::Range { start, end };
-    return std::iter::repeat(0).map(move |_| rng.gen_range(range.clone()));
+    std::iter::repeat(0).map(move |_| rng.gen_range(range.clone()))
 }
 
 #[cfg(test)]

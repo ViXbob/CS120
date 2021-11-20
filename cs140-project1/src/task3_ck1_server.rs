@@ -22,6 +22,7 @@ const SIZE: usize = 10000;
 const PATH: &str = "INPUT.txt";
 
 fn main() {
+    const FREQUENCY: &'static [f32] = &[1000.0, 2000.0, 3000.0, 4000.0, 5000.0, 6000.0, 7000.0, 8000.0];
     let data = read_bits_from_file(PATH, SIZE);
     println!("{:?}", data);
     let padding = 50;
@@ -31,7 +32,7 @@ fn main() {
         r.data_shard_count(),
         r.parity_shard_count()
     );
-    let physical_layer = PhysicalLayer::new_send_only(&[4000.0, 5000.0], 53);
+    let physical_layer = PhysicalLayer::new_send_only(FREQUENCY, 53);
     let redundancy_layer = RedundancyLayer::new(physical_layer);
     let mut ip_layer = IPLayer::new(redundancy_layer);
     for p in packages {

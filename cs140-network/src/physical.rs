@@ -8,16 +8,17 @@ use cs140_common::device::{InputDevice, OutputDevice};
 use cs140_common::padding::{padding, padding_range};
 use std::sync::Arc;
 
-type DefaultBuffer = RingBuffer<f32, 5000000, false>;
+type DefaultBuffer = RingBuffer<f32, 5000000>;
 
 pub struct PhysicalPackage(pub BitStore);
 
 impl NetworkPackage for PhysicalPackage {}
 
-const HEADER_LENGTH: usize = 220;
-const MIN_FREQUENCY: f32 = 3000.0;
-const MAX_FREQUENCY: f32 = 6000.0;
+const HEADER_LENGTH: usize = 60;
+const MIN_FREQUENCY: f32 = 8000.0;
+const MAX_FREQUENCY: f32 = 11000.0;
 const SPEED: u32 = 1000;
+const SPEED_OF_PSK: u32 = 12000;
 
 // a frame in physical layer has #(frame_length * sample_per_bit) samples
 
@@ -34,13 +35,16 @@ pub struct PhysicalLayer {
 }
 
 impl PhysicalLayer {
-    fn push_warm_up_data_to_buffer(buffer: &Arc<DefaultBuffer>) {
-        buffer.push_by_iterator(
-            30000,
-            &mut (0..30000)
-                .map(|x| (x as f32 * 6.28 * 3000.0 / 48000.0).sin() * 0.5)
-                .take(30000),
+    fn push_warm_up_data_to_buffer(buffer: &Arc<DefaultBuffer>, time: usize) {
+        buffer.push_by_ref(
+            &padding_range(-0.1, 0.1)
+                .take(48 * time)
+                .collect::<Vec<f32>>(),
         );
+    }
+
+    pub fn push_warm_up_data(&self, time: usize) {
+        Self::push_warm_up_data_to_buffer(&self.output_buffer, time);
     }
 
     pub fn new(multiplex_frequency: &[f32], byte_in_frame: usize) -> Self {
@@ -64,12 +68,33 @@ impl PhysicalLayer {
         }
     }
 
+    pub fn new_with_specific_device(multiplex_frequency: &[f32], byte_in_frame: usize, input_device: usize, output_device: usize) -> Self {
+        let input_buffer = Arc::new(DefaultBuffer::new());
+        let (input_device, input_descriptor) = InputDevice::new_with_specific_device(input_buffer.clone(), input_device);
+        let output_buffer = Arc::new(DefaultBuffer::new());
+        let (output_device, output_descriptor) = OutputDevice::new_with_specific_device(output_buffer.clone(), output_device);
+        input_device.listen();
+        output_device.play();
+        let sample_rate = output_descriptor.sample_rate;
+        PhysicalLayer {
+            input_descriptor,
+            input_buffer,
+            output_descriptor,
+            output_buffer,
+            multiplex_frequency: multiplex_frequency.to_owned(),
+            speed: SPEED,
+            frame_length: byte_in_frame * 8 / multiplex_frequency.len(),
+            header: create_header(HEADER_LENGTH, MIN_FREQUENCY, MAX_FREQUENCY, sample_rate),
+            byte_in_frame,
+        }
+    }
+
     pub fn new_send_only(multiplex_frequency: &[f32], byte_in_frame: usize) -> Self {
         let input_buffer = Arc::new(DefaultBuffer::new());
         let (_, input_descriptor) = InputDevice::new(input_buffer.clone());
         let output_buffer = Arc::new(DefaultBuffer::new());
         let (output_device, output_descriptor) = OutputDevice::new(output_buffer.clone());
-        Self::push_warm_up_data_to_buffer(&output_buffer);
+        Self::push_warm_up_data_to_buffer(&output_buffer, 10);
         output_device.play();
         let sample_rate = output_descriptor.sample_rate;
         PhysicalLayer {
@@ -106,8 +131,11 @@ impl PhysicalLayer {
     }
 }
 
+use async_trait::async_trait;
+
+#[async_trait]
 impl HandlePackage<PhysicalPackage> for PhysicalLayer {
-    fn send(&mut self, package: PhysicalPackage) {
+    async fn send(&mut self, package: PhysicalPackage) {
         let samples = frame::generate_frame_sample_from_bitvec(
             &package.0,
             &self.header,
@@ -115,42 +143,45 @@ impl HandlePackage<PhysicalPackage> for PhysicalLayer {
             self.output_descriptor.sample_rate,
             self.speed,
         );
-        let segment_len = 100;
-        for segment in samples.chunks(segment_len) {
-            // segment push
-            self.output_buffer.push_by_ref(segment);
-        }
-        self.output_buffer.push_by_ref(
-            &padding_range(-1.0, 1.0)
-                .take(HEADER_LENGTH)
-                .collect::<Vec<f32>>(),
-        );
+        self.output_buffer.push_by_ref(&samples).await;
+        let noise = samples.iter().cloned().skip(samples.len() - 30)
+            .collect::<Vec<f32>>();
+        self.output_buffer.push_by_ref(&noise).await;
     }
 
-    fn receive(&mut self) -> PhysicalPackage {
+    async fn receive(&mut self) -> PhysicalPackage {
         loop {
             let return_package = self.input_buffer.pop_by_ref(
                 2 * self.frame_length * self.input_descriptor.sample_rate as usize
                     / self.speed as usize,
                 |data| {
-                    // let current = std::time::Instant::now();
-                    let tmp = frame::frame_resolve_to_bitvec(
+                    let current = std::time::Instant::now();
+                    frame::frame_resolve_to_bitvec(
                         data,
                         &self.header,
                         &self.multiplex_frequency,
                         self.input_descriptor.sample_rate,
                         self.speed,
                         self.frame_length,
-                    );
-                    // println!("begin_index = {}", tmp.1);
-                    tmp
+                    )
                 },
-            );
-            if return_package.is_some() {
-                return PhysicalPackage(return_package.unwrap());
+            ).await;
+            if let Some(package) = return_package {
+                return PhysicalPackage {
+                    0: package
+                };
             }
         }
     }
+
+    // fn receive_time_out(&mut self) -> Option<PhysicalPackage> {
+    //     let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+    //     let return_package = rt.block_on(tokio::time::timeout(TIME_OUT, self.receive()));
+    //     if let Ok(package) = return_package {
+    //         return Some(package)
+    //     }
+    //     return None
+    // }
 }
 
 #[cfg(test)]
@@ -190,10 +221,10 @@ mod test {
         multiplex_frequency: &[f32],
     ) -> BitVec<Lsb0, u8> {
         buffer.push_by_iterator(
-            30000,
-            &mut (0..30000)
+            12000,
+            &mut (0..12000)
                 .map(|x| (x as f32 * 6.28 * 3000.0 / 48000.0).sin() * 0.5)
-                .take(30000),
+                .take(12000),
         );
         let mut data = BitVec::new();
         for i in 0..frame_size {
@@ -223,9 +254,10 @@ mod test {
 
     #[test]
     fn test_decode_frame_from_physical_layer() {
-        const SIZE: usize = 128;
-        const FREQUENCY: &'static [f32] = &[4000.0, 5000.0];
-        const FRAME_SIZE: usize = 10;
+        const SIZE: usize = 50;
+        const FREQUENCY: &'static [f32] = &[1000.0, 2000.0, 3000.0, 4000.0, 5000.0, 6000.0, 7000.0, 8000.0];
+        // const FREQUENCY: &'static [f32] = &[4000.0, 5000.0];
+        const FRAME_SIZE: usize = 30;
         let mut layer = PhysicalLayer::new(FREQUENCY, SIZE);
         let header = layer.header.clone();
         let output_buffer = layer.output_buffer.clone();
@@ -237,7 +269,7 @@ mod test {
         // cs140_util::record::record();
         let mut response: super::BitStore = BitVec::new();
         for _ in 0..FRAME_SIZE {
-            response.extend(layer.receive().0.iter());
+            response.extend(layer.receive().await.0.iter());
         }
         println!("result:\t{:?}", response);
         let mut errors = 0;
@@ -252,28 +284,30 @@ mod test {
 
     #[test]
     fn record_samples() {
-        let size = 512;
+        const SIZE: usize = 50;
+        const FREQUENCY: &'static [f32] = &[1000.0, 2000.0, 3000.0, 4000.0, 5000.0, 6000.0, 7000.0, 8000.0];
+        const FRAME_SIZE: usize = 30;
         let header = create_header(HEADER_LENGTH, MIN_FREQUENCY, MAX_FREQUENCY, 48000);
-        let multiplex_frequency: &[f32] = &[4000.0, 5000.0];
         let mut tmp: Vec<_> = (0..30000)
             .map(|x| (x as f32 * 6.28 * 3000.0 / 48000.0).sin() * 0.5)
             .take(30000)
             .collect();
-        for _ in 0..35 {
-            let (samples, _) = generate_data(size, &header, multiplex_frequency);
+        for _ in 0..FRAME_SIZE {
+            let (samples, _) = generate_data(SIZE, &header, FREQUENCY);
             tmp.extend(samples.iter());
         }
         let tmp_: Vec<_> = std::iter::repeat(0.0).take(10000).collect();
         tmp.extend(tmp_.iter());
         // cs140_util::record::record_from_slice("/Users/vixbob/cs140/output.wav",tmp.as_slice());
-        let buffer: RingBuffer<f32, 100000, false> = RingBuffer::new();
+        let thread = std::thread::spawn(|| cs140_util::record::record("/Users/vixbob/cs140/output.wav", 10));
+        let buffer: RingBuffer<f32, 100000> = RingBuffer::new();
         let buffer_ptr = Arc::new(buffer);
         let (output, descriptor) = OutputDevice::new(buffer_ptr.clone());
         let close_output = output.play();
         for samples in tmp.chunks(100) {
             buffer_ptr.push_by_ref(samples);
         }
-        std::thread::sleep(std::time::Duration::from_secs(12));
+        std::thread::sleep(std::time::Duration::from_secs(3));
         close_output();
     }
 }

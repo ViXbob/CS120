@@ -13,7 +13,6 @@ mod test {
     use std::fs::File;
     use std::io::BufReader;
     use std::sync::Arc;
-    #[test]
     fn read_from_file_to_vec(path: &str) -> Vec<f32> {
         println!("{}", path);
         // Load a sound from a file, using a path relative to Cargo.toml
@@ -79,8 +78,8 @@ mod test {
         let fft_len = 48;
         let fft = planner.plan_fft_forward(fft_len);
         // let mut buffer = vec![Complex{ re: 0.0f32, im: 0.0f32 }; 4096];
-        // let fre1: f32 = 1000.0 * 2.0 * std::f32::consts::PI;
-        // let fre2: f32 = 2000.0 * 2.0 * std::f32::consts::PI;
+        let fre1: f32 = 1000.0 * 2.0 * std::f32::consts::PI;
+        let fre2: f32 = 2000.0 * 2.0 * std::f32::consts::PI;
         let fre3: f32 = 3000.0 * 2.0 * std::f32::consts::PI;
         // 48, 24, 16
         //
@@ -88,8 +87,8 @@ mod test {
             .map(|x| {
                 let x: f32 = x as f32 / 48000.0f32;
                 Complex {
-                    // re: (x * fre1).sin() + (x * fre2).cos() + (x * fre3).sin(),
-                    re: (x * fre3).sin(),
+                    re: (x * fre1).sin() - (x * fre2).cos() + (x * fre3).sin(),
+                    // re: (x * fre3).sin(),
                     im: 0.0f32,
                 }
             })
@@ -105,6 +104,14 @@ mod test {
     fn test_u16() {
         let size: u16 = 3995;
         println!("{}, {}", size >> 8, size & 255);
+    }
+
+    #[test]
+    fn test_audio_card() {
+        let buffer: RingBuffer<f32, 100000, false> = RingBuffer::new();
+        let buffer_ptr = Arc::new(buffer);
+        let (output, config) = OutputDevice::new(buffer_ptr.clone());
+        // println!("{}", config.sample_rate);
     }
 }
 

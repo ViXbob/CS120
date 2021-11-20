@@ -7,4 +7,7 @@ edition = "2021"
 
 [dependencies]
 cs140-common = {path = "../cs140-common"}
-cpal = "0.13.4"
+async-trait = "0.1.51"
+cpal = {version="0.13",features=["asio"]}
+[dev-dependencies]
+tokio = { version = "1", features = ["full"] }
