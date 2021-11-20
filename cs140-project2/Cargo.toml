@@ -12,7 +12,7 @@ cs140-network = {path= "../cs140-network" }
 cs140-util = {path= "../cs140-util" }
 cs140-project1 = {path= "../cs140-project1"}
 cpal = {version="0.13",features=["asio"]}
-clap = "2.0.0"
+clap = "3.0.0-beta.5"
 anyhow = "1.0.44"
 hound = "3.4.0"
 rodio = "0.14.0"
@@ -38,3 +38,11 @@ path = "src/part2_client.rs"
 [[bin]]
 name = "part2_server"
 path = "src/part2_server.rs"
+
+[[bin]]
+name = "macperf"
+path = "src/macperf.rs"
+
+[[bin]]
+name = "macperf_server"
+path = "src/macperf_server.rs"

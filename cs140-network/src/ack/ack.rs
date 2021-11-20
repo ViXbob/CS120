@@ -11,10 +11,11 @@ static REVC_COUNT:AtomicUsize = AtomicUsize::new(0);
 
 
 pub const BYTE_IN_LENGTH: usize = 2;
-pub const BYTE_IN_OFFSET: usize = 1;
+pub const BYTE_IN_OFFSET: usize = 2;
 pub const BYTE_IN_ENDING_AND_ACK: usize = 1;
 pub const BYTE_IN_ADDRESS: usize = 2;
 pub const CHECKSUM: Checksum = Checksum::CRC16(&Crc::<u16>::new(&CRC_16_IBM_SDLC));
+pub const HEADER_LENGTH: usize = BYTE_IN_LENGTH + BYTE_IN_OFFSET + BYTE_IN_ENDING_AND_ACK + BYTE_IN_ADDRESS + 2;
 
 // AckPackage
 // length: BYTE_IN_LENGTH
