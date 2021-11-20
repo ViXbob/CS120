@@ -27,7 +27,7 @@ async fn main() {
     // const FREQUENCY: &'static [f32] = &[4000.0, 5000.0];
     // const FREQUENCY: &'static [f32] = &[4000.0];
     // let physical_layer = PhysicalLayer::new_receive_only(FREQUENCY, BYTE_IN_FRAME);
-    let physical_layer = PhysicalLayer::new_with_specific_device(FREQUENCY, BYTE_IN_FRAME, 0);
+    let physical_layer = PhysicalLayer::new_with_specific_device(FREQUENCY, BYTE_IN_FRAME, 0, 0);
     // let physical_layer = PhysicalLayer::new(FREQUENCY, BYTE_IN_FRAME);
     // let physical_layer = PhysicalLayer::new_with_specific_device(FREQUENCY, BYTE_IN_FRAME, 0);
     let redundancy_layer = RedundancyLayer::new(physical_layer);

@@ -7,7 +7,11 @@ const PATH: &str = "C:\\Users\\Leomund\\Sources\\ShanghaiTech\\cs140\\cs140-proj
 async fn main() {
     let mut builder = env_logger::Builder::from_default_env();
     builder.format_timestamp_millis().init();
-    let mut client = AckStateMachine::new(0,2);
+    let mut client = AckStateMachine::new(0,0,2);
+    let begin_time = std::time::Instant::now();
     client.work().await;
     write_bytes_into_bin_file(PATH, client.rx.as_slice());
+    let duration = begin_time.elapsed();
+    println!("Transmission Complete!");
+    println!("runtime is {}ms", duration.as_millis());
 }

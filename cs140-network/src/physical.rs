@@ -68,11 +68,11 @@ impl PhysicalLayer {
         }
     }
 
-    pub fn new_with_specific_device(multiplex_frequency: &[f32], byte_in_frame: usize, device_name: usize) -> Self {
+    pub fn new_with_specific_device(multiplex_frequency: &[f32], byte_in_frame: usize, input_device: usize, output_device: usize) -> Self {
         let input_buffer = Arc::new(DefaultBuffer::new());
-        let (input_device, input_descriptor) = InputDevice::new_with_specific_device(input_buffer.clone(), 3);
+        let (input_device, input_descriptor) = InputDevice::new_with_specific_device(input_buffer.clone(), input_device);
         let output_buffer = Arc::new(DefaultBuffer::new());
-        let (output_device, output_descriptor) = OutputDevice::new_with_specific_device(output_buffer.clone(), 2);
+        let (output_device, output_descriptor) = OutputDevice::new_with_specific_device(output_buffer.clone(), output_device);
         input_device.listen();
         output_device.play();
         let sample_rate = output_descriptor.sample_rate;

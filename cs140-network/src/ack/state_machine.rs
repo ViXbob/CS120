@@ -25,7 +25,7 @@ pub struct AckStateMachine {
 }
 
 const TIME_OUT: std::time::Duration = std::time::Duration::from_millis(1000);
-const ACK_TIME_OUT: std::time::Duration = std::time::Duration::from_millis(2000);
+const ACK_TIME_OUT: std::time::Duration = std::time::Duration::from_millis(150);
 
 
 const FREQUENCY: &'static [f32] = &[1000.0, 2000.0, 3000.0, 4000.0, 5000.0, 6000.0, 7000.0, 8000.0, 9000.0, 10000.0, 11000.0, 12000.0, 13000.0, 14000.0, 15000.0, 16000.0];
@@ -33,11 +33,12 @@ const FREQUENCY: &'static [f32] = &[1000.0, 2000.0, 3000.0, 4000.0, 5000.0, 6000
 // const FREQUENCY: &'static [f32] = &[1000.0, 2000.0, 3000.0, 4000.0, 5000.0, 6000.0, 7000.0, 8000.0, 9000.0, 10000.0, 11000.0, 12000.0];
 // const FREQUENCY: &'static [f32] = &[1000.0, 2000.0, 3000.0, 4000.0, 5000.0, 6000.0, 7000.0, 8000.0];
 // const FREQUENCY: &'static [f32] = &[1000.0, 2000.0, 3000.0, 4000.0];
-const BYTE_IN_FRAME : usize = 72;
+const BYTE_IN_FRAME : usize = 48;
+const LINK_ERROR_THRESHOLD: usize = 15;
 
 impl AckStateMachine {
-    pub fn new(device_name: usize, address: u8) -> Self {
-        let physical_layer = PhysicalLayer::new_with_specific_device(FREQUENCY, BYTE_IN_FRAME, device_name);
+    pub fn new(input_device: usize, output_device: usize, address: u8) -> Self {
+        let physical_layer = PhysicalLayer::new_with_specific_device(FREQUENCY, BYTE_IN_FRAME, input_device,output_device);
         // let physical_layer = PhysicalLayer::new(FREQUENCY, BYTE_IN_FRAME);
         let ack_layer = AckLayer::new(physical_layer);
         let tx_offset = 0;
@@ -84,6 +85,7 @@ impl AckStateMachine {
                 AckState::Tx(package) => {
                     debug!("package {} need to be sent!", self.tx_offset);
                     trace!("{:?}", package.data);
+                    let mut accumulate_lost_ack = 0;
                     loop {
                         // self.ack_layer.physical.push_warm_up_data();
                         self.ack_layer.send(package.clone()).await;
@@ -102,6 +104,7 @@ impl AckStateMachine {
                                 };
                         };
                         if let Some(ack_package) = ack_package {
+                            accumulate_lost_ack = 0;
                             trace!("recv: {:?}", ack_package.data);
                             let has_ack = ack_package.has_ack();
                             let now_offset = ack_package.offset();
@@ -109,6 +112,12 @@ impl AckStateMachine {
                                 debug!("package {} was sent successfully!", self.tx_offset);
                                 self.tx_offset = now_offset + 1;
                                 break;
+                            }
+                        } else {
+                            accumulate_lost_ack += 1;
+                            if accumulate_lost_ack > LINK_ERROR_THRESHOLD {
+                                println!("Link Error!");
+                                return;
                             }
                         }
                     }

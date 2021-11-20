@@ -14,6 +14,8 @@ pub struct InputDevice<Buffer: Buf<f32>> {
     audio_buffer: Arc<Buffer>,
 }
 
+const SAMPLE_RATE: u32 = 48000;
+
 impl<Buffer> InputDevice<Buffer>
     where
         Buffer: Buf<f32> + 'static,
@@ -54,13 +56,17 @@ impl<Buffer> InputDevice<Buffer>
 
     fn init_stream_config(device_name: usize) -> (Device, StreamConfig, SampleFormat) {
         // Get the input device from user
-        let host = cpal::default_host();
+        let host = if cfg!(target_os = "windows")
+        {
+            cpal::host_from_id(cpal::HostId::Asio).expect("failed to initialise ASIO host")
+        } else {
+            cpal::default_host()
+        };
         let choose_device = || {
             for (index, input_) in host.input_devices().unwrap().enumerate() {
-                println!("input_device: {}", input_.name().unwrap());
-                // if input_.name().contains(&String::from( device_name)) {
-                //    return input_;
-                // }
+                println!("input_device {}: {}", index, input_.name().unwrap());
+            }
+            for (index, input_) in host.input_devices().unwrap().enumerate() {
                 if index == device_name {
                     return input_;
                 }
@@ -76,12 +82,23 @@ impl<Buffer> InputDevice<Buffer>
         let mut config = input_device
             .default_input_config()
             .expect("error while querying configs");
+        // Choose the device that has the maximum of sample rates
+        for _config in input_device.supported_input_configs().unwrap() {
+            // println!("{:?}", _config.max_sample_rate());
+            // println!("{:?}", _config.buffer_size());
+            // println!("{:?}", _config.channels());
+            if _config.max_sample_rate().0 == SAMPLE_RATE && _config.channels() == 2 {
+                config = _config.with_max_sample_rate();
+                break;
+            }
+        }
+        let config_ = config.clone();
         let sample_format = config.sample_format();
         let mut config: StreamConfig = config.into();
-        // config.buffer_size = cpal::BufferSize::Fixed(input_device.default_input_config().unwrap().buffer_size().into().min);
-        let buffer_size = match input_device.default_input_config().unwrap().buffer_size() {
+        let buffer_size = match config_.buffer_size() {
             SupportedBufferSize::Range { min, max } => {
-                cpal::BufferSize::Fixed(*min)
+                // cpal::BufferSize::Fixed(*min)
+                config.buffer_size
             }
             SupportedBufferSize::Unknown => {
                 config.buffer_size
@@ -206,13 +223,17 @@ impl<Buffer> OutputDevice<Buffer>
 
     fn init_stream_config(device_name: usize) -> (Device, StreamConfig, SampleFormat) {
         // Get the input device from user
-        let host = cpal::default_host();
+        let host = if cfg!(target_os = "windows")
+        {
+            cpal::host_from_id(cpal::HostId::Asio).expect("failed to initialise ASIO host")
+        } else {
+            cpal::default_host()
+        };
         let choose_device = || {
             for (index, output_) in host.output_devices().unwrap().enumerate() {
-                println!("output_device: {}", output_.name().unwrap());
-                // if output_.name().contains(&String::from( device_name)) {
-                //     return output_;
-                // }
+                println!("output_device {}: {}", index, output_.name().unwrap());
+            }
+            for (index, output_) in host.output_devices().unwrap().enumerate() {
                 if index == device_name {
                     return output_;
                 }
@@ -225,24 +246,35 @@ impl<Buffer> OutputDevice<Buffer>
         //     .expect("no output device available");
         let output_device = choose_device();
         println!("{}", output_device.name().unwrap());
-        // Choose the device that has the maximum of sample rates
-        // for _config in output_device.supported_output_configs().unwrap() {
-        //     println!("{:?}", _config.max_sample_rate());
-        //     println!("{:?}", _config.buffer_size());
-        // }
+
         let mut config = output_device
             .default_output_config()
             .expect("error while querying configs");
+
+
+        // Choose the device that has the maximum of sample rates
+        for _config in output_device.supported_output_configs().unwrap() {
+            // println!("{:?}", _config.max_sample_rate());
+            // println!("{:?}", _config.buffer_size());
+            // println!("{:?}", _config.channels());
+            if _config.max_sample_rate().0 == SAMPLE_RATE && _config.channels() == 2 {
+                config = _config.with_max_sample_rate();
+                break;
+            }
+        }
+        let config_ = config.clone();
         let sample_format = config.sample_format();
         let mut config: StreamConfig = config.into();
-        let buffer_size = match output_device.default_output_config().unwrap().buffer_size() {
+        let buffer_size = match config_.buffer_size() {
             SupportedBufferSize::Range { min, max } => {
-                cpal::BufferSize::Fixed(*min)
+                // cpal::BufferSize::Fixed(*min)
+                config.buffer_size
             }
             SupportedBufferSize::Unknown => {
                 config.buffer_size
             }
         };
+        println!("{:?}", config.sample_rate);
         config.buffer_size = buffer_size;
         (output_device, config, sample_format)
     }

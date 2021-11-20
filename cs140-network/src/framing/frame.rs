@@ -175,7 +175,7 @@ pub fn generate_frame_sample_from_bitvec(
 ) -> Vec<f32> {
     assert!(!multiplex_frequency.is_empty());
     let samples_per_bit: f32 = (sample_rate / speed) as f32;
-    let scale: f32 = 2.0 / multiplex_frequency.len() as f32;
+    let scale: f32 = 1.0 / multiplex_frequency.len() as f32;
     let mut rtn: Vec<f32> = header.to_owned();
     let sample_rate: f32 = sample_rate as f32;
     for (i, bits_group) in data.chunks(multiplex_frequency.len()).enumerate() {

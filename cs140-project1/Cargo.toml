@@ -10,7 +10,7 @@ cs140-common = {path= "../cs140-common" }
 cs140-buffer = {path= "../cs140-buffer" }
 cs140-network = {path= "../cs140-network" }
 cs140-util = {path= "../cs140-util" }
-cpal = "0.13.4"
+cpal = {version="0.13",features=["asio"]}
 clap = "2.0.0"
 anyhow = "1.0.44"
 hound = "3.4.0"
