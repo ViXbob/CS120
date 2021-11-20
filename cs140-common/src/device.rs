@@ -343,7 +343,7 @@ impl<Buffer> OutputDevice<Buffer>
                 }
             }
             ((), len)
-        }, padding_range(-0.1, 0.1));
+        }, padding_range(-0.0001,0.0001));
     }
 
     fn play_error_handler(err: StreamError) {
