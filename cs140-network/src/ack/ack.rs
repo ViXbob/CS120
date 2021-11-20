@@ -85,13 +85,12 @@ impl AckPackage {
     pub fn offset(&self) -> usize {
         assert!(BYTE_IN_LENGTH >= 1);
         assert!(BYTE_IN_LENGTH <= (std::mem::size_of::<usize>()));
-        // let offset_data = &self.data[BYTE_IN_LENGTH..BYTE_IN_LENGTH + BYTE_IN_OFFSET];
-        // let mut offset = 0;
-        // for data in offset_data.iter().rev() {
-        //     offset = (offset << 8) + (*data as usize);
-        // }
-        // offset
-        0
+        let offset_data = &self.data[BYTE_IN_LENGTH..BYTE_IN_LENGTH + BYTE_IN_OFFSET];
+        let mut offset = 0;
+        for data in offset_data.iter().rev() {
+            offset = (offset << 8) + (*data as usize);
+        }
+        offset
     }
 
     pub fn data_len(&self) ->usize{
