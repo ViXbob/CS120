@@ -44,5 +44,9 @@ name = "macperf"
 path = "src/macperf.rs"
 
 [[bin]]
+name = "macping"
+path = "src/macping.rs"
+
+[[bin]]
 name = "macperf_server"
 path = "src/macperf_server.rs"

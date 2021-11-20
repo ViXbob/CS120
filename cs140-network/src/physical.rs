@@ -24,7 +24,7 @@ const SPEED_OF_PSK: u32 = 12000;
 
 pub struct PhysicalLayer {
     input_descriptor: SoundDescriptor,
-    input_buffer: Arc<DefaultBuffer>,
+    pub(crate) input_buffer: Arc<DefaultBuffer>,
     output_descriptor: SoundDescriptor,
     pub(crate) output_buffer: Arc<DefaultBuffer>,
     multiplex_frequency: Vec<f32>,
@@ -136,17 +136,17 @@ use async_trait::async_trait;
 #[async_trait]
 impl HandlePackage<PhysicalPackage> for PhysicalLayer {
     async fn send(&mut self, package: PhysicalPackage) {
-        let samples = frame::generate_frame_sample_from_bitvec(
+        let mut samples = frame::generate_frame_sample_from_bitvec(
             &package.0,
             &self.header,
             &self.multiplex_frequency,
             self.output_descriptor.sample_rate,
             self.speed,
         );
-        self.output_buffer.push_by_ref(&samples).await;
         let noise = samples.iter().cloned().skip(samples.len() - 30)
             .collect::<Vec<f32>>();
-        self.output_buffer.push_by_ref(&noise).await;
+        samples.extend(noise.into_iter());
+        self.output_buffer.push_by_ref(&samples).await;
     }
 
     async fn receive(&mut self) -> PhysicalPackage {

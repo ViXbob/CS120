@@ -199,13 +199,22 @@ impl AckLayer {
     fn erase_redundancy(&self, data: BitStore) -> Option<AckPackage> {
         AckPackage::build_from_raw(data)
     }
+
+    pub fn flush(&mut self){
+        let len = self.physical.input_buffer.len();
+        self.physical.input_buffer.must_pop(len,|x,y|((),len),padding());
+        let len = self.physical.output_buffer.len();
+        self.physical.output_buffer.must_pop(len,|x,y|((),len),padding());
+    }
 }
 
 use async_trait::async_trait;
+use cs140_common::padding::padding;
 
 #[async_trait]
 impl HandlePackage<AckPackage> for AckLayer {
     async fn send(&mut self, package: AckPackage) {
+        trace!("{:?}", package.data);
         let package = PhysicalPackage {
             0: self.make_redundancy(package),
         };

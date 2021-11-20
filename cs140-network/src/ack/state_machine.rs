@@ -22,7 +22,7 @@ const FREQUENCY: &'static [f32] = &[1000.0, 2000.0, 3000.0, 4000.0, 5000.0, 6000
 // const FREQUENCY: &'static [f32] = &[1000.0, 2000.0, 3000.0, 4000.0];
 const SIZE: usize = 6250;
 pub const BYTE_IN_FRAME: usize = 48;
-const CONTENT_IN_FRAME: usize = BYTE_IN_FRAME - HEADER_LENGTH;
+pub const CONTENT_IN_FRAME: usize = BYTE_IN_FRAME - HEADER_LENGTH;
 const LINK_ERROR_THRESHOLD: usize = 15;
 const WINDOW_SIZE: usize = 180;
 const TOTAL: usize = (SIZE + CONTENT_IN_FRAME - 1) / CONTENT_IN_FRAME;
@@ -35,7 +35,7 @@ pub enum AckState {
 }
 
 pub struct AckStateMachine {
-    ack_layer: AckLayer,
+    pub ack_layer: AckLayer,
     tx_offset: Arc<AtomicUsize>,
     tx: Vec<u8>,
     rx_offset: usize,
