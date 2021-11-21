@@ -31,7 +31,7 @@ async fn main() {
             tokio::time::sleep(std::time::Duration::from_secs(2));
             let ack_count = async {
                 let mut ack = 0;
-                for _ in 0..48 {
+                for _ in 0..16 {
                     layer.send(AckPackage::new(padding().take(CONTENT_IN_FRAME), CONTENT_IN_FRAME, 0, false, false, 255, 255)).await;
                 };
                 let mut total_time = std::time::Duration::from_secs(1);
@@ -40,9 +40,7 @@ async fn main() {
                     let package = tokio::time::timeout(total_time, layer.receive()).await;
                     match package {
                         Ok(package) => {
-                            if package.has_ack() && package.address().0 != ADDRESS {
-                                ack += 1;
-                            }
+                            ack += 1;
                         }
                         Err(_) => {
                             break;
