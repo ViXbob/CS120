@@ -23,7 +23,7 @@ const FREQUENCY: &'static [f32] = &[1000.0, 2000.0, 3000.0, 4000.0, 5000.0, 6000
 const SIZE: usize = 6250;
 pub const BYTE_IN_FRAME: usize = 48;
 pub const CONTENT_IN_FRAME: usize = BYTE_IN_FRAME - HEADER_LENGTH;
-const LINK_ERROR_THRESHOLD: usize = 15;
+const LINK_ERROR_THRESHOLD: usize = 5;
 const WINDOW_SIZE: usize = 180;
 const TOTAL: usize = (SIZE + CONTENT_IN_FRAME - 1) / CONTENT_IN_FRAME;
 
@@ -128,6 +128,7 @@ impl AckStateMachine {
                             loop {
                                 let now = std::time::Instant::now();
                                 let package = tokio::time::timeout(total_time_out, self.ack_layer.physical.receive()).await;
+                                // let package = tokio::time::timeout(total_time_out, self.ack_layer.receive()).await;
                                 match package {
                                     Ok(package) => {
                                         package_count += 1;

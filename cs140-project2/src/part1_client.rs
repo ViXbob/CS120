@@ -16,7 +16,8 @@ fn generate_random_data() -> Vec<u8> {
 
 const SIZE: usize = 6250;
 // const PATH: &str = "/Users/vixbob/cs140/cs140-project2/OUTPUT.bin";
-const PATH: &str = "C:\\Users\\Leomund\\Sources\\ShanghaiTech\\cs140\\cs140-project2\\OUTPUT.bin";
+// const PATH: &str = "C:\\Users\\Leomund\\Sources\\ShanghaiTech\\cs140\\cs140-project2\\OUTPUT.bin";
+const PATH: &str = "OUTPUT.bin";
 #[tokio::main]
 async fn main() {
     const BYTE_IN_FRAME: usize = 7 + 65;
