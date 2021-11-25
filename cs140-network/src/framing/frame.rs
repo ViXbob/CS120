@@ -106,12 +106,20 @@ pub fn generate_frame_sample_from_bitvec(
     sample_rate: u32,
     speed: u32,
 ) -> Vec<f32> {
-    assert!(!multiplex_frequency.is_empty());
-    if TYPE_OF_ENCODE == 0 {
-        generate_frame_sample_from_bitvec_with_ofmd(data, header, FREQUENCY, sample_rate, speed)
-    } else if TYPE_OF_ENCODE == 1 {
-        generate_frame_sample_from_bitvec_with_nrzi(data, header, sample_rate, speed)
-    } else {
-        assert!(false);
+    let data = encode_4b5b(data);
+    let mut rnt: Vec<f32> = header.to_owned();
+    let trans_bit_to_sample = |x : bool| -> Vec<f32> {
+        (0..sample_per_bit).map(|_ : _| -> f32 { if x { 1.0 * SCALE } else { -1.0 * SCALE } }).collect()
+    };
+    rnt.extend(trans_bit_to_sample(true).iter());
+    let mut pre_bit: bool = true;
+    for bit in data {
+        if bit {
+            pre_bit = !pre_bit;
+            rnt.extend(trans_bit_to_sample(pre_bit).iter());
+        } else {
+            rnt.extend(trans_bit_to_sample(pre_bit).iter());
+        }
     }
+    rnt
 }
