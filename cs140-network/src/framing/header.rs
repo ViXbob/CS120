@@ -33,11 +33,12 @@ pub fn detect_header<'a>(
         //     && (now_correlation > max_correlation
         //         || ((now_correlation - max_correlation).abs() < 1e-7 && index > start_index))
         //     && now_correlation > 0.15
-        if now_correlation > power * 2.0
+        // println!("update: {}, {}, {}, {}", sum, now_correlation, max_correlation, power);
+        if now_correlation > power
             && now_correlation > max_correlation
             && now_correlation > 0.5
         {
-            // println!("update: {}, {}, {}, {}", sum, now_correlation, max_correlation, power);
+            println!("update: {}, {}, {}, {}", sum, now_correlation, max_correlation, power);
             max_correlation = now_correlation;
             start_index = index;
         } else if (index - start_index > header_length) && start_index != 0 {
