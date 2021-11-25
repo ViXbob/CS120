@@ -20,23 +20,3 @@ rand_pcg = "0.3.1"
 bitvec = "0.22.3"
 reed-solomon-erasure = { version = "4.0", features = ["simd-accel"] }
 # reed-solomon-erasure = "4.0"
-
-[[bin]]
-name = "task1_ck1"
-path = "src/task1_ck1.rs"
-
-[[bin]]
-name = "task1_ck2"
-path = "src/task1_ck2.rs"
-
-[[bin]]
-name = "task2_ck1"
-path = "src/task2_ck1.rs"
-
-[[bin]]
-name = "task3_ck1_server"
-path = "src/task3_ck1_server.rs"
-
-[[bin]]
-name = "task3_ck1_client"
-path = "src/task3_ck1_client.rs"

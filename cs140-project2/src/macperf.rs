@@ -18,8 +18,8 @@ async fn main() {
             .takes_value(true)).get_matches();
     if let Some(address) = matches.value_of("connect") {
         let address: u8 = address.parse().unwrap();
-        let mut client = AckStateMachine::new(0, 0, 255);
-        client.append(padding().take(1024 * 128));
+        let mut client = AckStateMachine::new(0, 0, address);
+        client.append(padding().take(1024 * 256));
         println!("Connecting to {}.", address);
         let mut receiver = client.size_channel();
         tokio::spawn(async move {

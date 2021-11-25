@@ -33,7 +33,7 @@ async fn main() {
             tokio::time::sleep(std::time::Duration::from_secs(2));
             let time = tokio::time::timeout(std::time::Duration::from_secs(2), async {
                 let start = std::time::Instant::now();
-                for _ in 0..30 {
+                for _ in 0..10 {
                     layer.send(AckPackage::new(padding().take(CONTENT_IN_FRAME), CONTENT_IN_FRAME, 0, false, false, 255, 255)).await;
                 };
                 layer.receive().await;

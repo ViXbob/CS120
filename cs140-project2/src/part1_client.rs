@@ -17,7 +17,8 @@ fn generate_random_data() -> Vec<u8> {
 const SIZE: usize = 6250;
 // const PATH: &str = "/Users/vixbob/cs140/cs140-project2/OUTPUT.bin";
 // const PATH: &str = "C:\\Users\\Leomund\\Sources\\ShanghaiTech\\cs140\\cs140-project2\\OUTPUT.bin";
-const PATH: &str = "C:\\Users\\ViXbob\\CLionProjects\\cs140\\cs140-project2\\OUTPUT.bin";
+// const PATH: &str = "C:\\Users\\ViXbob\\CLionProjects\\cs140\\cs140-project2\\OUTPUT.bin";
+const PATH: &str = "OUTPUT.bin";
 #[tokio::main]
 async fn main() {
     let mut builder = env_logger::Builder::from_default_env();
@@ -31,10 +32,14 @@ async fn main() {
     let parity_shard_count = 40;
     let mut package_received = 0;
     let mut now_package = 0;
+    let mut begin_time = std::time::Instant::now();
     loop {
         let package: IPPackage = ip_layer.receive().await;
         // println!("received: {}", package.data[0]);
         now_package += 1;
+        if now_package == 1 {
+            begin_time = std::time::Instant::now();
+        }
         if package.data[0] >= data_shard_count + parity_shard_count {
             // println!("data corrupted, maximum index {}, found {}", data_shard_count  + parity_shard_count, package.data[0]);
             drop(package)
@@ -72,4 +77,7 @@ async fn main() {
         SIZE,
     ).unwrap();
     file_io::write_bytes_into_bin_file(PATH, data.as_slice());
+    let duration = begin_time.elapsed();
+    println!("Transmission Complete!");
+    println!("runtime is {}ms", duration.as_millis());
 }

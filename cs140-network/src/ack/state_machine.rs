@@ -12,14 +12,14 @@ use log::{trace, debug, info, warn, error};
 use tokio::time::error::Elapsed;
 
 const TIME_OUT: std::time::Duration = std::time::Duration::from_millis(1000);
-const ACK_TIME_OUT: std::time::Duration = std::time::Duration::from_millis(3000);
+const ACK_TIME_OUT: std::time::Duration = std::time::Duration::from_millis(1200);
 
 
 const SIZE: usize = 6250;
-pub const BYTE_IN_FRAME: usize = 48;
+pub const BYTE_IN_FRAME: usize = 64;
 pub const CONTENT_IN_FRAME: usize = BYTE_IN_FRAME - HEADER_LENGTH;
-const LINK_ERROR_THRESHOLD: usize = 15;
-const WINDOW_SIZE: usize = 180;
+const LINK_ERROR_THRESHOLD: usize = 35;
+const WINDOW_SIZE: usize = 1;
 const TOTAL: usize = (SIZE + CONTENT_IN_FRAME - 1) / CONTENT_IN_FRAME;
 
 pub enum AckState {
@@ -76,6 +76,8 @@ impl AckStateMachine {
     }
     pub async fn work(&mut self) {
         let byte_in_frame = self.ack_layer.byte_in_frame;
+        let mut begin_time = std::time::Instant::now();
+        let mut package_count = 0;
         loop {
             let now_state = &self.state;
             self.state = match now_state {
@@ -122,23 +124,24 @@ impl AckStateMachine {
                             let mut package_count = 0;
                             loop {
                                 let now = std::time::Instant::now();
-                                let package = tokio::time::timeout(total_time_out, self.ack_layer.physical.receive()).await;
+                                let package = tokio::time::timeout(total_time_out, self.ack_layer.receive()).await;
                                 match package {
                                     Ok(package) => {
                                         package_count += 1;
-                                        let package = AckPackage { data: package.0.into_vec() };
-                                        if package.address().0 != self.address && package.has_ack() {
+                                        // let package = AckPackage { data: package.0.into_vec() };
+                                        if package.has_ack() {
                                             old_ack = std::cmp::max(old_ack, package.offset());
                                         }
                                     }
                                     Err(_) => { break; }
                                 }
                                 let duration = now.elapsed();
-                                if total_time_out <= duration { break; } else { total_time_out -= duration; }
+                                if total_time_out <= duration || package_count >= WINDOW_SIZE { break; } else { total_time_out -= duration; }
                             }
                             (old_ack, package_count)
                         }.await;
 
+                        debug!("{}, {}", package_count, new_ack);
 
                         if package_count > 0 {
                             accumulate_lost_ack = 0;
@@ -156,6 +159,10 @@ impl AckStateMachine {
                     AckState::FrameDetection
                 }
                 AckState::Rx(package) => {
+                    if package_count == 0 {
+                        begin_time = std::time::Instant::now();
+                    }
+                    package_count += 1;
                     if package.has_ack() {
                         self.tx_offset.fetch_max(package.offset(), Relaxed);
                         AckState::FrameDetection
@@ -169,6 +176,9 @@ impl AckStateMachine {
                                 }
                                 self.rx_offset += 1;
                                 if self.rx_offset >= TOTAL {
+                                    let duration = begin_time.elapsed();
+                                    println!("Transmission Complete!");
+                                    println!("runtime is {}ms", duration.as_millis());
                                     return;
                                 }
                             }

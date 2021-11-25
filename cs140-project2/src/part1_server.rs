@@ -7,7 +7,8 @@ use cs140_project1::make_redundancy;
 
 const SIZE: usize = 6250;
 // const PATH: &str = "C:\\Users\\Leomund\\Sources\\ShanghaiTech\\cs140\\cs140-project2\\INPUT.bin";
-const PATH: &str = "C:\\Users\\ViXbob\\CLionProjects\\cs140\\cs140-project2\\INPUT.bin";
+// const PATH: &str = "C:\\Users\\ViXbob\\CLionProjects\\cs140\\cs140-project2\\INPUT.bin";
+const PATH: &str = "INPUT.bin";
 #[tokio::main]
 async fn main() {
     let mut builder = env_logger::Builder::from_default_env();

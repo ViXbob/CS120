@@ -37,7 +37,7 @@ pub struct PhysicalLayer {
 impl PhysicalLayer {
     fn push_warm_up_data_to_buffer(buffer: &Arc<DefaultBuffer>, time: usize) {
         buffer.push_by_ref(
-            &padding_range(-0.1, 0.1)
+            &padding_range(-0.01, 0.01)
                 .take(48 * time)
                 .collect::<Vec<f32>>(),
         );
@@ -142,7 +142,7 @@ impl HandlePackage<PhysicalPackage> for PhysicalLayer {
             &self.header,
             self.sample_per_bit,
         );
-        let noise = samples.iter().cloned().skip(samples.len() - 30)
+        let noise = samples.iter().cloned().skip(samples.len() - 64)
             .collect::<Vec<f32>>();
         samples.extend(noise.into_iter());
         self.output_buffer.push_by_ref(&samples).await;
