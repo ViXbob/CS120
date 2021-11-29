@@ -53,13 +53,14 @@ impl AckPackage {
         };
         // log
         trace!("recv: {:?}", package.data);
-        if package.validate_checksum() {
-            Some(package)
-        } else {
-            let count = REVC_COUNT.fetch_add(1,Relaxed)+1;
-            debug!("validate_checksum count: {}", count);
-            None
-        }
+        Some(package)
+        // if package.validate_checksum() {
+        //     Some(package)
+        // } else {
+        //     let count = REVC_COUNT.fetch_add(1,Relaxed)+1;
+        //     debug!("validate_checksum count: {}", count);
+        //     None
+        // }
     }
 
     pub fn extract(&self) -> Vec<u8> {
@@ -84,12 +85,13 @@ impl AckPackage {
     pub fn offset(&self) -> usize {
         assert!(BYTE_IN_LENGTH >= 1);
         assert!(BYTE_IN_LENGTH <= (std::mem::size_of::<usize>()));
-        let offset_data = &self.data[BYTE_IN_LENGTH..BYTE_IN_LENGTH + BYTE_IN_OFFSET];
-        let mut offset = 0;
-        for data in offset_data.iter().rev() {
-            offset = (offset << 8) + (*data as usize);
-        }
-        offset
+        // let offset_data = &self.data[BYTE_IN_LENGTH..BYTE_IN_LENGTH + BYTE_IN_OFFSET];
+        // let mut offset = 0;
+        // for data in offset_data.iter().rev() {
+        //     offset = (offset << 8) + (*data as usize);
+        // }
+        // offset
+        0
     }
 
     pub fn data_len(&self) ->usize{

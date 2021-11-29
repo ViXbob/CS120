@@ -1,8 +1,13 @@
 use std::process::exit;
 use std::sync::Arc;
 use clap::{App, Arg};
+use tokio::time::error::Elapsed;
 use cs140_common::padding::padding;
-use cs140_network::ack::state_machine::{AckStateMachine, BYTE_IN_FRAME};
+use cs140_network::ack::ack::AckPackage;
+use cs140_network::ack::state_machine::{AckStateMachine, BYTE_IN_FRAME, CONTENT_IN_FRAME};
+use cs140_network::encoding::HandlePackage;
+
+const ADDRESS: u8 = 255;
 
 #[tokio::main]
 async fn main() {
@@ -18,23 +23,41 @@ async fn main() {
             .takes_value(true)).get_matches();
     if let Some(address) = matches.value_of("connect") {
         let address: u8 = address.parse().unwrap();
-        let mut client = AckStateMachine::new(0, 0, 255);
-        client.append(padding().take(1024 * 128));
-        println!("Connecting to {}.", address);
-        let mut receiver = client.size_channel();
-        tokio::spawn(async move {
-            let mut time = 0;
-            loop {
-                tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-                time += 1;
-                let new_size = receiver.recv().await.unwrap();
-                println!("{:.3} Kbps", (new_size as f64) * (BYTE_IN_FRAME as f64) / time as f64 / 1000.0 * 8.0);
-            }
-        });
-        tokio::spawn(async move {
-            tokio::signal::ctrl_c().await.unwrap();
-            exit(0);
-        });
-        client.work().await;
+        let mut client = AckStateMachine::new(0, 0, ADDRESS);
+        let mut layer = client.ack_layer;
+        let mut total_ack_count = 0;
+        let mut total_time = 0;
+        loop {
+            tokio::time::sleep(std::time::Duration::from_secs(2));
+            let ack_count = async {
+                let mut ack = 0;
+                for _ in 0..16 {
+                    layer.send(AckPackage::new(padding().take(CONTENT_IN_FRAME), CONTENT_IN_FRAME, 0, false, false, 255, 255)).await;
+                };
+                let mut total_time = std::time::Duration::from_secs(1);
+                loop {
+                    let start = std::time::Instant::now();
+                    let package = tokio::time::timeout(total_time, layer.receive()).await;
+                    match package {
+                        Ok(package) => {
+                            ack += 1;
+                        }
+                        Err(_) => {
+                            break;
+                        }
+                    }
+                    let time_cost = start.elapsed();
+                    if total_time < time_cost {
+                        break;
+                    } else {
+                        total_time -= time_cost;
+                    }
+                }
+                ack
+            }.await;
+            total_ack_count += ack_count;
+            total_time += 1;
+            println!("{:.3} Kbps", (total_ack_count * BYTE_IN_FRAME) as f32 / total_time as f32 / 1000.0 * 8.0);
+        }
     }
 }

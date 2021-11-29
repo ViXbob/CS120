@@ -98,7 +98,6 @@ impl<'a, PushCallback, T, const N: usize> Future for RingBufferPushFuture<'a, Pu
     type Output = ();
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-
         let mut guard = self.buffer.lock().unwrap();
         if guard.capacity() - guard.len() >= self.push_len_required {
             let push_fn: PushCallback = unsafe { std::mem::transmute_copy(&self.push_fn) };
@@ -107,6 +106,7 @@ impl<'a, PushCallback, T, const N: usize> Future for RingBufferPushFuture<'a, Pu
                 pop_waker.wake_by_ref();
             }
             guard.pop_waker.clear();
+            // log::warn!("push head: {}",guard.head);
             Poll::Ready(())
         } else {
             guard.push_waker.push_back(cx.waker().clone());
@@ -129,6 +129,8 @@ impl<'a, U, PopCallback, T, const N: usize> Future for RingBufferPopFuture<'a, U
             for push_waker in &guard.push_waker{
                 push_waker.wake_by_ref();
             }
+            guard.push_waker.clear();
+            // log::warn!("pop head: {}",guard.head);
             Poll::Ready(result)
         } else {
             guard.pop_waker.push_back(cx.waker().clone());
