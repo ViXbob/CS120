@@ -1,7 +1,7 @@
-use bitvec::order::Lsb0;
+use bitvec::order::{Lsb0, Msb0};
 use bitvec::vec::BitVec;
 
-pub type BitStore = BitVec<Lsb0, u8>;
+pub type BitStore = BitVec<Msb0, u8>;
 
 pub trait NetworkPackage {}
 

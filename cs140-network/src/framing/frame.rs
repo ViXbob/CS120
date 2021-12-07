@@ -220,77 +220,13 @@ pub fn generate_frame_sample_test(data: &BitStore) -> Vec<f32> {
         if bit {
             samples.push(1.0);
             samples.push(1.0);
-            samples.push(1.0);
-            samples.push(1.0);
-            samples.push(1.0);
-            samples.push(1.0);
-            samples.push(1.0);
-            samples.push(1.0);
-            samples.push(1.0);
-            samples.push(1.0);
-            samples.push(1.0);
-            samples.push(1.0);
-            samples.push(1.0);
-            samples.push(1.0);
-            samples.push(1.0);
-            samples.push(1.0);
-            samples.push(1.0);
-            samples.push(1.0);
-            samples.push(1.0);
-            samples.push(1.0);
-            samples.push(1.0);
-            samples.push(1.0);
-            samples.push(1.0);
-            samples.push(1.0);
-            samples.push(1.0);
-            samples.push(1.0);
-            samples.push(1.0);
-            samples.push(1.0);
-            samples.push(1.0);
-            samples.push(1.0);
-            samples.push(1.0);
-            samples.push(1.0);
         } else {
-            samples.push(-1.0);
-            samples.push(-1.0);
-            samples.push(-1.0);
-            samples.push(-1.0);
-            samples.push(-1.0);
-            samples.push(-1.0);
-            samples.push(-1.0);
-            samples.push(-1.0);
-            samples.push(-1.0);
-            samples.push(-1.0);
-            samples.push(-1.0);
-            samples.push(-1.0);
-            samples.push(-1.0);
-            samples.push(-1.0);
-            samples.push(-1.0);
-            samples.push(-1.0);
-            samples.push(-1.0);
-            samples.push(-1.0);
-            samples.push(-1.0);
-            samples.push(-1.0);
-            samples.push(-1.0);
-            samples.push(-1.0);
-            samples.push(-1.0);
-            samples.push(-1.0);
-            samples.push(-1.0);
-            samples.push(-1.0);
-            samples.push(-1.0);
-            samples.push(-1.0);
-            samples.push(-1.0);
-            samples.push(-1.0);
             samples.push(-1.0);
             samples.push(-1.0);
         }
     };
-    let mut pre_bit = true;
     for bit in data.into_iter() {
-        if *bit {
-            pre_bit = !pre_bit;
-        }
-        convert_bit_to_sample(&mut sample, pre_bit);
+        convert_bit_to_sample(&mut sample, *bit);
     }
     sample
 }

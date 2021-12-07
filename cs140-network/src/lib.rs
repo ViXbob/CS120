@@ -5,4 +5,5 @@ pub mod physical;
 pub mod redundancy;
 pub mod tcp;
 pub mod ack;
-mod physical_test;
+pub mod physical_test;
+mod sample_reader;
