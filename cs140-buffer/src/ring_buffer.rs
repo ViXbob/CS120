@@ -29,7 +29,7 @@ impl<T, const N: usize> RingBuffer<T, N> {
     ) -> U where T: Copy {
         let mut guard = self.0.lock().unwrap();
         let len = guard.len();
-        if count <= len {
+        let result = if count <= len {
             guard.pop_blocking(count, consumer)
         } else {
             guard.pop_blocking(len, |first: &[T], second: &[T]| {
@@ -38,7 +38,12 @@ impl<T, const N: usize> RingBuffer<T, N> {
                 let (value, _) = consumer(&data, &padding);
                 (value, len)
             })
+        };
+        for pop_waker in &guard.pop_waker {
+            pop_waker.wake_by_ref();
         }
+        guard.pop_waker.clear();
+        result
     }
 
 

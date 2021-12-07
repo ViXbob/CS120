@@ -63,11 +63,7 @@ impl HandlePackage<IPPackage> for IPLayer {
         let chunks = package.data.chunks(self.byte_in_frame);
         let last_chunk_index = chunks.len() - 1;
         for (index, ip_data) in chunks.enumerate() {
-            let package = if index == last_chunk_index {
-                RedundancyPackage::new(ip_data.iter().cloned().chain(padding::padding()).take(self.byte_in_frame), self.byte_in_frame, false, 0, 0)
-            } else {
-                RedundancyPackage::new(ip_data.iter().cloned(), self.byte_in_frame, true, 0, 0)
-            };
+            let package = RedundancyPackage::new(ip_data.iter().cloned(),ip_data.len(),index != last_chunk_index,0,0);
             self.send_package_sender.send(package).await.unwrap();
         }
     }
