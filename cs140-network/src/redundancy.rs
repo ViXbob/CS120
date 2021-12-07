@@ -106,6 +106,9 @@ impl RedundancyPackage {
     }
 
     pub fn validate_checksum(&self) -> bool {
+        if self.data.len() < BYTE_IN_LENGTH+BYTE_IN_ENDING + BYTE_IN_ADDRESS + CHECKSUM.len() {
+            return false;
+        }
         CHECKSUM.checksum(&self.data[..self.data.len() - CHECKSUM.len()]) as usize
             == self.checksum()
     }
