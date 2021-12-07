@@ -23,7 +23,7 @@ pub trait Buffer<Data: Send + Sync>: Send + Sync {
             .await;
     }
 
-    async fn push_by_iterator(&self, count: usize, data: &mut (impl Iterator<Item = Data> + Send))
+    async fn push_by_iterator(&self, count: usize, data: &mut (impl Iterator<Item=Data> + Send))
         where
             Data: Copy + Clone,
     {
@@ -49,7 +49,7 @@ pub trait Buffer<Data: Send + Sync>: Send + Sync {
         &self,
         count: usize,
         consumer: impl FnOnce(&[Data], &[Data]) -> (U, usize),
-        producer: impl Iterator<Item = Data>,
+        producer: impl Iterator<Item=Data>,
     ) -> U;
     async fn pop_by_ref<T>(
         &self,
@@ -69,7 +69,7 @@ pub trait Buffer<Data: Send + Sync>: Send + Sync {
     async fn pop_by_iterator<T>(
         &self,
         count: usize,
-        consumer: impl for<'b> FnOnce(Box<dyn Iterator<Item = &'b Data> + '_>) -> (T, usize)
+        consumer: impl for<'b> FnOnce(Box<dyn Iterator<Item=&'b Data> + '_>) -> (T, usize)
         + Send
         + 'async_trait,
     ) -> T

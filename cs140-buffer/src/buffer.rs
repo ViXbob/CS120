@@ -1,6 +1,8 @@
-use crate::ring_buffer::RingBuffer;
 use async_trait::async_trait;
+
 use cs140_common::buffer::Buffer;
+
+use crate::ring_buffer::RingBuffer;
 
 #[async_trait]
 impl<T, const N: usize> Buffer<T> for RingBuffer<T, N>
@@ -26,7 +28,7 @@ impl<T, const N: usize> Buffer<T> for RingBuffer<T, N>
         &self,
         count: usize,
         consumer: impl FnOnce(&[T], &[T]) -> (U, usize),
-        producer: impl Iterator<Item = T>,
+        producer: impl Iterator<Item=T>,
     ) -> U {
         self.must_pop(count, consumer, producer)
     }

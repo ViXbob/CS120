@@ -25,18 +25,18 @@ impl<T, const N: usize> RingBuffer<T, N> {
         &self,
         count: usize,
         consumer: impl FnOnce(&[T], &[T]) -> (U, usize),
-        producer: impl Iterator<Item=T>
-    ) -> U where T:Copy{
+        producer: impl Iterator<Item=T>,
+    ) -> U where T: Copy {
         let mut guard = self.0.lock().unwrap();
         let len = guard.len();
         if count <= len {
             guard.pop_blocking(count, consumer)
         } else {
-            guard.pop_blocking(len,|first:&[T],second:&[T]|{
-                let data:Vec<_> = first.iter().cloned().chain(second.iter().cloned()).collect();
-                let padding:Vec<_> = producer.take(count-len).collect();
-                let (value,_) = consumer(&data,&padding);
-                (value,len)
+            guard.pop_blocking(len, |first: &[T], second: &[T]| {
+                let data: Vec<_> = first.iter().cloned().chain(second.iter().cloned()).collect();
+                let padding: Vec<_> = producer.take(count - len).collect();
+                let (value, _) = consumer(&data, &padding);
+                (value, len)
             })
         }
     }
@@ -68,7 +68,7 @@ impl<T, const N: usize> RingBuffer<T, N> {
             .await
     }
 
-    pub fn len(&self) -> usize{
+    pub fn len(&self) -> usize {
         self.0.lock().unwrap().len
     }
 }
@@ -102,7 +102,7 @@ impl<'a, PushCallback, T, const N: usize> Future for RingBufferPushFuture<'a, Pu
         if guard.capacity() - guard.len() >= self.push_len_required {
             let push_fn: PushCallback = unsafe { std::mem::transmute_copy(&self.push_fn) };
             guard.push_blocking(push_fn);
-            for pop_waker in &guard.pop_waker{
+            for pop_waker in &guard.pop_waker {
                 pop_waker.wake_by_ref();
             }
             guard.pop_waker.clear();
@@ -126,7 +126,7 @@ impl<'a, U, PopCallback, T, const N: usize> Future for RingBufferPopFuture<'a, U
         if guard.len() >= self.pop_len_required {
             let pop_fn: PopCallback = unsafe { std::mem::transmute_copy(&self.pop_fn) };
             let result = guard.pop_blocking(self.pop_len_required, pop_fn);
-            for push_waker in &guard.push_waker{
+            for push_waker in &guard.push_waker {
                 push_waker.wake_by_ref();
             }
             guard.push_waker.clear();
@@ -221,22 +221,23 @@ impl<T, const N: usize> BlockingRingBuffer<T, N> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::sync::Arc;
+
+    use super::*;
 
     #[tokio::test]
     async fn test_timeout() {
         let buffer = Arc::new(RingBuffer::<i32, 1000000>::new());
-        buffer.push(4,|x,y|{
+        buffer.push(4, |x, y| {
             x[0] = 1;
             x[1] = 2;
             x[2] = 3;
             x[3] = 4;
             4
         }).await;
-        assert_eq!(buffer.pop(1,|x,y|(x[0],1)).await,1);
-        assert_eq!(buffer.pop(1,|x,y|(x[0],1)).await,2);
-        assert_eq!(buffer.pop(1,|x,y|(x[0],1)).await,3);
-        assert_eq!(buffer.pop(1,|x,y|(x[0],1)).await,4);
+        assert_eq!(buffer.pop(1, |x, y| (x[0], 1)).await, 1);
+        assert_eq!(buffer.pop(1, |x, y| (x[0], 1)).await, 2);
+        assert_eq!(buffer.pop(1, |x, y| (x[0], 1)).await, 3);
+        assert_eq!(buffer.pop(1, |x, y| (x[0], 1)).await, 4);
     }
 }

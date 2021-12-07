@@ -11,7 +11,7 @@ pub fn read_bytes_from_bin_file(path: &str, byte_size: usize) -> Vec<u8> {
     f.seek(SeekFrom::Start(0));
     let n = f.read(&mut buffer).unwrap();
 
-    let data:Vec<_> = buffer[0..byte_size].iter().cloned().collect();
+    let data: Vec<_> = buffer[0..byte_size].iter().cloned().collect();
 
     data
 }

@@ -1,25 +1,26 @@
 use std::ops::{Range, RangeInclusive};
+
 use rand::distributions::{Distribution, Standard};
 use rand::Rng;
 
-pub fn padding<T>() -> impl Iterator<Item = T>
-where
-    Standard: Distribution<T>,
+pub fn padding<T>() -> impl Iterator<Item=T>
+    where
+        Standard: Distribution<T>,
 {
     let mut rng = rand::thread_rng();
     std::iter::repeat(0).map(move |_| rng.gen())
 }
 
-pub fn padding_range<T>(start: T, end: T) -> impl Iterator<Item = T>
-where
-    T: rand::distributions::uniform::SampleUniform + std::cmp::PartialOrd + Copy + Clone,
+pub fn padding_range<T>(start: T, end: T) -> impl Iterator<Item=T>
+    where
+        T: rand::distributions::uniform::SampleUniform + std::cmp::PartialOrd + Copy + Clone,
 {
     let mut rng = rand::thread_rng();
     let range = std::ops::Range { start, end };
     std::iter::repeat(0).map(move |_| rng.gen_range(range.clone()))
 }
 
-pub fn padding_inclusive_range<T>(range: RangeInclusive<T>) -> impl Iterator<Item = T>
+pub fn padding_inclusive_range<T>(range: RangeInclusive<T>) -> impl Iterator<Item=T>
     where
         T: rand::distributions::uniform::SampleUniform + std::cmp::PartialOrd + Copy + Clone,
 {

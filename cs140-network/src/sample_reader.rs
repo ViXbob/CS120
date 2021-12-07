@@ -1,4 +1,5 @@
 use log::trace;
+
 use crate::encoding::BitStore;
 
 static BIT_SLIP_HISTORY_COUNT: usize = 4;
@@ -35,7 +36,7 @@ impl SampleReader {
                 None => { return (result, data.len() - data_ref.len()); }
                 Some(bit) => { result.push(bit); }
             }
-            println!("{}",result);
+            // println!("{}",result);
         }
     }
 

@@ -1,18 +1,21 @@
 #[cfg(test)]
 mod test {
+    use std::fs::File;
+    use std::io::BufReader;
+    use std::sync::Arc;
+
     use bitvec::prelude::BitVec;
+    use hound::WavWriter;
+    use rand::Rng;
+    use rodio::{Decoder, OutputStream, source::Source};
+    use rustfft::{FftPlanner, num_complex::Complex};
+
     use cs140_buffer::ring_buffer::RingBuffer;
     use cs140_common::buffer::Buffer;
     use cs140_common::descriptor::{SampleFormat, SoundDescriptor};
     use cs140_common::device::OutputDevice;
     use cs140_common::record::Recorder;
-    use hound::WavWriter;
-    use rand::Rng;
-    use rodio::{source::Source, Decoder, OutputStream};
-    use rustfft::{num_complex::Complex, FftPlanner};
-    use std::fs::File;
-    use std::io::BufReader;
-    use std::sync::Arc;
+
     fn read_from_file_to_vec(path: &str) -> Vec<f32> {
         println!("{}", path);
         // Load a sound from a file, using a path relative to Cargo.toml

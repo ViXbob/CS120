@@ -1,11 +1,12 @@
-use crate::buffer::Buffer as Buf;
-use crate::descriptor::SoundDescriptor;
 use std::sync::Arc;
 use std::thread;
 
-use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{Device, SampleFormat, StreamConfig, StreamError, SupportedBufferSize};
+use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use tokio::runtime::{Builder, Runtime};
+
+use crate::buffer::Buffer as Buf;
+use crate::descriptor::SoundDescriptor;
 use crate::padding::padding_range;
 
 pub struct InputDevice<Buffer: Buf<f32>> {
@@ -343,7 +344,7 @@ impl<Buffer> OutputDevice<Buffer>
                 }
             }
             ((), len)
-        }, padding_range(-0.0001,0.0001));
+        }, padding_range(-0.0001, 0.0001));
     }
 
     fn play_error_handler(err: StreamError) {

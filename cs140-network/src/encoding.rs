@@ -1,12 +1,12 @@
-use bitvec::order::{Msb0};
+use async_trait::async_trait;
+use bitvec::order::Msb0;
 use bitvec::vec::BitVec;
+
+use cs140_common::padding::{padding_inclusive_range, padding_range};
 
 pub type BitStore = BitVec<Msb0, u8>;
 
 pub trait NetworkPackage {}
-
-use async_trait::async_trait;
-use cs140_common::padding::{padding_inclusive_range, padding_range};
 
 #[async_trait]
 pub trait HandlePackage<Package: NetworkPackage> {
@@ -39,6 +39,10 @@ pub fn encode_4b5b(data: &BitStore) -> BitStore {
 pub fn decode_4b5b(data: &BitStore) -> BitStore {
     let mut result: BitStore = BitVec::with_capacity((data.len() as f64 * 0.8).floor() as usize);
     for bits in data.chunks(5) {
+        if bits.len() < 5{
+            log::warn!("Fail to decode, bits len {}, which is too short.", bits.len());
+            break;
+        }
         let mut value: u8 = 0;
         for bit in bits {
             value <<= 1;
@@ -61,10 +65,10 @@ pub fn encode_nrzi(data: &BitStore) -> BitStore {
     let mut result: BitStore = BitVec::with_capacity(data.len());
     let mut old_bit: bool = false;
     for bit in data {
-        if old_bit!= *bit  {
+        if old_bit != *bit {
             old_bit = *bit;
             result.push(true);
-        }else{
+        } else {
             result.push(false);
         }
     }
@@ -86,13 +90,13 @@ pub fn decode_nrzi(data: &BitStore) -> BitStore {
 #[cfg(test)]
 mod test {
     use crate::encoding::BitStore;
-    use bitvec::vec::BitVec;
+
     use super::*;
 
     #[test]
     fn test_bitstore() {
         let original: Vec<u8> = vec![33, 44, 127, 204];
-        let bv: BitStore = BitVec::from_vec(original);
+        let bv: BitStore = BitStore::from_vec(original);
         let encoded_nrzi = encode_nrzi(&bv);
         let decoded_nrzi = decode_nrzi(&encoded_nrzi);
         assert_eq!(bv, decoded_nrzi);

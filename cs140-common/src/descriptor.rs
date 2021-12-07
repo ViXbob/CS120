@@ -1,7 +1,8 @@
+use std::mem;
+
 use cpal::SampleFormat as CpalSampleFormat;
 use hound::SampleFormat as HoundSampleFormat;
 use hound::WavSpec;
-use std::mem;
 
 #[derive(Copy, Clone, Debug)]
 pub struct SoundDescriptor {
@@ -59,6 +60,7 @@ impl From<HoundSampleFormat> for SampleFormat {
         }
     }
 }
+
 #[allow(clippy::from_over_into)]
 impl Into<WavSpec> for SoundDescriptor {
     fn into(self) -> WavSpec {
