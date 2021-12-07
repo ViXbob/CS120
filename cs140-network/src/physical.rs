@@ -39,13 +39,13 @@ impl PhysicalPackage {
     }
 }
 
-impl From<PhysicalPackage> for BitStore{
+impl From<PhysicalPackage> for BitStore {
     fn from(package: PhysicalPackage) -> Self {
         package.0
     }
 }
 
-impl From<BitStore> for PhysicalPackage{
+impl From<BitStore> for PhysicalPackage {
     fn from(bits: BitStore) -> Self {
         PhysicalPackage(bits)
     }
@@ -73,7 +73,7 @@ impl PhysicalLayer {
     }
 
 
-    pub fn max_package_byte(&self)->usize{
+    pub fn max_package_byte(&self) -> usize {
         self.max_package_byte_len
     }
 }
@@ -94,12 +94,15 @@ impl HandlePackage<PhysicalPackage> for PhysicalLayer {
 
     async fn receive(&mut self) -> PhysicalPackage {
         loop {
-            let something_more = 8;
-            let max_sample_in_package = (self.max_package_byte_len + self.padding_zero_byte_len + something_more) * 8;
-            let return_package = self.input_buffer.pop_by_ref(max_sample_in_package * 2, |data| {
+            let something_more = 7;
+            let margin = (self.padding_zero_byte_len + something_more) * 8;
+            println!("margin: {}", margin);
+            let max_sample_in_package = self.max_package_byte_len * 8 / 4 * 5 * 2 + margin;
+            println!("max_sample_in_package: {}", max_sample_in_package);
+            let return_package = self.input_buffer.pop_by_ref(max_sample_in_package + margin, |data| {
                 let index = self.zero_reader.read_all(data);
-                return if index > max_sample_in_package {
-                    (None, index - max_sample_in_package + something_more * 8)
+                return if index > margin {
+                    (None, index)
                 } else {
                     let data = &data[index..];
                     let mut sample_reader = SampleReader::from(self.zero_reader.clone());

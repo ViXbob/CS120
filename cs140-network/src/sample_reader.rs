@@ -46,8 +46,9 @@ impl SampleReader {
 
         let current_bit_sample = &data[..SAMPLE_PER_BIT];
 
-        if current_bit_sample.iter().all(|sample| {
-            (*sample - self.zero_amplitude).abs() < ZERO_RANGE * (self.one_amplitude - self.zero_amplitude)
+        if current_bit_sample.iter().all(|&sample| {
+            let sample = sample + self.zero_amplitude;
+            (sample >= 0.0 && sample < ZERO_RANGE * (self.one_amplitude - self.zero_amplitude)) || (sample < 0.0 && sample > -ZERO_RANGE * (self.zero_amplitude-self.neg_one_amplitude))
         }) {
             return None;
         }
@@ -143,7 +144,8 @@ impl ZeroReader {
     pub fn read_all(&mut self, data: &[f32]) -> usize {
         let mut index = 0;
         while index < data.len() {
-            if (data[index] + self.zero_amplitude).abs() < ZERO_RANGE * (self.one_amplitude - self.zero_amplitude) {
+            let sample = data[index] + self.zero_amplitude;
+            if (sample >= 0.0 && sample < ZERO_RANGE * (self.one_amplitude - self.zero_amplitude)) || (sample < 0.0 && sample > -ZERO_RANGE * (self.zero_amplitude-self.neg_one_amplitude)) {
                 index += 1;
             } else {
                 trace!("Sample value: {}, signal found",data[index]);
