@@ -4,6 +4,9 @@ use std::thread;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{Device, SampleFormat, SampleRate, StreamConfig, StreamError, SupportedBufferSize};
 use tokio::runtime::{Builder, Runtime};
+
+use crate::buffer::Buffer as Buf;
+use crate::descriptor::SoundDescriptor;
 use crate::padding::padding_range;
 
 pub struct InputDevice<Buffer: Buf<f32>> {
