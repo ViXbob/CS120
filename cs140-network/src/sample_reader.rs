@@ -1,10 +1,10 @@
 use log::trace;
 use crate::encoding::BitStore;
 
-static BIT_SLIP_HISTORY_COUNT: usize = 64;
+static BIT_SLIP_HISTORY_COUNT: usize = 4;
 static SAMPLE_PER_BIT: usize = 2;
 static EXPONENTIALLY_WEIGHTED_MOVING_AVERAGE_NEW_DATA_RATIO: f32 = 0.5;
-static ZERO_RANGE: f32 = 0.1;
+static ZERO_RANGE: f32 = ACCEPTABLE_NO_OFFSET_SIGNAL_RANGE;
 // check the sample is in 50% range of zero
 static ACCEPTABLE_NO_OFFSET_SIGNAL_RANGE: f32 = 0.5;
 
@@ -48,10 +48,6 @@ impl SampleReader {
         if current_bit_sample.iter().all(|sample| {
             (*sample - self.zero_amplitude).abs() < ZERO_RANGE * (self.one_amplitude - self.zero_amplitude)
         }) {
-            // let iter = current_bit_sample.iter();
-            // for sample in iter{
-            //     self.zero_amplitude = self.zero_amplitude * (1.0-EXPONENTIALLY_WEIGHTED_MOVING_AVERAGE_NEW_DATA_RATIO) + *sample * EXPONENTIALLY_WEIGHTED_MOVING_AVERAGE_NEW_DATA_RATIO;
-            // }
             return None;
         }
 
@@ -77,13 +73,12 @@ impl SampleReader {
         });
         assert_ne!(current_bit_min_amplitude_index, SAMPLE_PER_BIT);
 
-        // update 1, 0 and -1
-        // if result {
-        //     self.one_amplitude = self.one_amplitude * (1.0 - EXPONENTIALLY_WEIGHTED_MOVING_AVERAGE_NEW_DATA_RATIO) + current_bit_max_amplitude * EXPONENTIALLY_WEIGHTED_MOVING_AVERAGE_NEW_DATA_RATIO;
-        // } else {
-        //     self.neg_one_amplitude = self.neg_one_amplitude * (1.0 - EXPONENTIALLY_WEIGHTED_MOVING_AVERAGE_NEW_DATA_RATIO) - current_bit_max_amplitude * EXPONENTIALLY_WEIGHTED_MOVING_AVERAGE_NEW_DATA_RATIO;
-        // }
-        // self.zero_amplitude = self.zero_amplitude * (1.0 - EXPONENTIALLY_WEIGHTED_MOVING_AVERAGE_NEW_DATA_RATIO) + (self.one_amplitude + self.neg_one_amplitude) * EXPONENTIALLY_WEIGHTED_MOVING_AVERAGE_NEW_DATA_RATIO;
+        // update 1 and -1
+        if result {
+            self.one_amplitude = self.one_amplitude * (1.0 - EXPONENTIALLY_WEIGHTED_MOVING_AVERAGE_NEW_DATA_RATIO) + current_bit_max_amplitude * EXPONENTIALLY_WEIGHTED_MOVING_AVERAGE_NEW_DATA_RATIO;
+        } else {
+            self.neg_one_amplitude = self.neg_one_amplitude * (1.0 - EXPONENTIALLY_WEIGHTED_MOVING_AVERAGE_NEW_DATA_RATIO) - current_bit_max_amplitude * EXPONENTIALLY_WEIGHTED_MOVING_AVERAGE_NEW_DATA_RATIO;
+        }
 
         if current_bit_min_amplitude_index != 0 && current_bit_min_amplitude_index != SAMPLE_PER_BIT - 1 {
             // if assertion failed, please check the signal in Au.
@@ -101,6 +96,7 @@ impl SampleReader {
 
         if self.bit_slip_history != 0 {
             self.bit_slip_history -= 1;
+            *data = &data[SAMPLE_PER_BIT..];
         } else {
             if (current_bit_sample[current_bit_min_amplitude_index] + self.zero_amplitude) * (current_bit_sample[current_bit_max_amplitude_index] + self.zero_amplitude) < 0.0 {
                 self.bit_slip_history = BIT_SLIP_HISTORY_COUNT;
@@ -121,7 +117,7 @@ impl SampleReader {
             if result {
                 *sample > (1.0 - ACCEPTABLE_NO_OFFSET_SIGNAL_RANGE) * self.zero_amplitude + ACCEPTABLE_NO_OFFSET_SIGNAL_RANGE * self.one_amplitude
             } else {
-                *sample > (1.0 - ACCEPTABLE_NO_OFFSET_SIGNAL_RANGE) * self.zero_amplitude + ACCEPTABLE_NO_OFFSET_SIGNAL_RANGE * self.neg_one_amplitude
+                *sample < (1.0 - ACCEPTABLE_NO_OFFSET_SIGNAL_RANGE) * self.zero_amplitude + ACCEPTABLE_NO_OFFSET_SIGNAL_RANGE * self.neg_one_amplitude
             }
         })
     }
@@ -137,9 +133,9 @@ pub struct ZeroReader {
 impl ZeroReader {
     pub fn new() -> Self {
         ZeroReader {
-            one_amplitude: 0.00005,
+            one_amplitude: 0.1,
             zero_amplitude: 0.0,
-            neg_one_amplitude: -0.00005,
+            neg_one_amplitude: -0.1,
         }
     }
 
@@ -147,11 +143,6 @@ impl ZeroReader {
         let mut index = 0;
         while index < data.len() {
             if (data[index] + self.zero_amplitude).abs() < ZERO_RANGE * (self.one_amplitude - self.zero_amplitude) {
-                trace!("Sample value: {}, treated as empty",data[index]);
-                // let old_zero_amplitude = self.zero_amplitude;
-                // self.zero_amplitude = self.zero_amplitude * (1.0 - EXPONENTIALLY_WEIGHTED_MOVING_AVERAGE_NEW_DATA_RATIO) + data[index] * EXPONENTIALLY_WEIGHTED_MOVING_AVERAGE_NEW_DATA_RATIO;
-                // self.one_amplitude += (self.zero_amplitude - old_zero_amplitude) * EXPONENTIALLY_WEIGHTED_MOVING_AVERAGE_NEW_DATA_RATIO;
-                // self.neg_one_amplitude += (self.zero_amplitude - old_zero_amplitude) * EXPONENTIALLY_WEIGHTED_MOVING_AVERAGE_NEW_DATA_RATIO;
                 index += 1;
             } else {
                 trace!("Sample value: {}, signal found",data[index]);

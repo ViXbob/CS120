@@ -1,6 +1,4 @@
 use crate::encoding::{BitStore, HandlePackage, NetworkPackage};
-use crate::framing::frame;
-use crate::framing::header::create_header;
 use cs140_buffer::ring_buffer::RingBuffer;
 use cs140_common::buffer::Buffer;
 use cs140_common::descriptor::SoundDescriptor;
@@ -63,7 +61,7 @@ impl PhysicalLayer {
             multiplex_frequency: multiplex_frequency.to_owned(),
             speed: SPEED,
             frame_length: byte_in_frame * 8 / multiplex_frequency.len(),
-            header: create_header(HEADER_LENGTH, MIN_FREQUENCY, MAX_FREQUENCY, sample_rate),
+            header: vec![],
             byte_in_frame,
         }
     }
@@ -84,7 +82,7 @@ impl PhysicalLayer {
             multiplex_frequency: multiplex_frequency.to_owned(),
             speed: SPEED,
             frame_length: byte_in_frame * 8 / multiplex_frequency.len(),
-            header: create_header(HEADER_LENGTH, MIN_FREQUENCY, MAX_FREQUENCY, sample_rate),
+            header: vec![],
             byte_in_frame,
         }
     }
@@ -105,7 +103,7 @@ impl PhysicalLayer {
             multiplex_frequency: multiplex_frequency.to_owned(),
             speed: SPEED,
             frame_length: byte_in_frame * 8 / multiplex_frequency.len(),
-            header: create_header(HEADER_LENGTH, MIN_FREQUENCY, MAX_FREQUENCY, sample_rate),
+            header: vec![],
             byte_in_frame,
         }
     }
@@ -125,7 +123,7 @@ impl PhysicalLayer {
             multiplex_frequency: multiplex_frequency.to_owned(),
             speed: SPEED,
             frame_length: byte_in_frame * 8 / multiplex_frequency.len(),
-            header: create_header(HEADER_LENGTH, MIN_FREQUENCY, MAX_FREQUENCY, sample_rate),
+            header: vec![],
             byte_in_frame,
         }
     }
@@ -134,15 +132,9 @@ impl PhysicalLayer {
 use async_trait::async_trait;
 
 #[async_trait]
-impl HandlePackage<PhysicalPackage> for PhysicalLayer {
+impl HandlePackage<PhysicalPackage> for PhysicalLayer{
     async fn send(&mut self, package: PhysicalPackage) {
-        let mut samples = frame::generate_frame_sample_from_bitvec(
-            &package.0,
-            &self.header,
-            &self.multiplex_frequency,
-            self.output_descriptor.sample_rate,
-            self.speed,
-        );
+        let mut samples = vec![];
         let noise = samples.iter().cloned().skip(samples.len() - 30)
             .collect::<Vec<f32>>();
         samples.extend(noise.into_iter());
@@ -156,14 +148,7 @@ impl HandlePackage<PhysicalPackage> for PhysicalLayer {
                     / self.speed as usize,
                 |data| {
                     let current = std::time::Instant::now();
-                    frame::frame_resolve_to_bitvec(
-                        data,
-                        &self.header,
-                        &self.multiplex_frequency,
-                        self.input_descriptor.sample_rate,
-                        self.speed,
-                        self.frame_length,
-                    )
+                    (None,0)
                 },
             ).await;
             if let Some(package) = return_package {

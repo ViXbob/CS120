@@ -56,12 +56,12 @@ impl<Buffer> InputDevice<Buffer>
 
     fn init_stream_config(device_name: usize) -> (Device, StreamConfig, SampleFormat) {
         // Get the input device from user
-        let host = if cfg!(target_os = "windows")
-        {
-            cpal::host_from_id(cpal::HostId::Asio).expect("failed to initialise ASIO host")
-        } else {
-            cpal::default_host()
-        };
+        let host = cpal::default_host();//if cfg!(target_os = "windows")
+        // {
+        //     cpal::host_from_id(cpal::HostId::Asio).expect("failed to initialise ASIO host")
+        // } else {
+        //     cpal::default_host()
+        // };
         let choose_device = || {
             for (index, input_) in host.input_devices().unwrap().enumerate() {
                 println!("input_device {}: {}", index, input_.name().unwrap());
@@ -223,12 +223,12 @@ impl<Buffer> OutputDevice<Buffer>
 
     fn init_stream_config(device_name: usize) -> (Device, StreamConfig, SampleFormat) {
         // Get the input device from user
-        let host = if cfg!(target_os = "windows")
-        {
-            cpal::host_from_id(cpal::HostId::Asio).expect("failed to initialise ASIO host")
-        } else {
-            cpal::default_host()
-        };
+        let host = cpal::default_host();//if cfg!(target_os = "windows")
+        // {
+        //     cpal::host_from_id(cpal::HostId::Asio).expect("failed to initialise ASIO host")
+        // } else {
+        //     cpal::default_host()
+        // };
         let choose_device = || {
             for (index, output_) in host.output_devices().unwrap().enumerate() {
                 println!("output_device {}: {}", index, output_.name().unwrap());

@@ -11,34 +11,32 @@ use cs140_network::physical_test::PhysicalPackage;
 async fn main() {
     let mut builder = env_logger::Builder::from_default_env();
     builder.format_timestamp_millis().init();
+    // let data: Vec<u8> = vec![202, 202, 202, 202, 202, 202, 202, 202, 202, 202, 202, 202, 202, 202, 202, 202];
+    // println!("{}", data[0]);
+    // let data = BitStore::from_vec(data);
+    // println!("{}", data);
+    let mut layer = PhysicalLayer::new( 1, 1024);
+    // layer.send(PhysicalPackage {
+    //     0: data.clone()
+    // }).await;
 
-    let data: Vec<u8> = vec![202, 202, 202, 202, 202, 202, 202, 202, 202, 202, 202, 202, 202, 202, 202, 202];
-    println!("{}", data[0]);
-    let data = BitStore::from_vec(data);
-    println!("{}", data);
-    let mut layer = PhysicalLayer::new(1, 1, 1024);
-    layer.send(PhysicalPackage {
-        0: data.clone()
-    }).await;
-
-    layer.send(PhysicalPackage {
-        0: data.clone()
-    }).await;
-
-    let data:Vec<_> = layer.input_buffer.pop_by_ref(48001,|x|{
-        (x.iter().cloned().collect(),0)
-    }).await;
-
-    let mut descriptor = layer.output_descriptor;
-    descriptor.sample_format = F32;
-    let writer = WavWriter::create("w.wav", descriptor.into()).unwrap();
-    let recorder = Recorder::new(writer, 1 * descriptor.sample_rate as usize);
-    let recorder = recorder.record_from_slice(&data);
-    drop(recorder);
-
-    tokio::time::sleep(std::time::Duration::from_secs(10)).await;
-
-
-    layer.receive().await;
-
+    // layer.send(PhysicalPackage {
+    //     0: data.clone()
+    // }).await;
+    //
+    // let data:Vec<_> = layer.input_buffer.pop_by_ref(48001,|x|{
+    //     (x.iter().cloned().collect(),0)
+    // }).await;
+    //
+    // let mut descriptor = layer.output_descriptor;
+    // descriptor.sample_format = F32;
+    // let writer = WavWriter::create("w.wav", descriptor.into()).unwrap();
+    // let recorder = Recorder::new(writer, 1 * descriptor.sample_rate as usize);
+    // let recorder = recorder.record_from_slice(&data);
+    // drop(recorder);
+    //
+    // tokio::time::sleep(std::time::Duration::from_secs(10)).await;
+    loop{
+        layer.receive().await;
+    }
 }
