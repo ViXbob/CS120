@@ -1,12 +1,9 @@
 use std::sync::Arc;
 use std::thread;
 
-use cpal::{Device, SampleFormat, StreamConfig, StreamError, SupportedBufferSize};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+use cpal::{Device, SampleFormat, SampleRate, StreamConfig, StreamError, SupportedBufferSize};
 use tokio::runtime::{Builder, Runtime};
-
-use crate::buffer::Buffer as Buf;
-use crate::descriptor::SoundDescriptor;
 use crate::padding::padding_range;
 
 pub struct InputDevice<Buffer: Buf<f32>> {
@@ -88,8 +85,8 @@ impl<Buffer> InputDevice<Buffer>
             // println!("{:?}", _config.max_sample_rate());
             // println!("{:?}", _config.buffer_size());
             // println!("{:?}", _config.channels());
-            if _config.max_sample_rate().0 == SAMPLE_RATE && _config.channels() == 2 {
-                config = _config.with_max_sample_rate();
+            if _config.max_sample_rate().0 >= SAMPLE_RATE && _config.channels() == 2 {
+                config = _config.with_sample_rate(SampleRate{0:SAMPLE_RATE});
                 break;
             }
         }
@@ -258,8 +255,8 @@ impl<Buffer> OutputDevice<Buffer>
             // println!("{:?}", _config.max_sample_rate());
             // println!("{:?}", _config.buffer_size());
             // println!("{:?}", _config.channels());
-            if _config.max_sample_rate().0 == SAMPLE_RATE && _config.channels() == 2 {
-                config = _config.with_max_sample_rate();
+            if _config.max_sample_rate().0 >= SAMPLE_RATE && _config.channels() == 2 {
+                config = _config.with_sample_rate(SampleRate{0:SAMPLE_RATE});
                 break;
             }
         }
