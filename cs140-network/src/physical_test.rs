@@ -23,14 +23,18 @@ pub struct PhysicalLayer {
 pub struct PhysicalPackage(pub BitStore);
 
 impl PhysicalPackage {
+    pub fn new(bits: BitStore)->Self{
+        Self(bits)
+    }
+
     fn to_samples(&self) -> BitStore {
         let bits = &self.0;
-        let bits = encode_4b5b(bits);
+        let bits = encode_4b5b(&bits);
         let bits = encode_nrzi(&bits);
         bits
     }
 
-    fn from_bits(bits: &BitStore) -> Self {
+    fn from_raw_bits(bits: &BitStore) -> Self {
         let encoded_bits = decode_nrzi(bits);
         let encoded_bits = decode_4b5b(&encoded_bits);
         let mut bits = BitStore::with_capacity(encoded_bits.len());
@@ -91,7 +95,7 @@ impl HandlePackage<PhysicalPackage> for PhysicalLayer {
                 };
             }).await;
             if let Some(return_package) = return_package {
-                return PhysicalPackage::from_bits(&return_package);
+                return PhysicalPackage::from_raw_bits(&return_package);
             }
         }
     }
