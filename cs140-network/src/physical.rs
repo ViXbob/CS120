@@ -1,6 +1,8 @@
 use crate::encoding::{BitStore, HandlePackage, NetworkPackage};
 use crate::framing::frame;
 use crate::framing::header::create_header;
+use crate::redundancy::RedundancyPackage;
+use crate::ack::ack::AckPackage;
 use cs140_buffer::ring_buffer::RingBuffer;
 use cs140_common::buffer::Buffer;
 use cs140_common::descriptor::SoundDescriptor;
@@ -17,8 +19,7 @@ impl NetworkPackage for PhysicalPackage {}
 const HEADER_LENGTH: usize = 60;
 const MIN_FREQUENCY: f32 = 8000.0;
 const MAX_FREQUENCY: f32 = 11000.0;
-const SPEED: u32 = 1000;
-const SPEED_OF_PSK: u32 = 12000;
+const SAMPLE_PER_BIT: usize = 4;
 
 // a frame in physical layer has #(frame_length * sample_per_bit) samples
 
@@ -27,11 +28,10 @@ pub struct PhysicalLayer {
     pub(crate) input_buffer: Arc<DefaultBuffer>,
     output_descriptor: SoundDescriptor,
     pub(crate) output_buffer: Arc<DefaultBuffer>,
-    multiplex_frequency: Vec<f32>,
-    speed: u32,
     pub(crate) frame_length: usize,
     pub(crate) header: Vec<f32>,
     pub(crate) byte_in_frame: usize,
+    pub(crate) sample_per_bit: usize,
 }
 
 impl PhysicalLayer {
@@ -60,11 +60,10 @@ impl PhysicalLayer {
             input_buffer,
             output_descriptor,
             output_buffer,
-            multiplex_frequency: multiplex_frequency.to_owned(),
-            speed: SPEED,
-            frame_length: byte_in_frame * 8 / multiplex_frequency.len(),
+            frame_length: byte_in_frame * 8,
             header: create_header(HEADER_LENGTH, MIN_FREQUENCY, MAX_FREQUENCY, sample_rate),
             byte_in_frame,
+            sample_per_bit: SAMPLE_PER_BIT,
         }
     }
 
@@ -81,11 +80,10 @@ impl PhysicalLayer {
             input_buffer,
             output_descriptor,
             output_buffer,
-            multiplex_frequency: multiplex_frequency.to_owned(),
-            speed: SPEED,
-            frame_length: byte_in_frame * 8 / multiplex_frequency.len(),
+            frame_length: byte_in_frame * 8,
             header: create_header(HEADER_LENGTH, MIN_FREQUENCY, MAX_FREQUENCY, sample_rate),
             byte_in_frame,
+            sample_per_bit: SAMPLE_PER_BIT,
         }
     }
 
@@ -102,11 +100,10 @@ impl PhysicalLayer {
             input_buffer,
             output_descriptor,
             output_buffer,
-            multiplex_frequency: multiplex_frequency.to_owned(),
-            speed: SPEED,
-            frame_length: byte_in_frame * 8 / multiplex_frequency.len(),
+            frame_length: byte_in_frame * 8,
             header: create_header(HEADER_LENGTH, MIN_FREQUENCY, MAX_FREQUENCY, sample_rate),
             byte_in_frame,
+            sample_per_bit: SAMPLE_PER_BIT,
         }
     }
 
@@ -122,11 +119,10 @@ impl PhysicalLayer {
             input_buffer,
             output_descriptor,
             output_buffer,
-            multiplex_frequency: multiplex_frequency.to_owned(),
-            speed: SPEED,
-            frame_length: byte_in_frame * 8 / multiplex_frequency.len(),
+            frame_length: byte_in_frame * 8,
             header: create_header(HEADER_LENGTH, MIN_FREQUENCY, MAX_FREQUENCY, sample_rate),
             byte_in_frame,
+            sample_per_bit: SAMPLE_PER_BIT,
         }
     }
 }
@@ -151,25 +147,33 @@ impl HandlePackage<PhysicalPackage> for PhysicalLayer {
     async fn receive(&mut self) -> PhysicalPackage {
         loop {
             let return_package = self.input_buffer.pop_by_ref(
-                2 * self.frame_length * self.input_descriptor.sample_rate as usize
-                    / self.speed as usize,
+                2 * self.frame_length * self.sample_per_bit,
                 |data| {
                     let current = std::time::Instant::now();
                     frame::frame_resolve_to_bitvec(
                         data,
                         &self.header,
-                        &self.multiplex_frequency,
-                        self.input_descriptor.sample_rate,
-                        self.speed,
+                        self.sample_per_bit,
                         self.frame_length,
                     )
                 },
             ).await;
-            if let Some(package) = return_package {
-                return PhysicalPackage {
-                    0: package
+            if return_package.is_none() { continue; }
+            if return_package.as_ref().unwrap().is_empty() { continue; }
+            for package in return_package.as_ref().unwrap() {
+                let physical_package = PhysicalPackage {
+                    0: package.clone()
                 };
+                let redundancy_package = RedundancyPackage { data: package.clone().into_vec() };
+                if redundancy_package.validate_checksum() {
+                    return physical_package;
+                }
             }
+            trace!("{}", return_package.as_ref().unwrap()[0].len());
+            trace!("{:?}", return_package.as_ref().unwrap()[0]);
+            return PhysicalPackage {
+                0: return_package.as_ref().unwrap()[0].clone()
+            };
         }
     }
 }
