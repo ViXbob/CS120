@@ -30,3 +30,7 @@ path = "src/nat_server.rs"
 [[bin]]
 name = "udp_sender"
 path = "src/udp_sender.rs"
+
+[[bin]]
+name = "udp_receiver"
+path = "src/udp_receiver.rs"

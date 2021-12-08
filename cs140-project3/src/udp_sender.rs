@@ -1,6 +1,6 @@
 use cs140_util::file_io::read_bytes_from_file;
 
-const PATH: &str = "INPUT.txt";
+const PATH: &str = "C:\\Users\\ViXbob\\CLionProjects\\cs140\\cs140-project3\\INPUT.txt";
 
 fn main() {
     use std::net::UdpSocket;

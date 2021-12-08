@@ -1,10 +1,5 @@
 use std::net::UdpSocket;
 
-const LISTEN_ADDRESS: &str = "192.168.1.2";
-const CONNECT_ADDRESS: &str = "10.20.210.118";
-
-
-
 fn main() {
     let socket = UdpSocket::bind("127.0.0.1:34254").expect("couldn't bind to this address");
     let mut buf = [0;2000];

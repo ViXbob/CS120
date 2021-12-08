@@ -32,5 +32,5 @@ pub fn read_bytes_from_file(path: &str) -> Vec<u8> {
     let mut buffer = [0; 100000];
     f.seek(SeekFrom::Start(0));
     let n = f.read(&mut buffer).unwrap();
-    buffer[0..n].into_vec()
+    buffer[0..n].to_vec()
 }
