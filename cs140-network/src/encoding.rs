@@ -61,7 +61,7 @@ pub fn decode_4b5b(data: &BitStore) -> BitStore {
     result
 }
 
-pub fn encode_nrzi(data: &BitStore) -> BitStore {
+pub fn decode_nrzi(data: &BitStore) -> BitStore {
     let mut result: BitStore = BitVec::with_capacity(data.len());
     let mut old_bit: bool = false;
     for bit in data {
@@ -75,7 +75,7 @@ pub fn encode_nrzi(data: &BitStore) -> BitStore {
     result
 }
 
-pub fn decode_nrzi(data: &BitStore) -> BitStore {
+pub fn encode_nrzi(data: &BitStore) -> BitStore {
     let mut result: BitStore = BitVec::with_capacity(data.len());
     let mut state: bool = false;
     for bit in data {
