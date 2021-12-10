@@ -7,7 +7,7 @@ use cs140_common::buffer::Buffer;
 use cs140_common::descriptor::SoundDescriptor;
 use cs140_common::device::{InputDevice, OutputDevice};
 
-use crate::encoding::{BitStore, decode_4b5b, decode_nrzi, encode_4b5b, encode_nrzi, HandlePackage, NetworkPackage};
+use crate::encoding::{BitStore, decode_4b5b, decode_nrzi, encode_4b5b, encode_nrzi, HandlePackageMut, NetworkPackage};
 use crate::sample_reader::{SampleReader, ZeroReader};
 
 type DefaultBuffer = RingBuffer<f32, 5000000>;
@@ -71,14 +71,14 @@ impl PhysicalLayer {
             zero_reader: ZeroReader::new(),
         }
     }
-    
+
     pub fn max_package_byte(&self) -> usize {
         self.max_package_byte_len
     }
 }
 
 #[async_trait]
-impl HandlePackage<PhysicalPackage> for PhysicalLayer {
+impl HandlePackageMut<PhysicalPackage> for PhysicalLayer {
     async fn send(&mut self, package: PhysicalPackage) {
         let mut samples: Vec<_> = package.to_samples().into_iter().flat_map(|bit| {
             if bit {
@@ -95,9 +95,7 @@ impl HandlePackage<PhysicalPackage> for PhysicalLayer {
         loop {
             let something_more = 7;
             let margin = (self.padding_zero_byte_len + something_more) * 8;
-            // println!("margin: {}", margin);
             let max_sample_in_package = self.max_package_byte_len * 8 / 4 * 5 * 2 + margin;
-            // println!("max_sample_in_package: {}", max_sample_in_package);
             let return_package = self.input_buffer.pop_by_ref(max_sample_in_package + margin, |data| {
                 let index = self.zero_reader.read_all(data);
                 return if index > margin {
@@ -106,7 +104,6 @@ impl HandlePackage<PhysicalPackage> for PhysicalLayer {
                     let data = &data[index..];
                     let mut sample_reader = SampleReader::from(self.zero_reader.clone());
                     let (bit_store, sample_used) = sample_reader.read_all(data);
-                    log::trace!("{:?}", sample_reader);
                     self.zero_reader = sample_reader.into();
                     (Some(bit_store), sample_used + index)
                 };

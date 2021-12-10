@@ -21,10 +21,23 @@ rand_pcg = "0.3.1"
 tokio = { version = "1", features = ["full"] }
 log = "0.4.14"
 env_logger = "0.9.0"
+bincode = "2.0.0-alpha.1"
 [dev-dependencies]
 cs140-util = { path = "../cs140-util" }
 rand = "0.8.4"
 
 [[bin]]
-name = "debug"
-path = "./src/debug.rs"
+name = "debug_receiver"
+path = "src/debug_receiver.rs"
+
+[[bin]]
+name = "debug_sender"
+path = "src/debug_sender.rs"
+
+[[bin]]
+name = "debug_tcp_receiver"
+path = "src/debug_tcp_receiver.rs"
+
+[[bin]]
+name = "debug_tcp_sender"
+path = "src/debug_tcp_sender.rs"
