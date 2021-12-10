@@ -33,3 +33,11 @@ path = "src/debug_receiver.rs"
 [[bin]]
 name = "debug_sender"
 path = "src/debug_sender.rs"
+
+[[bin]]
+name = "debug_tcp_receiver"
+path = "src/debug_tcp_receiver.rs"
+
+[[bin]]
+name = "debug_tcp_sender"
+path = "src/debug_tcp_sender.rs"

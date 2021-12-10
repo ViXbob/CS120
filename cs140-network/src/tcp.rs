@@ -4,12 +4,13 @@ use std::sync::{Arc, Mutex};
 use std::sync::atomic::AtomicU16;
 use std::sync::atomic::Ordering::Relaxed;
 use bincode::{config::Configuration, Decode, Encode};
+use log::{info,warn};
 use tokio::{select};
 use tokio::sync::mpsc::{Receiver, Sender};
 
 use crate::encoding::{HandlePackage};
 use crate::ip::{IPLayer, IPPackage};
-use crate::tcp::TCPPackage::{Data, Header,RttResponse,RttRequest};
+use crate::tcp::TCPPackage::{Data, Header, RttResponse, RttRequest, PeerVacant};
 
 type BinaryData = Vec<u8>;
 
@@ -59,6 +60,7 @@ pub struct TCPLayer {
     recv_package_receiver: Receiver<BinaryData>
 }
 
+#[derive(Debug)]
 pub struct TCPSendingStatus {
     pub data_sending: Vec<u8>,
     pub peer_vacant: bool,
@@ -74,6 +76,7 @@ impl TCPSendingStatus {
     }
 }
 
+#[derive(Debug)]
 pub struct TCPReceivingStatus {
     pub data_received: Vec<u8>,
     pub range_ack: LinkedList<Range<u16>>,
@@ -142,6 +145,7 @@ impl TCPReceivingStatus {
     }
 }
 
+#[derive(Debug)]
 pub struct TCPRTTStatus {
     rtt: AtomicU16,
 }
@@ -168,7 +172,8 @@ impl TCPRTTStatus {
 }
 
 impl TCPLayer {
-    fn new(ip: IPLayer, sequence_length: u16) -> TCPLayer {
+    pub fn new(ip: IPLayer) -> TCPLayer {
+        let sequence_length: u16 = (ip.byte_in_frame - 12) as u16;
         let ip = Arc::new(ip);
         let (send_package_sender, mut send_package_receiver) = tokio::sync::mpsc::channel::<BinaryData>(1024);
         let (recv_package_sender, recv_package_receiver) = tokio::sync::mpsc::channel::<BinaryData>(1024);
@@ -191,14 +196,32 @@ impl TCPLayer {
                 let sending_status = sending_status.clone();
                 let receiving_status = receiving_status.clone();
                 let sending_status_is_none = sending_status.lock().unwrap().is_none();
+                let receiving_status_is_none = receiving_status.lock().unwrap().is_none();
+                let package_to_send_future =
+                    if package_to_send.is_none(){
+                        Box::pin(async{})
+                    }else{
+                        ip.send(package_to_send.as_ref().unwrap().clone())
+                    };
+                if sending_status_is_none{
+                    info!("we have nothing to send");
+                }else{
+                    info!("we are sending something...");
+                }
                 select! {
                     _ = rtt_timeout.as_mut() => {
+                        info!("rtt timeout, sending rtt...");
                         ip.send(RttRequest(TCPRTTStatus::generate_rtt_package()).into()).await;
+                        if receiving_status_is_none && sending_status_is_none{
+                            info!("rtt timeout, sending peer vacant...");
+                            ip.send(PeerVacant.into()).await;
+                        }
                         rtt_timeout = Box::pin(rtt_status.get_rtt_timeout(1.0));
                     }
                     _ = sack_timeout.as_mut() => {
                         sack_timeout_count += 1;
                         sack_timeout = Box::pin(rtt_status.get_rtt_timeout(1.5));
+                        warn!("sack timeout, now we have {} sack timeout",sack_timeout_count);
                     }
                     package = send_package_receiver.recv(), if sending_status_is_none => {
                         if let Some(package) = package{
@@ -212,15 +235,18 @@ impl TCPLayer {
                                 largest_confirmed_sequence_id:None,
                                 sequence_count: ((package_len + sequence_length as usize - 1) / sequence_length as usize + 1) as u16, // the first package is header
                             });
+                            info!("now we have something to send, {:?}",*sending_status);
                         }else{
                             return;
                         }
                     },
-                    _ = ip.send(package_to_send.as_ref().unwrap().clone()), if package_to_send_is_some => {
+                    _ = package_to_send_future, if package_to_send_is_some => {
+                        info!("we are sending the package, {:?}",package_to_send);
                         package_to_send = generate_next_send_package(sequence_length as _, sending_status.clone());
                     },
                     package = ip.receive() =>{
                         let package = bincode::decode_from_slice(&package.data, Configuration::standard()).unwrap();
+                        info!("received package, {:?}",package);
                         match package {
                             TCPPackage::PeerVacant => {
                                 let package_finish = {
@@ -243,6 +269,7 @@ impl TCPLayer {
                                         let mut receiving_status = receiving_status.lock().unwrap();
                                         std::mem::replace(&mut *receiving_status, None).unwrap()
                                     };
+                                    info!("transmit finish");
                                     if let Err(_) = recv_package_sender.send(old_receiving_status.data_received).await {
                                         return;
                                     }
@@ -261,6 +288,7 @@ impl TCPLayer {
                                 };
                                 if completed{
                                     *guard = None;
+                                    info!("transmit finish")
                                 }
                             }
                             TCPPackage::Data(data) => {
@@ -274,6 +302,7 @@ impl TCPLayer {
                                         false
                                     };
                                     if completed {
+                                        info!("transmit finish");
                                         Some(std::mem::replace(&mut *receiving_status, None).unwrap())
                                     }else{
                                         None
@@ -293,6 +322,7 @@ impl TCPLayer {
                                         range_ack: Default::default(),
                                         sequence_count: header.sequence_count,
                                     });
+                                    info!("header received, start transmitting..., {:?}",*receiving_status);
                                 }
                             }
                             TCPPackage::RttRequest(rtt) => {
@@ -300,6 +330,7 @@ impl TCPLayer {
                             },
                             TCPPackage::RttResponse(rtt) => {
                                 let now_millis = std::time::SystemTime::now().duration_since(std::time::SystemTime::UNIX_EPOCH).unwrap().subsec_millis() as u16;
+                                info!("rtt received, {}ms in total", (1000 + now_millis - rtt.rtt_start_millis) % 1000);
                                 rtt_status.update_rtt((1000 + now_millis - rtt.rtt_start_millis) % 1000);
                             },
                         }
@@ -316,12 +347,12 @@ impl TCPLayer {
 }
 
 impl TCPLayer {
-    async fn send<T>(&mut self, package: &T) where T: Decode+Encode {
+    pub async fn send<T>(&mut self, package: &T) where T: Decode+Encode {
         let encoded_package = bincode::encode_to_vec(&package,Configuration::standard()).unwrap();
         self.send_package_sender.send(encoded_package).await.unwrap();
     }
 
-    async fn receive<T>(&mut self) -> Option<T> where T: Decode+Encode {
+    pub async fn receive<T>(&mut self) -> Option<T> where T: Decode+Encode {
         let data = self.recv_package_receiver.recv().await;
         if let Some(data) = data {
             bincode::decode_from_slice(&data,Configuration::standard()).unwrap()

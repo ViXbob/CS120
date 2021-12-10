@@ -19,7 +19,7 @@ impl IPPackage {
 impl NetworkPackage for IPPackage {}
 
 pub struct IPLayer {
-    byte_in_frame: usize,
+    pub(crate) byte_in_frame: usize,
     send_package_sender: Sender<RedundancyPackage>,
     recv_package_receiver: Mutex<Receiver<RedundancyPackage>>,
 }

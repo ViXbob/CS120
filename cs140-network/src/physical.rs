@@ -96,9 +96,7 @@ impl HandlePackageMut<PhysicalPackage> for PhysicalLayer {
         loop {
             let something_more = 7;
             let margin = (self.padding_zero_byte_len + something_more) * 8;
-            println!("margin: {}", margin);
             let max_sample_in_package = self.max_package_byte_len * 8 / 4 * 5 * 2 + margin;
-            println!("max_sample_in_package: {}", max_sample_in_package);
             let return_package = self.input_buffer.pop_by_ref(max_sample_in_package + margin, |data| {
                 let index = self.zero_reader.read_all(data);
                 return if index > margin {
