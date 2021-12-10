@@ -57,7 +57,8 @@ impl<Buffer> InputDevice<Buffer>
 
     fn init_stream_config(device_name: usize) -> (Device, StreamConfig, SampleFormat) {
         // Get the input device from user
-        let host = cpal::default_host();//if cfg!(target_os = "windows")
+        let host = cpal::default_host();
+        // let host = if cfg!(target_os = "windows")
         // {
         //     cpal::host_from_id(cpal::HostId::Asio).expect("failed to initialise ASIO host")
         // } else {
@@ -224,7 +225,8 @@ impl<Buffer> OutputDevice<Buffer>
 
     fn init_stream_config(device_name: usize) -> (Device, StreamConfig, SampleFormat) {
         // Get the input device from user
-        let host = cpal::default_host();//if cfg!(target_os = "windows")
+        let host = cpal::default_host();
+        // let host = if cfg!(target_os = "windows")
         // {
         //     cpal::host_from_id(cpal::HostId::Asio).expect("failed to initialise ASIO host")
         // } else {

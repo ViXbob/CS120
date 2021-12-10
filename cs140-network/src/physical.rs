@@ -56,9 +56,9 @@ impl NetworkPackage for PhysicalPackage {}
 impl PhysicalLayer {
     pub fn new(padding_zero_byte_len: usize, max_package_byte_len: usize) -> Self {
         let input_buffer = Arc::new(DefaultBuffer::new());
-        let (input_device, input_descriptor) = InputDevice::new_with_specific_device(input_buffer.clone(), 2);
+        let (input_device, input_descriptor) = InputDevice::new_with_specific_device(input_buffer.clone(), 0);
         let output_buffer = Arc::new(DefaultBuffer::new());
-        let (output_device, output_descriptor) = OutputDevice::new_with_specific_device(output_buffer.clone(), 0);
+        let (output_device, output_descriptor) = OutputDevice::new_with_specific_device(output_buffer.clone(), 2);
         input_device.listen();
         output_device.play();
         PhysicalLayer {
@@ -71,8 +71,7 @@ impl PhysicalLayer {
             zero_reader: ZeroReader::new(),
         }
     }
-
-
+    
     pub fn max_package_byte(&self) -> usize {
         self.max_package_byte_len
     }
@@ -96,9 +95,9 @@ impl HandlePackage<PhysicalPackage> for PhysicalLayer {
         loop {
             let something_more = 7;
             let margin = (self.padding_zero_byte_len + something_more) * 8;
-            println!("margin: {}", margin);
+            // println!("margin: {}", margin);
             let max_sample_in_package = self.max_package_byte_len * 8 / 4 * 5 * 2 + margin;
-            println!("max_sample_in_package: {}", max_sample_in_package);
+            // println!("max_sample_in_package: {}", max_sample_in_package);
             let return_package = self.input_buffer.pop_by_ref(max_sample_in_package + margin, |data| {
                 let index = self.zero_reader.read_all(data);
                 return if index > margin {
@@ -107,6 +106,7 @@ impl HandlePackage<PhysicalPackage> for PhysicalLayer {
                     let data = &data[index..];
                     let mut sample_reader = SampleReader::from(self.zero_reader.clone());
                     let (bit_store, sample_used) = sample_reader.read_all(data);
+                    log::trace!("{:?}", sample_reader);
                     self.zero_reader = sample_reader.into();
                     (Some(bit_store), sample_used + index)
                 };

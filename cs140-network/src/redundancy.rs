@@ -1,5 +1,8 @@
+use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::Ordering::Relaxed;
 use async_trait::async_trait;
 use crc::{Crc, CRC_16_IBM_SDLC};
+use log::debug;
 
 use crate::encoding::{BitStore, HandlePackage, NetworkPackage};
 use crate::physical::{PhysicalLayer, PhysicalPackage};
@@ -32,6 +35,8 @@ pub const BYTE_IN_LENGTH: usize = 2;
 pub const BYTE_IN_ENDING: usize = 1;
 pub const CHECKSUM: Checksum = Checksum::CRC16(&Crc::<u16>::new(&CRC_16_IBM_SDLC));
 pub const BYTE_IN_ADDRESS: usize = 2;
+static LOSS_PACKAGE_COUNT: AtomicUsize = AtomicUsize::new(0);
+static RECEIVED_PACKAGE_COUNT: AtomicUsize = AtomicUsize::new(0);
 
 // RedundancyPackage
 // length: BYTE_IN_LENGTH
@@ -64,9 +69,14 @@ impl RedundancyPackage {
         let package = Self {
             data: bits.into_vec(),
         };
+        RECEIVED_PACKAGE_COUNT.fetch_add(1, Relaxed);
+        debug!("total reaceived packages: {}", RECEIVED_PACKAGE_COUNT.load(Relaxed));
         if package.validate_checksum() {
             Some(package)
         } else {
+            let count = LOSS_PACKAGE_COUNT.fetch_add(1, Relaxed) + 1;
+            let total = RECEIVED_PACKAGE_COUNT.load(Relaxed);
+            debug!("loss rate: {}, total loss: {}", (count as f32) / (total as f32), count);
             None
         }
     }

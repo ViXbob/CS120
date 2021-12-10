@@ -1,0 +1,34 @@
+[package]
+name = "cs140-project3"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+cs140-util = {path = "../cs140-util"}
+cs140-network = {path = "../cs140-network"}
+cs140-common = {path = "../cs140-common"}
+tokio = { version = "1", features = ["full"] }
+log = "0.4.14"
+env_logger = "0.9.0"
+
+[[bin]]
+name = "sender"
+path = "src/sender.rs"
+
+[[bin]]
+name = "receiver"
+path = "src/receiver.rs"
+
+[[bin]]
+name = "udp_receiver"
+path = "src/udp_receiver.rs"
+
+[[bin]]
+name = "udp_sender"
+path = "src/udp_sender.rs"
+
+[[bin]]
+name = "nat_server"
+path = "src/nat_server.rs"
