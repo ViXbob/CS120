@@ -21,3 +21,4 @@ bitvec = "0.22.3"
 tokio = { version = "1", features = ["full"] }
 log = "0.4.14"
 env_logger = "0.9.0"
+pnet = "0.28.0"
