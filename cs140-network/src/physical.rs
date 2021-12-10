@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{Arc};
 
 use async_trait::async_trait;
 
@@ -7,7 +7,7 @@ use cs140_common::buffer::Buffer;
 use cs140_common::descriptor::SoundDescriptor;
 use cs140_common::device::{InputDevice, OutputDevice};
 
-use crate::encoding::{BitStore, decode_4b5b, decode_nrzi, encode_4b5b, encode_nrzi, HandlePackage, NetworkPackage};
+use crate::encoding::{BitStore, decode_4b5b, decode_nrzi, encode_4b5b, encode_nrzi, HandlePackageMut, NetworkPackage};
 use crate::sample_reader::{SampleReader, ZeroReader};
 
 type DefaultBuffer = RingBuffer<f32, 5000000>;
@@ -79,7 +79,7 @@ impl PhysicalLayer {
 }
 
 #[async_trait]
-impl HandlePackage<PhysicalPackage> for PhysicalLayer {
+impl HandlePackageMut<PhysicalPackage> for PhysicalLayer {
     async fn send(&mut self, package: PhysicalPackage) {
         let mut samples: Vec<_> = package.to_samples().into_iter().flat_map(|bit| {
             if bit {

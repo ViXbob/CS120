@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use crc::{Crc, CRC_16_IBM_SDLC};
 
-use crate::encoding::{BitStore, HandlePackage, NetworkPackage};
+use crate::encoding::{BitStore, HandlePackageMut, NetworkPackage};
 use crate::physical::{PhysicalLayer, PhysicalPackage};
 
 pub enum Checksum {
@@ -183,7 +183,7 @@ impl RedundancyLayer {
 }
 
 #[async_trait]
-impl HandlePackage<RedundancyPackage> for RedundancyLayer {
+impl HandlePackageMut<RedundancyPackage> for RedundancyLayer {
     async fn send(&mut self, package: RedundancyPackage) {
         let package = self.make_redundancy(package).into();
         self.physical.send(package).await;

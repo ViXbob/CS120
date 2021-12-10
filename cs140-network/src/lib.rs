@@ -1,3 +1,5 @@
+#![feature(linked_list_cursors)]
+
 pub mod encoding;
 pub mod ip;
 pub mod physical;

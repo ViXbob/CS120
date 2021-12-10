@@ -4,12 +4,15 @@ use std::pin::Pin;
 use std::sync::Mutex;
 use std::task::{Context, Poll, Waker};
 
+const DEFAULT_PUSH_BLOCKING_SIZE: usize = 48000;
+
 pub struct BlockingRingBuffer<T, const N: usize> {
     buffer: Box<[T; N]>,
     head: usize,
     len: usize,
     push_waker: VecDeque<Waker>,
     pop_waker: VecDeque<Waker>,
+    push_blocking_size: usize,
 }
 
 pub struct RingBuffer<T, const N: usize>(Mutex<BlockingRingBuffer<T, N>>);
@@ -104,7 +107,7 @@ impl<'a, PushCallback, T, const N: usize> Future for RingBufferPushFuture<'a, Pu
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let mut guard = self.buffer.lock().unwrap();
-        if guard.capacity() - guard.len() >= self.push_len_required {
+        if guard.capacity() - guard.len() >= self.push_len_required && guard.len() < guard.push_blocking_size {
             let push_fn: PushCallback = unsafe { std::mem::transmute_copy(&self.push_fn) };
             guard.push_blocking(push_fn);
             for pop_waker in &guard.pop_waker {
@@ -144,12 +147,6 @@ impl<'a, U, PopCallback, T, const N: usize> Future for RingBufferPopFuture<'a, U
     }
 }
 
-impl<T, const N: usize> Default for BlockingRingBuffer<T, N> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl<T, const N: usize> BlockingRingBuffer<T, N> {
     #[allow(clippy::uninit_assumed_init)]
     pub fn new() -> Self {
@@ -159,6 +156,7 @@ impl<T, const N: usize> BlockingRingBuffer<T, N> {
             len: 0,
             push_waker: Default::default(),
             pop_waker: Default::default(),
+            push_blocking_size: DEFAULT_PUSH_BLOCKING_SIZE,
         }
     }
 
@@ -220,6 +218,11 @@ impl<T, const N: usize> BlockingRingBuffer<T, N> {
         };
         self.head = (head + count) % N;
         self.len -= count;
+        self.push_blocking_size = if self.push_blocking_size == DEFAULT_PUSH_BLOCKING_SIZE {
+            count * 2
+        } else {
+            std::cmp::max(self.push_blocking_size, count * 2)
+        };
         result
     }
 }

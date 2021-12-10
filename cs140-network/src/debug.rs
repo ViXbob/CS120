@@ -14,10 +14,11 @@ use cs140_network::redundancy::RedundancyLayer;
 async fn main() {
     let mut builder = env_logger::Builder::from_default_env();
     builder.format_timestamp_millis().init();
-    let layer = PhysicalLayer::new(1, 1024);
+    let layer = PhysicalLayer::new(2, 256);
     let layer = RedundancyLayer::new(layer);
     let mut layer = IPLayer::new(layer);
     loop {
         let data = layer.receive().await;
+        println!("{:?}",data.data);
     }
 }

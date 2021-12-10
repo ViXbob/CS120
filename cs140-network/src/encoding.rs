@@ -2,16 +2,22 @@ use async_trait::async_trait;
 use bitvec::order::Msb0;
 use bitvec::vec::BitVec;
 
-use cs140_common::padding::{padding_inclusive_range, padding_range};
+use cs140_common::padding::{padding_inclusive_range};
 
 pub type BitStore = BitVec<Msb0, u8>;
 
 pub trait NetworkPackage {}
 
 #[async_trait]
-pub trait HandlePackage<Package: NetworkPackage> {
+pub trait HandlePackageMut<Package> {
     async fn send(&mut self, package: Package);
     async fn receive(&mut self) -> Package;
+}
+
+#[async_trait]
+pub trait HandlePackage<Package> {
+    async fn send(&self, package: Package);
+    async fn receive(&self) -> Package;
 }
 
 const TABLE: &'static [u8] = &[0b11110u8, 0b01001u8, 0b10100u8, 0b10101u8,
