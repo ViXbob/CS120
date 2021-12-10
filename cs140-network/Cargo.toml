@@ -27,5 +27,9 @@ cs140-util = { path = "../cs140-util" }
 rand = "0.8.4"
 
 [[bin]]
-name = "debug"
-path = "./src/debug.rs"
+name = "debug_receiver"
+path = "src/debug_receiver.rs"
+
+[[bin]]
+name = "debug_sender"
+path = "src/debug_sender.rs"

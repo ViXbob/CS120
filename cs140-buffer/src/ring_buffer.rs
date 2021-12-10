@@ -42,10 +42,15 @@ impl<T, const N: usize> RingBuffer<T, N> {
                 (value, len)
             })
         };
-        for pop_waker in &guard.pop_waker {
-            pop_waker.wake_by_ref();
+        guard.push_blocking_size = if guard.push_blocking_size == DEFAULT_PUSH_BLOCKING_SIZE && count > 0{
+            count * 2
+        } else {
+            std::cmp::max(guard.push_blocking_size, count * 2)
+        };
+        for push_waker in &guard.push_waker {
+            push_waker.wake_by_ref();
         }
-        guard.pop_waker.clear();
+        guard.push_waker.clear();
         result
     }
 
@@ -218,11 +223,6 @@ impl<T, const N: usize> BlockingRingBuffer<T, N> {
         };
         self.head = (head + count) % N;
         self.len -= count;
-        self.push_blocking_size = if self.push_blocking_size == DEFAULT_PUSH_BLOCKING_SIZE {
-            count * 2
-        } else {
-            std::cmp::max(self.push_blocking_size, count * 2)
-        };
         result
     }
 }
