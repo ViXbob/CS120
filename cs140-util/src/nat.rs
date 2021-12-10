@@ -55,12 +55,12 @@ pub async fn run_nat(mut layer: IPLayer, listen_socket: impl CS120Socket + std::
                                     trace!("{:?}, {:?}", package.src, package.dst);
                                     trace!("ok!");
                                     let socket = UdpSocket::bind("10.19.73.32:23333").await.unwrap();
-                                    let len = socket.send_to(package.data.as_slice(), package.dst).await.unwrap();
+                                    let len = socket.send_to_addr(package.data.as_slice(), package.dst).await.unwrap();
                                     trace!("send len: {}", len);
                                 }
                                 CS120RPC::IcmpPackage(package) => {
                                     let socket = IcmpSocket::new();
-                                    let _ = socket.send_to(package.data.as_slice(), package.dst).await.unwrap();
+                                    let _ = socket.send_to_addr(package.data.as_slice(), package.dst).await.unwrap();
                                 }
                                 CS120RPC::TcpPackage(package) => {
 
