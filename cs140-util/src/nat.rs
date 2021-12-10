@@ -61,6 +61,20 @@ pub async fn run_nat(mut layer: IPLayer, listen_socket: impl CS120Socket + std::
                                 CS120RPC::IcmpPackage(package) => {
                                     let socket = IcmpSocket::new();
                                     let _ = socket.send_to_addr(package.data.as_slice(), package.dst).await.unwrap();
+                                    let mut buffer : Vec<u8> = vec![0; 128];
+                                    let result = socket.recv_from_addr(buffer.as_mut_slice()).await;
+                                    match result {
+                                        Ok((len, address)) => {
+                                            let dst = SocketAddr::from(SocketAddrV4::from_str("192.168.1.2:0").unwrap());
+                                            let data: Vec<u8> = buf.iter().take(len).map(|x| *x).collect();
+                                            let icmp_packet = IcmpPacket::new(&data).unwrap();
+                                            let package = CS120RPC::IcmpPackage(IcmpPackage{src: address, dst, types: icmp_packet.get_icmp_type().0, data});
+                                            socket_to_audio_sender.send(package).await;
+                                        }
+                                        Err(e) => {
+
+                                        }
+                                    }
                                 }
                                 CS120RPC::TcpPackage(package) => {
 
@@ -72,9 +86,11 @@ pub async fn run_nat(mut layer: IPLayer, listen_socket: impl CS120Socket + std::
                 package = listen_socket.recv_from_addr(&mut buf) => {
                     match package {
                         Err(e) => {
-                            return;
+                            // println!("{:?}", e);
+                            // return;
                         }
                         Ok((len, address)) => {
+                            println!("receive package!");
                             match protocol_type {
                                 CS120ProtocolType::Udp => {
                                     trace!("received a socket package!");

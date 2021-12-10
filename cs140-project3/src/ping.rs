@@ -10,10 +10,10 @@ const PING_COUNT: usize = 20;
 
 
 #[tokio::main]
-async unsafe fn main() {
+async fn main() {
     let mut builder = env_logger::Builder::from_default_env();
     builder.format_timestamp_millis().init();
-    let layer = PhysicalLayer::new(16, 64);
+    let layer = PhysicalLayer::new(1, 32);
     let layer = RedundancyLayer::new(layer);
     let mut layer = IPLayer::new(layer);
 

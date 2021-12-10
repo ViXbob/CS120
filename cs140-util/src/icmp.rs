@@ -23,7 +23,9 @@ pub struct IcmpSocket {
 
 impl IcmpSocket {
     pub fn new() -> Self {
-        let socket = Arc::new(Socket::new(Domain::IPV4, Type::RAW, Some(Protocol::ICMPV4)).expect("couldn't not create a icmp socket"));
+        let socket = Socket::new(Domain::IPV4, Type::RAW, Some(Protocol::ICMPV4)).expect("couldn't not create a icmp socket");
+        // socket.set_read_timeout(Some(std::time::Duration::from_millis(100)));
+        let socket = Arc::new(socket);
         IcmpSocket {
             socket
         }
@@ -37,8 +39,8 @@ impl IcmpSocket {
         }).await.unwrap()
     }
     pub(crate) async fn recv_from(&self) -> io::Result<(usize, SocketAddr, Vec<u8>)> {
-        let mut buf = Vec::with_capacity(65536);
-        buf.resize(65536,MaybeUninit::new(0));
+        let mut buf = Vec::with_capacity(128);
+        buf.resize(128,MaybeUninit::new(0));
         let socket = self.socket.clone();
         tokio::spawn(async move{
             let result = socket.recv_from(buf.as_mut_slice());
@@ -167,6 +169,6 @@ mod tests {
     #[tokio::test]
     async fn ping_test() {
         let mut ping = Pinger::new(0x0001);
-        ping.run(IpAddr::from_str("220.181.38.251").unwrap(), 20).await;
+        ping.run(IpAddr::from_str("101.32.194.18").unwrap(), 20).await;
     }
 }

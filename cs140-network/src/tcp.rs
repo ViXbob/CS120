@@ -3,6 +3,7 @@ use std::ops::Range;
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::AtomicU16;
 use std::sync::atomic::Ordering::Relaxed;
+use std::time::Instant;
 use bincode::{config::Configuration, Decode, Encode};
 use log::{debug, info, warn};
 use tokio::select;
@@ -71,6 +72,7 @@ enum TCPState {
 
 #[derive(Debug)]
 pub struct TCPSendingStatus {
+    pub transmit_start: std::time::Instant,
     pub data_sending: Vec<u8>,
     pub next_package_to_send: Option<TCPPackage>,
     pub sequence_missing: BTreeSet<u16>,
@@ -127,7 +129,7 @@ impl TCPSendingStatus {
     }
 
     fn completed(&self) -> bool {
-        self.sequence_missing.is_empty() && self.largest_confirmed_sequence_id == Some(self.sequence_count)
+        self.sequence_missing.is_empty() && self.largest_confirmed_sequence_id == Some(self.sequence_count-1)
     }
 }
 
@@ -212,7 +214,7 @@ impl TCPRTTStatus {
     }
 
     async fn get_rtt_timeout(&self, ratio: f32) {
-        tokio::time::sleep(std::time::Duration::from_millis((self.rtt.load(Relaxed) as f32 * ratio * 100.0) as u64)).await;
+        tokio::time::sleep(std::time::Duration::from_millis((self.rtt.load(Relaxed) as f32 * ratio * 1.0) as u64)).await;
     }
 
     fn get_rtt(&self) -> u16 {
@@ -237,7 +239,7 @@ impl TCPLayer {
 
         let future = async move {
             let rtt_status = TCPRTTStatus {
-                rtt: AtomicU16::new(55535),
+                rtt: AtomicU16::new(400),
             };
             let mut rtt_timeout = Box::pin(rtt_status.get_rtt_timeout(0.0));
             let mut sack_timeout = Box::pin(rtt_status.get_rtt_timeout(1.5));
@@ -256,6 +258,8 @@ impl TCPLayer {
                     };
                     if let Some(package) = package {
                         ip_for_package_to_send_future.send(package.into()).await;
+                    }else{
+                        tokio::time::sleep(std::time::Duration::from_secs(10000)).await;
                     }
                 };
                 let (is_ready, is_sending, is_receiving) = {
@@ -315,6 +319,7 @@ impl TCPLayer {
                             let mut state = state.lock().unwrap();
                             let package_len  = package.len();
                             let mut sending_status = TCPSendingStatus{
+                                transmit_start: Instant::now(),
                                 data_sending: package,
                                 sequence_missing: BTreeSet::new(),
                                 last_send_segment_id: None,
@@ -332,7 +337,7 @@ impl TCPLayer {
                     _ = package_to_send_future, if is_sending => {
                         match &mut *state.lock().unwrap(){
                             Sending(sending)=>{
-                                info!("we are sending the package, {:?}",sending.next_package_to_send);
+                                debug!("we are sending the package, {:?}",sending.next_package_to_send);
                                 sending.set_next_send_package(sequence_length.into());
                             }
                             _ =>{
@@ -347,8 +352,10 @@ impl TCPLayer {
                             TCPPackage::PeerVacant => {
                                 let mut guard = state.lock().unwrap();
                                 match &*guard{
-                                    Sending(_)=>{
-                                        *guard = TCPState::Ready;
+                                    Sending(sending)=>{
+                                        if sending.transmit_start.elapsed().as_millis() > (rtt_status.get_rtt() as u128) * 2 {
+                                            *guard = TCPState::Ready;
+                                        }
                                     }
                                     _ =>{}
                                 }
