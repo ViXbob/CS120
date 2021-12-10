@@ -273,22 +273,16 @@ impl TCPLayer {
                             info!("rtt timeout, sending peer vacant...");
                             ip.send(PeerVacant.into()).await;
                         }
-                        rtt_timeout = Box::pin(rtt_status.get_rtt_timeout(1.0));
-                    }
-                    _ = sack_timeout.as_mut() => {
-                        let (sack_to_send,need_to_receive_sack) = {
-                            let guard = state.lock().unwrap();
-                            match &*guard{
-                                TCPState::Ready => {
-                                    (None,false)
-                                }
-                                Receiving(receiving_status) =>{
+                        if is_receiving{
+                            let sack_to_send = {
+                                let guard = state.lock().unwrap();
+                                if let Receiving(receiving_status) = &*guard{
                                     let missing = receiving_status.get_ack_missing();
                                     // each pair is two u16, so a range is 4 bytes, vector is 1 u8
                                     // largest_confirmed_sequence_id is u16 plus u8
                                     let take_count = (sequence_length - 4) / 4;
                                     let missing =  missing.into_iter().take(take_count.into()).collect();
-                                    (Some(SackPackage{
+                                    Some(SackPackage{
                                         missing_ranges: missing,
                                         largest_confirmed_sequence_id: match receiving_status.range_ack.back(){
                                             Some(range)=>{
@@ -298,17 +292,19 @@ impl TCPLayer {
                                                 None
                                             }
                                         }
-                                    }),false)
+                                    })
+                                }else{
+                                    unreachable!()
                                 }
-                                Sending(_)=>{
-                                    (None,true)
-                                }
+                            };
+                            if let Some(sack_to_send) = sack_to_send {
+                                ip.send(Sack(sack_to_send).into()).await;
                             }
-                        };
-                        if let Some(sack_to_send) = sack_to_send {
-                            ip.send(Sack(sack_to_send).into()).await;
                         }
-                        if need_to_receive_sack{
+                        rtt_timeout = Box::pin(rtt_status.get_rtt_timeout(1.0));
+                    }
+                    _ = sack_timeout.as_mut() => {
+                        if is_sending{
                             sack_timeout_count += 1;
                             warn!("sack timeout, now we have {} sack timeout",sack_timeout_count);
                         }
@@ -360,14 +356,14 @@ impl TCPLayer {
                             TCPPackage::Sack(sack) => {
                                 if is_sending{
                                     sack_timeout = Box::pin( rtt_status.get_rtt_timeout(1.5));
-                                }
-                                let mut guard = state.lock().unwrap();
-                                if let Sending(sending) = &mut *guard{
-                                    sending.sequence_missing.extend(sack.missing_ranges.into_iter().flat_map(|range| range));
-                                    sending.largest_confirmed_sequence_id = sack.largest_confirmed_sequence_id;
-                                    if sending.completed(){
-                                        info!("transmit finish");
-                                        *guard = TCPState::Ready;
+                                    let mut guard = state.lock().unwrap();
+                                    if let Sending(sending) = &mut *guard{
+                                        sending.sequence_missing.extend(sack.missing_ranges.into_iter().flat_map(|range| range));
+                                        sending.largest_confirmed_sequence_id = sack.largest_confirmed_sequence_id;
+                                        if sending.completed(){
+                                            info!("transmit finish");
+                                            *guard = TCPState::Ready;
+                                        }
                                     }
                                 }
                             }
