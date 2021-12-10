@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 use std::sync::atomic::AtomicU16;
 use std::sync::atomic::Ordering::Relaxed;
 use bincode::{config::Configuration, Decode, Encode};
-use log::{info,warn};
+use log::{debug, info, warn};
 use tokio::{select};
 use tokio::sync::mpsc::{Receiver, Sender};
 
@@ -59,6 +59,14 @@ pub struct TCPLayer {
     send_package_sender: Sender<BinaryData>,
     recv_package_receiver: Receiver<BinaryData>
 }
+
+#[derive(Debug)]
+enum TCPState{
+    Ready,
+    Sending(TCPSendingStatus),
+    Receiving(TCPReceivingStatus),
+}
+
 
 #[derive(Debug)]
 pub struct TCPSendingStatus {
@@ -157,7 +165,7 @@ impl TCPRTTStatus {
     }
 
     async fn get_rtt_timeout(&self, ratio: f32) {
-        tokio::time::sleep(std::time::Duration::from_millis((self.rtt.load(Relaxed) as f32 * ratio) as u64)).await;
+        tokio::time::sleep(std::time::Duration::from_millis((self.rtt.load(Relaxed) as f32 * ratio * 100.0) as u64)).await;
     }
 
     fn get_rtt(&self) -> u16 {
@@ -182,14 +190,14 @@ impl TCPLayer {
         let receiving_status: Arc<Mutex<Option<TCPReceivingStatus>>> = Arc::new(Mutex::new(None));
 
         let future = async move {
-            let mut rtt_status = TCPRTTStatus{
-                rtt: AtomicU16::new(100),
+            let rtt_status = TCPRTTStatus{
+                rtt: AtomicU16::new(55535),
             };
-            let mut rtt_timeout = Box::pin( rtt_status.get_rtt_timeout(1.0));
+            let mut rtt_timeout = Box::pin( rtt_status.get_rtt_timeout(0.0));
             let mut sack_timeout = Box::pin( rtt_status.get_rtt_timeout(1.5));
             let mut sack_timeout_count = 0;
             let mut package_to_send = generate_next_send_package(sequence_length as _, sending_status.clone());
-            let package_to_send_is_some = package_to_send.is_some();
+            let mut package_to_send_is_some = package_to_send.is_some();
             loop {
                 // package_to_send will always be None, if the mode of tcp connection is receiving
                 let ip = ip.clone();
@@ -197,16 +205,26 @@ impl TCPLayer {
                 let receiving_status = receiving_status.clone();
                 let sending_status_is_none = sending_status.lock().unwrap().is_none();
                 let receiving_status_is_none = receiving_status.lock().unwrap().is_none();
-                let package_to_send_future =
-                    if package_to_send.is_none(){
-                        Box::pin(async{})
+                if package_to_send.is_none(){
+                    package_to_send = generate_next_send_package(sequence_length as _, sending_status.clone());
+                    package_to_send_is_some = package_to_send.is_some();
+                }
+
+                let ip_for_package_to_send_future = ip.clone();
+                let package_to_send_for_package_to_send_future = package_to_send.clone();
+                let package_to_send_future = async move{
+                    if package_to_send_is_some {
+                        log::info!("Sending {:?} to ip layer.",package_to_send_for_package_to_send_future);
+                        ip_for_package_to_send_future.send(package_to_send_for_package_to_send_future.unwrap()).await;
                     }else{
-                        ip.send(package_to_send.as_ref().unwrap().clone())
-                    };
-                if sending_status_is_none{
-                    info!("we have nothing to send");
-                }else{
-                    info!("we are sending something...");
+                        log::info!("Data pack is None.")
+                    }
+                };
+
+                debug!("package_to_send_is_some: {}", package_to_send_is_some);
+
+                if package_to_send_is_some{
+                    info!("We can push a package into IP Layer");
                 }
                 select! {
                     _ = rtt_timeout.as_mut() => {
@@ -243,6 +261,7 @@ impl TCPLayer {
                     _ = package_to_send_future, if package_to_send_is_some => {
                         info!("we are sending the package, {:?}",package_to_send);
                         package_to_send = generate_next_send_package(sequence_length as _, sending_status.clone());
+                        package_to_send_is_some = package_to_send.is_some();
                     },
                     package = ip.receive() =>{
                         let package = bincode::decode_from_slice(&package.data, Configuration::standard()).unwrap();
@@ -251,6 +270,7 @@ impl TCPLayer {
                             TCPPackage::PeerVacant => {
                                 let package_finish = {
                                     let mut sending_status = sending_status.lock().unwrap();
+                                    debug!("sending status: {:?}",sending_status);
                                     let package_finish = if let Some(sending_status) = sending_status.as_mut() {
                                         if sending_status.largest_confirmed_sequence_id.is_some() {
                                             true
@@ -261,7 +281,9 @@ impl TCPLayer {
                                     } else {
                                         false
                                     };
-                                    *sending_status = None;
+                                    if package_finish{
+                                        *sending_status = None;
+                                    }
                                     package_finish
                                 };
                                 if package_finish {
@@ -363,14 +385,20 @@ impl TCPLayer {
 }
 
 fn generate_next_send_package(sequence_length: usize, sending_status: Arc<Mutex<Option<TCPSendingStatus>>>) -> Option<IPPackage> {
+    debug!("generating the next package, sequence_length: {}, sending_status: {:?}",sequence_length, sending_status.lock().unwrap());
     let mut guard = sending_status.lock().unwrap();
     return match guard.as_mut() {
-        None => { None }
+        None => {
+            debug!("no data to send, returning None");
+            None
+        }
         Some(sending_status) => {
             if sending_status.peer_vacant {
+                debug!("peer is vacant, we should sending something");
                 let sequence_count = ((sending_status.data_sending.len() + sequence_length - 1) / sequence_length as usize + 1) as u16; // the first package is header
                 let (new_segment_id, new_package) = match sending_status.last_send_segment_id {
                     None => {
+                        debug!("we have not sending header, sending header...");
                         (0, Header(HeaderPackage {
                             sequence_count,
                             data_length: sending_status.data_sending.len() as _,
@@ -378,8 +406,10 @@ fn generate_next_send_package(sequence_length: usize, sending_status: Arc<Mutex<
                     }
                     Some(sent_segment_id) => {
                         if sending_status.sequence_missing.is_empty() {
+                            debug!("Great, no lost packages");
                             let next_segment_id = sent_segment_id + 1;
-                            if next_segment_id > sequence_count {
+                            if next_segment_id >= sequence_count {
+                                debug!("we have sent all the data, return None");
                                 return None;
                             }
                             (next_segment_id, Data(DataPackage {
@@ -388,6 +418,7 @@ fn generate_next_send_package(sequence_length: usize, sending_status: Arc<Mutex<
                                 data: sending_status.data_sending[sent_segment_id as usize * sequence_length as usize..].iter().take(sequence_length).cloned().collect(),
                             }))
                         }else{
+                            debug!("sending lost packages");
                             let next_segment_id = sending_status.sequence_missing.iter().next().unwrap().clone();
                             if next_segment_id == 0{
                                 (0, Header(HeaderPackage {
@@ -407,6 +438,7 @@ fn generate_next_send_package(sequence_length: usize, sending_status: Arc<Mutex<
                 sending_status.last_send_segment_id = Some(new_segment_id);
                 Some(new_package.into())
             } else {
+                debug!("peer is not vacant, returning None");
                 None
             }
         }
