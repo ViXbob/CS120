@@ -444,7 +444,7 @@ impl TCPLayer {
     pub async fn receive<T>(&mut self) -> Option<T> where T: Decode + Encode {
         let data = self.recv_package_receiver.recv().await;
         if let Some(data) = data {
-            bincode::decode_from_slice(&data, Configuration::standard()).unwrap()
+            Some(bincode::decode_from_slice(&data, Configuration::standard()).unwrap())
         } else {
             None
         }
