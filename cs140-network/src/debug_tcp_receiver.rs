@@ -9,16 +9,23 @@ use cs140_network::ip::IPLayer;
 use cs140_network::physical::PhysicalLayer;
 use cs140_network::physical::PhysicalPackage;
 use cs140_network::redundancy::RedundancyLayer;
+use cs140_network::tcp::TCPLayer;
 
 #[tokio::main]
 async fn main() {
     let mut builder = env_logger::Builder::from_default_env();
     builder.format_timestamp_millis().init();
-    let layer = PhysicalLayer::new(2, 256);
+    let layer = PhysicalLayer::new(1, 256);
     let layer = RedundancyLayer::new(layer);
-    let mut layer = IPLayer::new(layer);
-    loop {
-        let data = layer.receive().await;
-        println!("{:?}",data.data);
+    let layer = IPLayer::new(layer);
+    let mut layer = TCPLayer::new(layer);
+    let mut instant = None;
+    for _ in 0..31{
+        let data:Option<Vec<u8>> = layer.receive().await;
+        if instant.is_none(){
+            instant = Some(std::time::Instant::now());
+        }
+        println!("{:?}",data);
     }
+    println!("{}ms",instant.unwrap().elapsed().as_millis());
 }
