@@ -18,8 +18,8 @@ async fn main() {
     loop {
         let result = icmp_socket.recv_from_addr(&mut buf).await;
         if let Ok((len, addr)) = result {
-            let mut data = buf.clone().to_vec()[..len];
-            let icmp_packet = MutableIcmpPacket::new(&mut data).unwrap();
+            let mut data: Vec<_> = buf.iter().take(len).map(|x| *x).collect();
+            let icmp_packet = MutableIcmpPacket::new(data.as_mut_slice()).unwrap();
             println!("icmp_packet: {:?}", icmp_packet);
             if icmp_packet.get_icmp_type() == IcmpTypes::EchoRequest {
                 let icmp_package = CS120RPC::IcmpPackage(IcmpPackage { src: addr, dst, types: IcmpTypes::EchoRequest.0, data: Vec::from(&data[..len]) });
