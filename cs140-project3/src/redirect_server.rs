@@ -10,7 +10,7 @@ use socket2::{Domain, Protocol, SockAddr, Socket, Type};
 
 #[tokio::main]
 async fn main() {
-    let dst = SocketAddr::from(SocketAddrV4::from_str("10.19.75.4:0").unwrap());
+    let dst = SocketAddr::from(SocketAddrV4::from_str("10.19.75.4:34241").unwrap());
     let dst_addr = SocketAddr::from(SocketAddrV4::from_str("10.19.73.32:18888").unwrap());
     let icmp_socket = IcmpSocket::new();
     let udp_socket = UdpSocket::bind("10.19.75.4:34241").await.unwrap();

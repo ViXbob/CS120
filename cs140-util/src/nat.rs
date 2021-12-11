@@ -60,9 +60,9 @@ pub async fn run_nat(mut layer: IPLayer, listen_socket: impl CS120Socket + std::
                                     trace!("send len: {}", len);
                                 }
                                 CS120RPC::IcmpPackage(package) => {
-                                    let socket = IcmpSocket::new();
                                     match protocol_type {
                                         CS120ProtocolType::Icmp => {
+                                            let socket = IcmpSocket::new();
                                             let _ = socket.send_to_addr(package.data.as_slice(), package.dst).await.unwrap();
                                             let mut buffer : Vec<u8> = vec![0; 128];
                                             let result = socket.recv_from_addr(buffer.as_mut_slice()).await;
@@ -79,9 +79,10 @@ pub async fn run_nat(mut layer: IPLayer, listen_socket: impl CS120Socket + std::
                                             }
                                         }
                                         CS120ProtocolType::IcmpEchoRequest => {
-                                            println!("icmp echo reply: {:?} to {:?}", package, package.dst);
+                                            println!("icmp echo reply: {:?} to {:?}, and next_hop: {:?}", package, package.dst, package.src);
                                             let dst = package.src;
                                             let encoded: Vec<u8> = bincode::encode_to_vec(CS120RPC::IcmpPackage(package), Configuration::standard()).unwrap();
+                                            let socket = UdpSocket::bind("10.19.75.77:22791").await.unwrap();
                                             socket.send_to_addr(encoded.as_slice(), dst).await;
                                         }
                                         _ => {
