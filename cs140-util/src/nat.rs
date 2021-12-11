@@ -61,19 +61,31 @@ pub async fn run_nat(mut layer: IPLayer, listen_socket: impl CS120Socket + std::
                                 }
                                 CS120RPC::IcmpPackage(package) => {
                                     let socket = IcmpSocket::new();
-                                    let _ = socket.send_to_addr(package.data.as_slice(), package.dst).await.unwrap();
-                                    let mut buffer : Vec<u8> = vec![0; 128];
-                                    let result = socket.recv_from_addr(buffer.as_mut_slice()).await;
-                                    match result {
-                                        Ok((len, address)) => {
-                                            let dst = SocketAddr::from(SocketAddrV4::from_str("192.168.1.2:0").unwrap());
-                                            let data: Vec<u8> = buf.iter().take(len).map(|x| *x).collect();
-                                            let icmp_packet = IcmpPacket::new(&data).unwrap();
-                                            let package = CS120RPC::IcmpPackage(IcmpPackage{src: address, dst, types: icmp_packet.get_icmp_type().0, data});
-                                            socket_to_audio_sender.send(package).await;
+                                    match protocol_type {
+                                        CS120ProtocolType::Icmp => {
+                                            let _ = socket.send_to_addr(package.data.as_slice(), package.dst).await.unwrap();
+                                            let mut buffer : Vec<u8> = vec![0; 128];
+                                            let result = socket.recv_from_addr(buffer.as_mut_slice()).await;
+                                            match result {
+                                                Ok((len, address)) => {
+                                                    let dst = SocketAddr::from(SocketAddrV4::from_str("192.168.1.2:0").unwrap());
+                                                    let data: Vec<u8> = buf.iter().take(len).map(|x| *x).collect();
+                                                    let icmp_packet = IcmpPacket::new(&data).unwrap();
+                                                    let package = CS120RPC::IcmpPackage(IcmpPackage{src: address, dst, types: icmp_packet.get_icmp_type().0, data});
+                                                    socket_to_audio_sender.send(package).await;
+                                                }
+                                                Err(e) => {
+                                                }
+                                            }
                                         }
-                                        Err(e) => {
-
+                                        CS120ProtocolType::IcmpEchoRequest => {
+                                            println!("icmp echo reply: {:?} to {:?}", package, package.dst);
+                                            let dst = package.src;
+                                            let encoded: Vec<u8> = bincode::encode_to_vec(CS120RPC::IcmpPackage(package), Configuration::standard()).unwrap();
+                                            socket.send_to_addr(encoded.as_slice(), dst).await;
+                                        }
+                                        _ => {
+                                            unreachable!()
                                         }
                                     }
                                 }
@@ -103,8 +115,9 @@ pub async fn run_nat(mut layer: IPLayer, listen_socket: impl CS120Socket + std::
                                 }
                                 CS120ProtocolType::IcmpEchoRequest => {
                                     let data = &buf.clone().to_vec()[..len];
-                                    let decoded = bincode::decode_from_slice(data, Configuration::standard()).unwrap();
+                                    let mut decoded: CS120RPC = bincode::decode_from_slice(data, Configuration::standard()).unwrap();
                                     socket_to_audio_sender.send(decoded).await;
+                                    trace!("send!");
                                 }
                                 CS120ProtocolType::Icmp => {
                                     let dst = SocketAddr::from(SocketAddrV4::from_str("192.168.1.2:0").unwrap());

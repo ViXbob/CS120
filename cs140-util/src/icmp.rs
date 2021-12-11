@@ -98,11 +98,11 @@ impl AudioPinger {
 
     pub async fn wait_icmp_request_and_reply(&mut self) {
         let packet_size = EchoReplyPacket::minimum_packet_size();
-        let mut buf: Vec<u8> = vec![0; packet_size];
-        let src = SocketAddr::from(SocketAddrV4::from_str("192.168.1.2:0").unwrap());
+        let mut buf: Vec<u8> = vec![0; packet_size + 32];
         loop {
             if let CS120RPC::IcmpPackage(package) = self.layer.recv().await {
                 let dst = package.src;
+                let src = package.dst;
                 self.make_reply_packet(&mut buf);
                 self.sequence_number += 1;
                 self.layer.trans(CS120RPC::IcmpPackage(IcmpPackage{src, dst, types: IcmpTypes::EchoReply.0, data: buf.clone()})).await;
@@ -116,6 +116,7 @@ impl AudioPinger {
         echo_reply_packet.set_identifier(self.identifier);
         echo_reply_packet.set_icmp_type(IcmpTypes::EchoReply);
         echo_reply_packet.set_icmp_code(IcmpCode::new(0));
+        echo_reply_packet.set_payload(b"echo_reply_from_cs120_athernet");
         let echo_checksum = checksum(&IcmpPacket::new(echo_reply_packet.packet()).unwrap());
         echo_reply_packet.set_checksum(echo_checksum);
     }

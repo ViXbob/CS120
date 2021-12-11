@@ -11,7 +11,7 @@ use cs140_util::rpc::{CS120ProtocolType, CS120Socket};
 async fn main() {
     let mut builder = env_logger::Builder::from_default_env();
     builder.format_timestamp_millis().init();
-    let layer = PhysicalLayer::new(1, 32);
+    let layer = PhysicalLayer::new(1, 128);
     let layer = RedundancyLayer::new(layer);
     let mut layer = IPLayer::new(layer);
     // let socket = UdpSocket::bind("10.19.73.32:18888").await.unwrap();
