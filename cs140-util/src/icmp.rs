@@ -104,7 +104,7 @@ impl AudioPinger {
                 let dst = package.src;
                 let src = package.dst;
                 self.make_reply_packet(package.data.as_mut_slice());
-                self.layer.trans(CS120RPC::IcmpPackage(IcmpPackage{src, dst, types: IcmpTypes::EchoReply.0, data: buf.clone()})).await;
+                self.layer.trans(CS120RPC::IcmpPackage(IcmpPackage{src, dst, types: IcmpTypes::EchoReply.0, data: package.data.clone()})).await;
             }
         }
     }
