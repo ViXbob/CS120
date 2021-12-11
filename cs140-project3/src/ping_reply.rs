@@ -20,4 +20,6 @@ async fn main() {
     let mut ping_replyer = AudioPinger::new(layer, 0x0002);
 
     ping_replyer.wait_icmp_request_and_reply().await;
+
+    std::thread::park();
 }
