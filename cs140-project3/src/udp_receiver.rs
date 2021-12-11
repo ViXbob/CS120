@@ -6,7 +6,7 @@ async fn main() {
     let mut builder = env_logger::Builder::from_default_env();
     builder.format_timestamp_millis().init();
     trace!("ok");
-    let socket = UdpSocket::bind("10.19.73.32:18888").await.unwrap();
+    let socket = UdpSocket::bind("10.19.75.77:28888").await.unwrap();
     trace!("ok");
     let mut buf = [0u8; 65536];
     loop {
