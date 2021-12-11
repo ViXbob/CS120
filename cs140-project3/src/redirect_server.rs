@@ -13,7 +13,7 @@ async fn main() {
     let dst = SocketAddr::from(SocketAddrV4::from_str("192.168.1.2:0").unwrap());
     let dst_addr = SocketAddr::from(SocketAddrV4::from_str("10.19.73.32:18888").unwrap());
     let icmp_socket = IcmpSocket::new();
-    let udp_socket = UdpSocket::bind("10.19.73.32:34241").await.unwrap();
+    let udp_socket = UdpSocket::bind("10.19.75.4:34241").await.unwrap();
     let mut buf = [0u8; 256];
     loop {
         let result = icmp_socket.recv_from_addr(&mut buf).await;
