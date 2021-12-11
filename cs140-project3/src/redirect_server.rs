@@ -22,7 +22,7 @@ async fn main() {
             let icmp_package = CS120RPC::IcmpPackage(IcmpPackage{src: addr, dst, types: IcmpTypes::EchoRequest.0, data: Vec::from(&data[..len]) });
             println!("send: {:?}", icmp_package);
             let encoded: Vec<u8> = bincode::encode_to_vec(icmp_package,Configuration::standard()).unwrap();
-            udp_socket.send_to(encoded.as_slice(), dst_addr);
+            udp_socket.send_to(encoded.as_slice(), dst_addr).await;
         }
     }
 }
