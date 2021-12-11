@@ -15,23 +15,34 @@ async fn main() {
     let icmp_socket = IcmpSocket::new();
     let udp_socket = UdpSocket::bind("10.19.75.4:34241").await.unwrap();
     let mut buf = [0u8; 256];
+    let mut udp_buf = [0u8; 1024];
     loop {
-        let result = icmp_socket.recv_from_addr(&mut buf).await;
-        if let Ok((len, addr)) = result {
-            let mut data: Vec<_> = buf.iter().skip(20).take(len - 20).map(|x| *x).collect();
-            let icmp_packet = MutableIcmpPacket::new(data.as_mut_slice()).unwrap();
-            println!("icmp_packet: {:?}", icmp_packet);
-            if icmp_packet.get_icmp_type() == IcmpTypes::EchoRequest {
-                let icmp_package = CS120RPC::IcmpPackage(IcmpPackage { src: addr, dst, types: IcmpTypes::EchoRequest.0, data });
-                println!("send: {:?}", icmp_package);
-                let encoded: Vec<u8> = bincode::encode_to_vec(icmp_package, Configuration::standard()).unwrap();
-                udp_socket.send_to(encoded.as_slice(), dst_addr).await;
-            } else if icmp_packet.get_icmp_type() == IcmpTypes::EchoReply {
-                let mut decoded: CS120RPC = bincode::decode_from_slice(data.as_slice(), Configuration::standard()).unwrap();
-                if let CS120RPC::IcmpPackage(package) = decoded {
-                    icmp_socket.send_to_addr(package.data.as_slice(), package.dst).await;
-                } else {
-                    unreachable!()
+        tokio::select! {
+            result = icmp_socket.recv_from_addr(&mut buf) => {
+                if let Ok((len, addr)) = result {
+                    let mut data: Vec<_> = buf.iter().skip(20).take(len - 20).map(|x| *x).collect();
+                    let icmp_packet = MutableIcmpPacket::new(data.as_mut_slice()).unwrap();
+                    println!("icmp_packet: {:?}", icmp_packet);
+                    if icmp_packet.get_icmp_type() == IcmpTypes::EchoRequest {
+                        let icmp_package = CS120RPC::IcmpPackage(IcmpPackage { src: addr, dst, types: IcmpTypes::EchoRequest.0, data });
+                        println!("send: {:?}", icmp_package);
+                        let encoded: Vec<u8> = bincode::encode_to_vec(icmp_package, Configuration::standard()).unwrap();
+                        udp_socket.send_to(encoded.as_slice(), dst_addr).await;
+                    } else {
+                        unreachable!()
+                    }
+                }
+            }
+            result = udp_socket.recv_from_addr(&mut udp_buf) => {
+                if let Ok((len, addr)) = result {
+                    let mut data: Vec<_> = udp_buf.iter().take(len).map(|x| *x).collect();
+                    let mut decoded: CS120RPC = bincode::decode_from_slice(data.as_slice(), Configuration::standard()).unwrap();
+                    if let CS120RPC::IcmpPackage(package) = decoded {
+                        println!("send icmp_packet: {:?}", package);
+                        icmp_socket.send_to_addr(package.data.as_slice(), package.dst).await;
+                    } else {
+                        unreachable!()
+                    }
                 }
             }
         }
