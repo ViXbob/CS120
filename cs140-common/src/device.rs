@@ -80,7 +80,7 @@ impl<Buffer> InputDevice<Buffer>
         //     .expect("no input device available");
         let input_device = choose_device();
         // Choose the device that has the maximum of sample rates
-        println!("{}", input_device.name().unwrap());
+        println!("using {} as input device", input_device.name().unwrap());
         let mut config = input_device
             .default_input_config()
             .expect("error while querying configs");
@@ -97,6 +97,7 @@ impl<Buffer> InputDevice<Buffer>
         let config_ = config.clone();
         let sample_format = config.sample_format();
         let mut config: StreamConfig = config.into();
+        println!("with sample rate:{:?}", config.sample_rate);
         let buffer_size = match config_.buffer_size() {
             SupportedBufferSize::Range { min, max } => {
                 // cpal::BufferSize::Fixed(*min)
@@ -248,7 +249,7 @@ impl<Buffer> OutputDevice<Buffer>
         //     .default_output_device()
         //     .expect("no output device available");
         let output_device = choose_device();
-        println!("{}", output_device.name().unwrap());
+        println!("using {} as output device", output_device.name().unwrap());
 
         let mut config = output_device
             .default_output_config()
@@ -277,7 +278,7 @@ impl<Buffer> OutputDevice<Buffer>
                 config.buffer_size
             }
         };
-        println!("{:?}", config.sample_rate);
+        println!("with sample rate:{:?}", config.sample_rate);
         config.buffer_size = buffer_size;
         (output_device, config, sample_format)
     }
