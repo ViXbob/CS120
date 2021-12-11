@@ -12,6 +12,9 @@ cs140-common = {path = "../cs140-common"}
 tokio = { version = "1", features = ["full"] }
 log = "0.4.14"
 env_logger = "0.9.0"
+socket2 = {version = "0.4.2", features = ["all"]}
+pnet = "0.28.0"
+bincode="2.0.0-alpha.1"
 
 [[bin]]
 name = "sender"
@@ -36,3 +39,7 @@ path = "src/nat_server.rs"
 [[bin]]
 name = "ping"
 path = "src/ping.rs"
+
+[[bin]]
+name = "redirect_server"
+path = "src/redirect_server.rs"
