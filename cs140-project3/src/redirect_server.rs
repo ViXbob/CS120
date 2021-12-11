@@ -20,6 +20,7 @@ async fn main() {
         if let Ok((len, addr)) = result {
             let mut data = buf.clone().to_vec()[..len];
             let icmp_packet = MutableIcmpPacket::new(&mut data).unwrap();
+            println!("icmp_packet: {:?}", icmp_packet);
             if icmp_packet.get_icmp_type() == IcmpTypes::EchoRequest {
                 let icmp_package = CS120RPC::IcmpPackage(IcmpPackage { src: addr, dst, types: IcmpTypes::EchoRequest.0, data: Vec::from(&data[..len]) });
                 println!("send: {:?}", icmp_package);
