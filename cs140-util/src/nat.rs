@@ -9,6 +9,7 @@ use cs140_network::encoding::HandlePackage;
 use crate::rpc::{CS120RPC, Transport, CS120Socket, CS120ProtocolType, UdpPackage, IcmpPackage};
 use cs140_network::ip::{IPLayer, IPPackage};
 use async_trait::async_trait;
+use bincode::config::Configuration;
 use log::trace;
 use pnet::packet::icmp::{
     IcmpTypes::EchoReply,
@@ -99,6 +100,11 @@ pub async fn run_nat(mut layer: IPLayer, listen_socket: impl CS120Socket + std::
                                     let data: Vec<u8> = buf.iter().take(len).map(|x| *x).collect();
                                     let package = CS120RPC::UdpPackage(UdpPackage{src: address, dst, data });
                                     socket_to_audio_sender.send(package).await;
+                                }
+                                CS120ProtocolType::IcmpEchoRequest => {
+                                    let data = &buf.clone().to_vec()[..len];
+                                    let decoded = bincode::decode_from_slice(data, Configuration::standard()).unwrap();
+                                    socket_to_audio_sender.send(decoded).await;
                                 }
                                 CS120ProtocolType::Icmp => {
                                     let dst = SocketAddr::from(SocketAddrV4::from_str("192.168.1.2:0").unwrap());

@@ -67,6 +67,7 @@ pub enum CS120ProtocolType {
     Udp,
     Tcp,
     Icmp,
+    IcmpEchoRequest,
 }
 
 #[async_trait]

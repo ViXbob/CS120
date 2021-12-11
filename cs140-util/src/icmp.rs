@@ -6,8 +6,8 @@ use std::net::SocketAddr;
 use std::str::FromStr;
 use std::sync::Arc;
 
-use pnet::packet::icmp::echo_request::{MutableEchoRequestPacket, EchoRequestPacket};
-use pnet::packet::icmp::echo_reply::EchoReplyPacket;
+use pnet::packet::icmp::echo_request::{MutableEchoRequestPacket, EchoRequestPacket, EchoRequest};
+use pnet::packet::icmp::echo_reply::{EchoReply, EchoReplyPacket, MutableEchoReplyPacket};
 use pnet::packet::icmp::{IcmpPacket, IcmpTypes, IcmpCode, checksum};
 use pnet::packet::Packet;
 
@@ -70,7 +70,7 @@ impl AudioPinger {
     }
 
     pub async fn ping_once(&mut self, target: IpAddr) {
-        let src = SocketAddr::from(SocketAddrV4::from_str("192.168.1.2:1234").unwrap());
+        let src = SocketAddr::from(SocketAddrV4::from_str("192.168.1.2:0").unwrap());
         let dst = SocketAddr::new(target, 0);
         let packet_size = EchoRequestPacket::minimum_packet_size();
 
@@ -96,13 +96,36 @@ impl AudioPinger {
         }
     }
 
+    pub async fn wait_icmp_request_and_reply(&mut self) {
+        let packet_size = EchoReplyPacket::minimum_packet_size();
+        let mut buf: Vec<u8> = vec![0; packet_size];
+        let src = SocketAddr::from(SocketAddrV4::from_str("192.168.1.2:0").unwrap());
+        loop {
+            if let CS120RPC::IcmpPackage(package) = self.layer.recv().await {
+                let dst = package.src;
+                self.make_reply_packet(&mut buf);
+                self.sequence_number += 1;
+                self.layer.trans(CS120RPC::IcmpPackage(IcmpPackage{src, dst, types: IcmpTypes::EchoReply.0, data: buf.clone()})).await;
+            }
+        }
+    }
+
+    fn make_reply_packet(&self, buf: &mut [u8]) {
+        let mut echo_reply_packet = MutableEchoReplyPacket::new(buf).unwrap();
+        echo_reply_packet.set_sequence_number(self.sequence_number);
+        echo_reply_packet.set_identifier(self.identifier);
+        echo_reply_packet.set_icmp_type(IcmpTypes::EchoReply);
+        echo_reply_packet.set_icmp_code(IcmpCode::new(0));
+        let echo_checksum = checksum(&IcmpPacket::new(echo_reply_packet.packet()).unwrap());
+        echo_reply_packet.set_checksum(echo_checksum);
+    }
+
     fn make_packet(&self, buf: &mut [u8]) {
         let mut echo_packet = MutableEchoRequestPacket::new(buf).unwrap();
         echo_packet.set_sequence_number(self.sequence_number);
         echo_packet.set_identifier(self.identifier);
         echo_packet.set_icmp_type(IcmpTypes::EchoRequest);
         echo_packet.set_icmp_code(IcmpCode::new(0));
-
         let echo_checksum = checksum(&IcmpPacket::new(echo_packet.packet()).unwrap());
         echo_packet.set_checksum(echo_checksum);
     }

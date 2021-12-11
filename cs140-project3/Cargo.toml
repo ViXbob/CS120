@@ -41,5 +41,9 @@ name = "ping"
 path = "src/ping.rs"
 
 [[bin]]
+name = "ping_reply"
+path = "src/ping_reply.rs"
+
+[[bin]]
 name = "redirect_server"
 path = "src/redirect_server.rs"
