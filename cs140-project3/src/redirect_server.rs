@@ -30,17 +30,7 @@ async fn main() {
                         let icmp_package = CS120RPC::IcmpPackage(IcmpPackage { src: addr, dst, types: IcmpTypes::EchoRequest.0, data });
                         println!("send: {:?}", icmp_package);
                         let encoded: Vec<u8> = bincode::encode_to_vec(icmp_package, Configuration::standard()).unwrap();
-                        // udp_socket.send_to(encoded.as_slice(), dst_addr).await;
-                        let mut icmp_buf = [0u8; 128];
-                        let mut echo_reply_packet = MutableEchoReplyPacket::new(&mut icmp_buf).unwrap();
-                        echo_reply_packet.set_sequence_number(0);
-                        echo_reply_packet.set_identifier(0x0002);
-                        echo_reply_packet.set_icmp_type(IcmpTypes::EchoReply);
-                        echo_reply_packet.set_icmp_code(IcmpCode::new(0));
-                        echo_reply_packet.set_payload(b"echo_reply_from_cs120_athernet");
-                        let echo_checksum = checksum(&IcmpPacket::new(echo_reply_packet.packet()).unwrap());
-                        echo_reply_packet.set_checksum(echo_checksum);
-                        icmp_socket.send_to_addr(&icmp_buf, addr);
+                        udp_socket.send_to(encoded.as_slice(), dst_addr).await;
                     }
                 }
             }
