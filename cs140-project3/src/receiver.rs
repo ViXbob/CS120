@@ -8,7 +8,7 @@ use cs140_network::ip::IPLayer;
 use cs140_network::physical::PhysicalLayer;
 use cs140_network::physical::PhysicalPackage;
 use cs140_network::redundancy::RedundancyLayer;
-use cs140_util::rpc::Transport;
+use cs140_util::rpc::{CS120RPC, Transport};
 
 #[tokio::main]
 async fn main() {
@@ -19,4 +19,14 @@ async fn main() {
     let mut layer = IPLayer::new(layer);
     let package = layer.recv().await;
     trace!("{:?}", package);
+    let data = match package {
+        CS120RPC::UdpPackage(package) => {
+            package.data
+        }
+        _ => {
+            Vec::new()
+        }
+    };
+    let string : &str = std::str::from_utf8(data.as_slice()).expect("couldn't convert");
+    println!("{}", string);
 }

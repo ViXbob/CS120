@@ -15,6 +15,8 @@ async fn main() {
         let result = &buf.clone()[0..len];
         trace!("buf: {:?}", result);
         trace!("receive completed!");
+        let string : &str = std::str::from_utf8(result).expect("couldn't convert");
+        println!("{}", string);
     }
 
     std::thread::park();
