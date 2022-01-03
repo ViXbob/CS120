@@ -13,6 +13,7 @@ use pnet::packet::icmp::{IcmpPacket, IcmpTypes, IcmpCode, checksum};
 use pnet::packet::Packet;
 
 use async_trait::async_trait;
+use log::trace;
 use tokio::io;
 use cs140_network::encoding::HandlePackage;
 use cs140_network::ip::{IPLayer, IPPackage};
@@ -20,16 +21,18 @@ use crate::rpc::{CS120RPC, CS120Socket, IcmpPackage, Transport};
 
 pub struct IcmpSocket {
     send_input_sender: Sender<(Vec<u8>,SocketAddr)>,
-    send_output_receiver: tokio::sync::Mutex<Receiver<io::Result<usize>>>,
-    recv_receiver: tokio::sync::Mutex<Receiver<io::Result<(usize, SocketAddr, Vec<u8>)>>>
+    send_output_receiver: Receiver<io::Result<usize>>,
+    recv_receiver:Receiver<io::Result<(usize, SocketAddr, Vec<u8>)>>,
 }
 
 impl IcmpSocket {
     pub fn new() -> Self {
+        trace!("An icmp Socket instance created.");
         let socket = Socket::new(Domain::IPV4, Type::RAW, Some(Protocol::ICMPV4)).expect("couldn't not create a icmp socket");
         // socket.set_read_timeout(Some(std::time::Duration::from_millis(100)));
         let socket_for_send_to = Arc::new(socket);
         let (send_input_sender, mut send_input_receiver) = channel::<(Vec<u8>, SocketAddr)>(1024);
+        // let (send_notification_sender, mut send_notification_receiver) = channel(1024);
         let (send_output_sender,send_output_receiver) = channel(1024);
         let (recv_sender,recv_receiver) = channel(1024);
 
@@ -40,8 +43,14 @@ impl IcmpSocket {
                 match data{
                     None => {return}
                     Some(data) => {
+                        trace!("raw socket is ready to send a icmp request!!!!");
                         let addr: SockAddr = SockAddr::from(data.1);
-                        let result = socket_for_send_to.send_to(&data.0,&addr);
+                        let socket_for_send_to_cloned = socket_for_send_to.clone();
+                        let result = tokio::task::spawn_blocking(move||{
+                            socket_for_send_to_cloned.send_to(&data.0,&addr)
+                        }).await.unwrap();
+                        trace!("raw socket had sent a icmp request!!!!");
+                        // send_notification_sender.send(true).await;
                         if send_output_sender.send(result).await.is_err(){
                             return;
                         }
@@ -51,36 +60,59 @@ impl IcmpSocket {
         });
 
         tokio::spawn(async move{
-            loop{
+            loop {
                 let mut buf = Vec::with_capacity(128);
                 buf.resize(128,MaybeUninit::new(0));
+                // let socket_for_recv_cloned = socket_for_recv.clone();
+                // trace!("ready to receive");
+                // let (result,buf) = tokio::task::spawn_blocking(move ||{
+                //     (socket_for_recv_cloned.recv_from(buf.as_mut_slice()),buf)
+                // }).await.unwrap();
                 let result = socket_for_recv.recv_from(buf.as_mut_slice());
+                // trace!("reception complete!!!!!!!!!!!!!!!!!");
                 let result = result.map(|(size,addr)|{
-                        let buf = buf.into_iter().map(|u|{
-                            unsafe{ u.assume_init()}
-                        }).take(size).collect();
-                        (size,addr.as_socket().unwrap(),buf)
+                    let buf = buf.into_iter().map(|u|{
+                        unsafe{ u.assume_init()}
+                    }).take(size).collect();
+                    (size,addr.as_socket().unwrap(),buf)
                 });
-                if recv_sender.send(result).await.is_err(){
+                if result.is_err() { continue; }
+                trace!("{:?}",result);
+                let sending_result = recv_sender.send(result).await;
+                trace!("data sent");
+                if sending_result.is_err() {
                     return;
                 }
+                trace!("received an icmp echo reply!");
             }
         });
 
         IcmpSocket {
             send_input_sender,
-            send_output_receiver:tokio::sync::Mutex::new(send_output_receiver),
-            recv_receiver: tokio::sync::Mutex::new(recv_receiver),
+            send_output_receiver,
+            recv_receiver,
         }
     }
-    pub(crate) async fn send_to(&self, buf: &[u8], addr: SocketAddr) -> io::Result<usize> {
-        self.send_input_sender.send((buf.iter().cloned().collect(),addr)).await.unwrap();
-        let mut guard = self.send_output_receiver.lock().await;
-        guard.recv().await.unwrap()
+    pub(crate) async fn send_to(&mut self, buf: &[u8], addr: SocketAddr) -> io::Result<usize> {
+        self.send_input_sender.send((buf.iter().cloned().collect(),addr)).await;
+        self.send_output_receiver.recv().await.unwrap()
     }
-    pub(crate) async fn recv_from(&self) -> io::Result<(usize, SocketAddr, Vec<u8>)> {
-        let mut guard = self.recv_receiver.lock().await;
-        guard.recv().await.unwrap()
+    pub(crate) async fn recv_from(&mut self) -> io::Result<(usize, SocketAddr, Vec<u8>)> {
+        trace!("recv_from, before guard");
+        // assert_eq!(self.debug_receiver.recv().await,Some(1));
+        trace!("recv_from, after guard");
+        let value = loop{
+            match self.recv_receiver.try_recv(){
+                Ok(value) => {
+                    break value;
+                }
+                Err(_) => {
+                    tokio::time::sleep(std::time::Duration::from_millis(1)).await;
+                }
+            }
+        };
+        trace!("value");
+        value
     }
 }
 
@@ -172,7 +204,7 @@ impl Pinger {
     }
 
     async fn run(&mut self, target: IpAddr, count: u32) {
-        let sock = IcmpSocket::new();
+        let mut sock = IcmpSocket::new();
 
         let dst_addr = SocketAddr::new(target, 0);
 

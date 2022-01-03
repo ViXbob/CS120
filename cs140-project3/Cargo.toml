@@ -15,6 +15,9 @@ env_logger = "0.9.0"
 socket2 = {version = "0.4.2", features = ["all"]}
 pnet = "0.28.0"
 bincode="2.0.0-alpha.1"
+once_cell = "1.8.0"
+smoltcp = "0.8.0"
+futures = "0.3.18"
 
 [[bin]]
 name = "sender"
@@ -47,3 +50,7 @@ path = "src/ping_reply.rs"
 [[bin]]
 name = "redirect_server"
 path = "src/redirect_server.rs"
+
+[[bin]]
+name = "tcp_client"
+path = "src/tcp_client.rs"

@@ -9,7 +9,7 @@ async fn main() {
     // let len = socket.send_to(b"hello world", "10.19.75.77:28888").await.unwrap();
     // println!("len:{}", len);
     // std::thread::park();
-    let socket = IcmpSocket::new();
+    let mut socket = IcmpSocket::new();
     let mut buf = [0u8; 1024];
     let result = socket.recv_from_addr(&mut buf).await;
     println!("{:?}", result);

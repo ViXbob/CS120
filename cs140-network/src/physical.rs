@@ -56,9 +56,9 @@ impl NetworkPackage for PhysicalPackage {}
 impl PhysicalLayer {
     pub fn new(padding_zero_byte_len: usize, max_package_byte_len: usize) -> Self {
         let input_buffer = Arc::new(DefaultBuffer::new());
-        let (input_device, input_descriptor) = InputDevice::new_with_specific_device(input_buffer.clone(), 0);
+        let (input_device, input_descriptor) = InputDevice::new_with_specific_device(input_buffer.clone(), 1);
         let output_buffer = Arc::new(DefaultBuffer::new());
-        let (output_device, output_descriptor) = OutputDevice::new_with_specific_device(output_buffer.clone(), 2);
+        let (output_device, output_descriptor) = OutputDevice::new_with_specific_device(output_buffer.clone(), 3);
         input_device.listen();
         output_device.play();
         PhysicalLayer {

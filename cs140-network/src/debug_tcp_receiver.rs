@@ -20,7 +20,7 @@ async fn main() {
     let layer = IPLayer::new(layer);
     let mut layer = TCPLayer::new(layer);
     let mut instant = None;
-    for _ in 0..31{
+    for _ in 0..2{
         let data:Option<Vec<u8>> = layer.receive().await;
         if instant.is_none(){
             instant = Some(std::time::Instant::now());
