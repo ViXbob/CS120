@@ -5,7 +5,7 @@ use tokio::{
     sync::mpsc::{channel},
 };
 use cs140_network::encoding::HandlePackage;
-use crate::rpc::{CS120RPC, Transport, CS120Socket, CS120ProtocolType, UdpPackage, IcmpPackage};
+use crate::rpc::{CS120RPC, Transport, CS120Socket, CS120ProtocolType, UdpPackage, IcmpPackage, TcpPackage};
 use cs140_network::ip::{IPLayer};
 use bincode::config::Configuration;
 use log::trace;
@@ -13,11 +13,13 @@ use pnet::packet::icmp::{
     IcmpPacket,
 };
 use crate::icmp::IcmpSocket;
+use crate::tcp::tcp::TCPSocket;
 
 pub async fn run_nat(mut layer: IPLayer, mut listen_socket: impl CS120Socket + std::marker::Send + 'static, protocol_type: CS120ProtocolType) {
     let (audio_to_socket_sender, mut audio_to_socket_receiver) = channel::<CS120RPC>(1024);
     let (socket_to_audio_sender, mut socket_to_audio_receiver) = channel::<CS120RPC>(1024);
     let mut icmp_socket = IcmpSocket::new();
+    let mut tcp_socket = TCPSocket::new();
     tokio::spawn(async move {
         loop {
             tokio::select! {
@@ -93,7 +95,10 @@ pub async fn run_nat(mut layer: IPLayer, mut listen_socket: impl CS120Socket + s
                                     }
                                 }
                                 CS120RPC::TcpPackage(package) => {
-
+                                    let _ = tcp_socket.send_to_addr(&package.data.as_slice()[20..], package.dst).await.unwrap();
+                                    trace!("send an tcp package!!!");
+                                    let tcp_package = pnet::packet::tcp::TcpPacket::new(&package.data.as_slice()[20..]);
+                                    trace!("tcp package contain {:?}", tcp_package);
                                 }
                             }
                         }
@@ -130,7 +135,10 @@ pub async fn run_nat(mut layer: IPLayer, mut listen_socket: impl CS120Socket + s
                                     socket_to_audio_sender.send(package).await;
                                 }
                                 CS120ProtocolType::Tcp => {
-
+                                    let dst = SocketAddr::from(SocketAddrV4::from_str("192.168.1.2:0").unwrap());
+                                    let data: Vec<u8> = buf.iter().take(len).map(|x| *x).collect();
+                                    let package = CS120RPC::TcpPackage(TcpPackage{src: address, dst, data });
+                                    socket_to_audio_sender.send(package).await;
                                 }
                             };
                         }

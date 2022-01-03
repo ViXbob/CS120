@@ -6,6 +6,7 @@ use cs140_util::icmp::IcmpSocket;
 use cs140_util::nat;
 use cs140_util::nat::run_nat;
 use cs140_util::rpc::{CS120ProtocolType, CS120Socket};
+use cs140_util::tcp::tcp::TCPSocket;
 
 #[tokio::main(flavor = "multi_thread", worker_threads = 64)]
 async fn main() {
@@ -17,11 +18,14 @@ async fn main() {
     // let socket = UdpSocket::bind("10.19.73.32:18888").await.unwrap();
     // run_nat(layer, socket, CS120ProtocolType::Udp).await;
     // let socket = IcmpSocket::new();
-    let socket = UdpSocket::bind("10.19.73.32:18888").await.unwrap();
-    run_nat(layer, socket, CS120ProtocolType::Icmp).await;
+    // let socket = UdpSocket::bind("10.19.73.32:18888").await.unwrap();
+    // run_nat(layer, socket, CS120ProtocolType::Icmp).await;
     // let socket = UdpSocket::bind("10.19.73.32:18888").await.unwrap();
     // run_nat(layer, socket, CS120ProtocolType::IcmpEchoRequest).await;
     // tokio::time::sleep(std::time::Duration::from_millis(100)).await;
     // println!("GGGG");
+
+    let socket = TCPSocket::new();
+    run_nat(layer, socket, CS120ProtocolType::Tcp).await;
     std::thread::park();
 }

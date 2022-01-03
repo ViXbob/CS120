@@ -7,6 +7,7 @@ use tokio::net::{TcpSocket, UdpSocket};
 use cs140_network::encoding::HandlePackage;
 use cs140_network::ip::{IPLayer, IPPackage};
 use crate::icmp::IcmpSocket;
+use crate::tcp::tcp::TCPSocket;
 use pnet::packet::icmp::IcmpType;
 use pnet::packet::tcp;
 use tokio::io;
@@ -112,6 +113,26 @@ impl CS120Socket for UdpSocket {
 
 #[async_trait]
 impl CS120Socket for IcmpSocket {
+    async fn send_to_addr(&mut self, buf: &[u8], addr: SocketAddr) -> std::io::Result<usize> {
+        self.send_to(buf, addr).await
+    }
+
+    async fn recv_from_addr(&mut self, buf: &mut [u8]) -> std::io::Result<(usize, SocketAddr)> {
+        let result = self.recv_from().await;
+        match result {
+            Ok((len, addr, buffer)) => {
+                buf[..len].copy_from_slice(buffer.as_slice());
+                Ok((len, addr))
+            }
+            Err(err) => {
+                Err(err)
+            }
+        }
+    }
+}
+
+#[async_trait]
+impl CS120Socket for TCPSocket {
     async fn send_to_addr(&mut self, buf: &[u8], addr: SocketAddr) -> std::io::Result<usize> {
         self.send_to(buf, addr).await
     }

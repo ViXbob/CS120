@@ -11,7 +11,7 @@ use crate::rpc::CS120RPC::TcpPackage;
 use crate::tcp::athernet_interface::AthernetInterface;
 
 pub struct TCPClient<'a> {
-    tcp_handle: SocketHandle,
+    pub tcp_handle: SocketHandle,
     pub iface: Interface<'a, FaultInjector<Tracer<PcapWriter<AthernetInterface, Box<dyn Write>>>>>,
 }
 
