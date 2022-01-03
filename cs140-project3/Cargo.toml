@@ -52,5 +52,9 @@ name = "redirect_server"
 path = "src/redirect_server.rs"
 
 [[bin]]
+name = "redirect_server_tcp"
+path = "src/redirect_server_tcp.rs"
+
+[[bin]]
 name = "tcp_client"
 path = "src/tcp_client.rs"

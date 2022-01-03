@@ -44,6 +44,7 @@ impl IcmpSocket {
                     None => {return}
                     Some(data) => {
                         trace!("raw socket is ready to send a icmp request!!!!");
+                        trace!("{:?}", data.0);
                         let addr: SockAddr = SockAddr::from(data.1);
                         let socket_for_send_to_cloned = socket_for_send_to.clone();
                         let result = tokio::task::spawn_blocking(move||{
