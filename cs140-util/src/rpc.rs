@@ -11,6 +11,7 @@ use crate::tcp::tcp::TCPSocket;
 use pnet::packet::icmp::IcmpType;
 use pnet::packet::tcp;
 use tokio::io;
+use cs140_network::tcp::TCPLayer;
 
 #[async_trait]
 pub trait Transport {
@@ -87,6 +88,28 @@ impl Transport for IPLayer {
 
     async fn recv_package(&self) -> Vec<u8> {
         self.receive().await.data
+    }
+
+    fn bincode_config(&self) -> Configuration {
+        Configuration::standard()
+    }
+}
+
+#[async_trait]
+impl Transport for TCPLayer {
+    type RPCTypeSet = CS120RPC;
+
+    async fn send_package(&self, data: Vec<u8>) {
+        println!("length: {}, data: {:?}", data.len(), data);
+        let package = pnet::packet::ipv4::Ipv4Packet::new(data.as_slice());
+        let tcp_package = pnet::packet::tcp::TcpPacket::new(&data.as_slice()[20..]);
+        println!("ip_package: {:?}", package);
+        println!("tcp_package: {:?}", tcp_package);
+        self.send_raw(data).await;
+    }
+
+    async fn recv_package(&self) -> Vec<u8> {
+        self.receive_raw().await.unwrap()
     }
 
     fn bincode_config(&self) -> Configuration {
