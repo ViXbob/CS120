@@ -68,7 +68,7 @@ async fn main() {
                         println!("send icmp_packet: {:?}", tcp_package);
                         dst_port = tcp_package.get_destination();
                     }
-                    println!("{:?}", unsafe{String::from_utf8_unchecked(data.clone())});
+                    // println!("{:?}", unsafe{String::from_utf8_unchecked(data.clone())});
                     tcp_socket.send_to_addr(&data.as_slice()[20..], SocketAddr::from(SocketAddrV4::new(dst, dst_port))).await;
                 }
             }
