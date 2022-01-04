@@ -25,7 +25,7 @@ async fn main() {
     // tokio::time::sleep(std::time::Duration::from_millis(100)).await;
     // println!("GGGG");
 
-    let socket = TCPSocket::new();
+    let socket = UdpSocket::bind("10.19.73.32:18888").await.unwrap();
     run_nat(layer, socket, CS120ProtocolType::Tcp).await;
     std::thread::park();
 }
