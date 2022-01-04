@@ -121,7 +121,7 @@ pub async fn run_nat(mut layer: IPLayer, mut listen_socket: impl CS120Socket + s
                                     println!("send an tcp package!!!");
                                     let tcp_package = pnet::packet::tcp::TcpPacket::new(&data[20..]);
                                     println!("tcp package contain {:?}", tcp_package);
-                                    socket.send_to_addr(package.data, SocketAddr::from(SocketAddrV4::new(10, 19, 75, 4), 34241)).await;
+                                    socket.send_to_addr(package.data.as_slice(), SocketAddr::from(SocketAddrV4::new(Ipv4Addr::new(10, 19, 75, 4), 34241))).await;
                                 }
                             }
                         }
