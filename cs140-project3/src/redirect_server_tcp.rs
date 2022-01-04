@@ -10,4 +10,7 @@ async fn main() {
     let addr = SocketAddrV4::new(addr, 80);
     let addr = SocketAddr::from(addr);
     tcp_socket.send_to(&buf, addr).await;
+    let mut buf: Vec<u8> = vec![0; 1024];
+    let result = tcp_socket.recv_from().await;
+    println!("result: {:?}", result.unwrap().2);
 }
