@@ -25,7 +25,7 @@ impl TCPClient<'_> {
         let tcp_tx_buffer = TcpSocketBuffer::new(vec![0; 128]);
         let tcp_socket = TcpSocket::new(tcp_rx_buffer, tcp_tx_buffer);
 
-        let ip_addrs = [IpCidr::new(IpAddress::v4(192, 168, 69, 2), 24)];
+        let ip_addrs = [IpCidr::new(IpAddress::v4(10, 19, 73, 32), 24)];
         let default_v4_gw = Ipv4Address::new(192, 168, 69, 100);
         let mut routes = Routes::new(BTreeMap::new());
         routes.add_default_ipv4_route(default_v4_gw).unwrap();
