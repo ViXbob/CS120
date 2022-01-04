@@ -4,6 +4,7 @@ use socket2::SockAddr;
 use tokio::net::UdpSocket;
 use cs140_util::tcp::tcp::TCPSocket;
 use cs140_util::rpc::{CS120RPC, TcpPackage};
+use cs140_util::rpc::CS120Socket;
 
 #[tokio::main]
 async fn main() {
@@ -52,6 +53,7 @@ async fn main() {
                     let mut data: Vec<_> = udp_buf.iter().take(len).map(|x| *x).collect();
                     let mut src;
                     let mut dst;
+                    let mut dst_port;
                     {
                         let mut ip_package = pnet::packet::ipv4::MutableIpv4Packet::new(&mut data).unwrap();
                         ip_package.set_source(Ipv4Addr::new(10, 19, 75, 4));
@@ -60,12 +62,14 @@ async fn main() {
                         dst = ip_package.get_destination();
                         println!("{:?}", ip_package);
                     }
-                    let mut data: Vec<u8> = data.iter_mut().map(|x| *x).collect();
-                    let mut tcp_package = pnet::packet::tcp::MutableTcpPacket::new(&mut data[20..]).unwrap();
-                    tcp_package.set_checksum(pnet::packet::tcp::ipv4_checksum(&tcp_package.to_immutable(), &src, &dst));
-                    println!("send icmp_packet: {:?}", package);
-                    println!("{:?}", unsafe{String::from_utf8_unchecked(package.data.clone())});
-                    tcp_socket.send_to_addr(package.data.as_slice()[20..], package.dst).await;
+                    {
+                        let mut tcp_package = pnet::packet::tcp::MutableTcpPacket::new(&mut data[20..]).unwrap();
+                        tcp_package.set_checksum(pnet::packet::tcp::ipv4_checksum(&tcp_package.to_immutable(), &src, &dst));
+                        println!("send icmp_packet: {:?}", tcp_package);
+                        dst_port = tcp_package.get_destination();
+                    }
+                    println!("{:?}", unsafe{String::from_utf8_unchecked(data.clone())});
+                    tcp_socket.send_to_addr(&data.as_slice()[20..], SocketAddr::from(SocketAddrV4::new(dst, dst_port))).await;
                 }
             }
         }
