@@ -1,4 +1,4 @@
-use std::net::{SocketAddr, SocketAddrV4};
+use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::str::FromStr;
 use tokio::{
     net::{UdpSocket},
@@ -14,6 +14,8 @@ use pnet::packet::icmp::{
 };
 use crate::icmp::IcmpSocket;
 use crate::tcp::tcp::TCPSocket;
+
+static TCPPORT: u16 = 33113;
 
 pub async fn run_nat(mut layer: IPLayer, mut listen_socket: impl CS120Socket + std::marker::Send + 'static, protocol_type: CS120ProtocolType) {
     let (audio_to_socket_sender, mut audio_to_socket_receiver) = channel::<CS120RPC>(1024);
@@ -95,10 +97,31 @@ pub async fn run_nat(mut layer: IPLayer, mut listen_socket: impl CS120Socket + s
                                     }
                                 }
                                 CS120RPC::TcpPackage(package) => {
-                                    let _ = tcp_socket.send_to_addr(&package.data.as_slice()[20..], package.dst).await.unwrap();
-                                    trace!("send an tcp package!!!");
-                                    let tcp_package = pnet::packet::tcp::TcpPacket::new(&package.data.as_slice()[20..]);
-                                    trace!("tcp package contain {:?}", tcp_package);
+                                    let mut data = package.data.clone();
+                                    // let mut src;
+                                    // let mut dst;
+                                    // {
+                                    //     let mut ip_package = pnet::packet::ipv4::MutableIpv4Packet::new(&mut data).unwrap();
+                                    //     // ip_package.set_source(Ipv4Addr::new(10, 19, 73, 32));
+                                    //     // ip_package.set_checksum(pnet::packet::ipv4::checksum(&ip_package.to_immutable()));
+                                    //     src = ip_package.get_source();
+                                    //     dst = ip_package.get_destination();
+                                    //     println!("{:?}", ip_package);
+                                    // }
+                                    // let mut data: Vec<u8> = data.iter_mut().map(|x| *x).collect();
+                                    // let mut tcp_package = pnet::packet::tcp::MutableTcpPacket::new(&mut data[20..]).unwrap();
+                                    // // tcp_package.set_source(TCPPORT);
+                                    // // tcp_package.set_checksum(pnet::packet::tcp::ipv4_checksum(&tcp_package.to_immutable(), &src, &dst));
+                                    // println!("{}, {}", tcp_package.get_checksum(), pnet::packet::tcp::ipv4_checksum(&tcp_package.to_immutable(), &src, &dst));
+                                    // println!("{:?}, {:?}", tcp_package, package.dst);
+                                    // // let DATA: Vec<u8> = vec![8, 90, 0, 80, 52, 68, 189, 120, 109, 10, 154, 155, 80, 16, 4, 3, 47, 94, 0, 0, 0];
+                                    // // b"08 5a 00 50 34 44 bd 78 6d 0a 9a 9b 50 10 04 03 2f 5e 00 00"
+                                    // let _ = tcp_socket.send_to_addr(&data[20..], package.dst).await.unwrap();
+                                    let mut socket = UdpSocket::bind("10.19.73.32:22791").await.unwrap();
+                                    println!("send an tcp package!!!");
+                                    let tcp_package = pnet::packet::tcp::TcpPacket::new(&data[20..]);
+                                    println!("tcp package contain {:?}", tcp_package);
+                                    socket.send_to_addr(package.data, SocketAddr::from(SocketAddrV4::new(10, 19, 75, 4), 34241)).await;
                                 }
                             }
                         }
@@ -135,7 +158,7 @@ pub async fn run_nat(mut layer: IPLayer, mut listen_socket: impl CS120Socket + s
                                     socket_to_audio_sender.send(package).await;
                                 }
                                 CS120ProtocolType::Tcp => {
-                                    let dst = SocketAddr::from(SocketAddrV4::from_str("192.168.1.2:0").unwrap());
+                                    let dst = SocketAddr::from(SocketAddrV4::from_str("10.19.75.17:11113").unwrap());
                                     let data: Vec<u8> = buf.iter().take(len).map(|x| *x).collect();
                                     let package = CS120RPC::TcpPackage(TcpPackage{src: address, dst, data });
                                     socket_to_audio_sender.send(package).await;

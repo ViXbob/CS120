@@ -19,7 +19,7 @@ use cs140_network::encoding::HandlePackage;
 use cs140_network::ip::{IPLayer, IPPackage};
 use crate::rpc::{CS120RPC, CS120Socket, IcmpPackage, Transport};
 
-static TCPPORT: u16 = 33113;
+static TCPPORT: u16 = 11113;
 static LOCALIPV4: Ipv4Addr = Ipv4Addr::new(10, 19, 75, 17);
 static LOCALPORT: u16 = 11112;
 
@@ -50,9 +50,13 @@ impl TCPSocket {
                         trace!("raw socket is ready to send a tcp request!!!!");
                         let addr: SockAddr = SockAddr::from(data.1);
                         let socket_for_send_to_cloned = socket_for_send_to.clone();
+                        println!("{:?}, {:?}", data.0, data.1);
                         let result = tokio::task::spawn_blocking(move||{
                             socket_for_send_to_cloned.send_to(&data.0, &addr)
+                            // socket_for_send_to_cloned.send(&data.0)
                         }).await.unwrap();
+                        println!("raw socket had sent a tcp request!!!!");
+                        println!("len: {:?}", result);
                         trace!("raw socket had sent a tcp request!!!!");
                         // send_notification_sender.send(true).await;
                         if send_output_sender.send(result).await.is_err(){
