@@ -20,7 +20,7 @@ async fn main() {
     let mut pinger = AudioPinger::new(layer, 0x0002);
 
     for _ in 0..PING_COUNT {
-        pinger.ping_once(IpAddr::from_str("220.181.38.148").unwrap()).await;
+        pinger.ping_once(IpAddr::from_str("101.32.194.18").unwrap()).await;
     }
 
     std::thread::park();

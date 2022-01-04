@@ -9,8 +9,9 @@ async fn main() {
     builder.format_timestamp_millis().init();
     let mtu: usize = 64;
     let addr = std::net::Ipv4Addr::new(101, 32, 194, 18);
+    // let addr = std::new::Ipv4Addr::new(10, 19, 75, 17);
     let mut tcp_client = TCPClient::new(mtu);
-    tcp_client.connect(addr, 80, 11112);
+    tcp_client.connect(addr, 80, 11113);
     tcp_client.send(b"GET / HTTP/1.1\n\n\n\n\n");
     let mut tcp_active = false;
     loop {
@@ -67,7 +68,7 @@ mod tests{
     use super::*;
     #[tokio::test]
     async fn tcp_test() {
-        let mut stream = TcpStream::connect("101.32.194.18:80").await.unwrap();
+        let mut stream = TcpStream::connect("10.19.75.4:11113").await.unwrap();
         stream.try_write(b"GET / HTTP/1.1\n\n\n\n\n").unwrap();
         let mut buf = Vec::with_capacity(4096);
         loop {
