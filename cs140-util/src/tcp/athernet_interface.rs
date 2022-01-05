@@ -3,15 +3,17 @@ use smoltcp::phy::{self, Device, DeviceCapabilities, Medium};
 use smoltcp::time::Instant;
 use std::sync::Arc;
 use std::task::Poll;
+use log::trace;
 use tokio::runtime::Handle;
 use tokio::time::error::Elapsed;
-use cs140_network::ip::{IPLayer, IPPackage};
+use cs140_network::ip::{IPLayer};
 use cs140_network::physical::PhysicalLayer;
 use cs140_network::redundancy::RedundancyLayer;
+use cs140_network::tcp::TCPLayer;
 use crate::rpc::{CS120RPC, TcpPackage, Transport};
 
 pub struct AthernetInterface {
-    layer: Arc<IPLayer>,
+    layer: Arc<TCPLayer>,
     mtu: usize,
     medium: Medium,
 }
@@ -21,6 +23,7 @@ impl AthernetInterface {
         let layer = PhysicalLayer::new(16, mtu);
         let layer = RedundancyLayer::new(layer);
         let layer = IPLayer::new(layer);
+        let layer = TCPLayer::new(layer);
         let layer = Arc::new(layer);
         AthernetInterface {
             layer,
@@ -39,7 +42,7 @@ impl<'a> Device<'a> for AthernetInterface {
         let handle = tokio::runtime::Handle::current();
         handle.enter();
         let result = futures::executor::block_on(async move{
-            tokio::time::timeout(std::time::Duration::from_micros(100),layer.recv()).await
+            tokio::time::timeout(std::time::Duration::from_micros(1000),layer.recv()).await
         });
         match result {
             Ok(buffer) => {
@@ -51,6 +54,7 @@ impl<'a> Device<'a> for AthernetInterface {
                         Vec::new()
                     }
                 };
+                trace!("new tcp package: {:?}", buffer);
                 Some((RxToken {buffer}, TxToken {layer: self.layer.clone()}))
             }
             Err(_) => {
@@ -85,7 +89,7 @@ impl phy::RxToken for RxToken {
 }
 
 pub struct TxToken {
-    layer: Arc<IPLayer>,
+    layer: Arc<TCPLayer>,
 }
 
 impl phy::TxToken for TxToken {

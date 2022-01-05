@@ -1,8 +1,4 @@
-use std::sync::Arc;
-
 use hound::WavWriter;
-
-use crate::buffer::Buffer;
 
 pub struct Recorder<Writer>
     where

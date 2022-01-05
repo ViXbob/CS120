@@ -59,7 +59,7 @@ pub struct RTTPackage {
 
 pub struct TCPLayer {
     send_package_sender: Sender<BinaryData>,
-    recv_package_receiver: Receiver<BinaryData>,
+    recv_package_receiver: tokio::sync::Mutex<Receiver<BinaryData>>,
 }
 
 #[derive(Debug)]
@@ -438,24 +438,31 @@ impl TCPLayer {
         tokio::spawn(future);
         Self {
             send_package_sender,
-            recv_package_receiver,
+            recv_package_receiver:tokio::sync::Mutex::new(recv_package_receiver),
         }
     }
 }
 
 impl TCPLayer {
-    pub async fn send<T>(&mut self, package: &T) where T: Decode + Encode {
+    pub async fn send<T>(&self, package: &T) where T: Decode + Encode {
         let encoded_package = bincode::encode_to_vec(&package, Configuration::standard()).unwrap();
-        self.send_package_sender.send(encoded_package).await.unwrap();
+        self.send_raw(encoded_package).await;
     }
 
-    pub async fn receive<T>(&mut self) -> Option<T> where T: Decode + Encode {
-        let data = self.recv_package_receiver.recv().await;
-        if let Some(data) = data {
+    pub async fn send_raw(&self, encoded: Vec<u8>){
+        self.send_package_sender.send(encoded).await.unwrap();
+    }
+
+    pub async fn receive<T>(&self) -> Option<T> where T: Decode + Encode {
+        if let Some(data) = self.receive_raw().await {
             Some(bincode::decode_from_slice(&data, Configuration::standard()).unwrap())
         } else {
             None
         }
+    }
+
+    pub async fn receive_raw(&self) -> Option<Vec<u8>>{
+        self.recv_package_receiver.lock().await.recv().await
     }
 }
 
