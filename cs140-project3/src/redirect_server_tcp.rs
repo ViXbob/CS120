@@ -24,8 +24,8 @@ async fn main() {
     let dst_addr = SocketAddr::from(SocketAddrV4::from_str("10.19.73.32:18888").unwrap());
     let mut tcp_socket = TCPSocket::new();
     let mut udp_socket = UdpSocket::bind("10.19.75.4:34241").await.unwrap();
-    let mut buf = [0u8; 256];
-    let mut udp_buf = [0u8; 1024];
+    let mut buf = vec![0u8; 1024000];
+    let mut udp_buf = vec![0u8; 1024000];
     loop {
         tokio::select! {
             result = tcp_socket.recv_from_addr(&mut buf) => {
