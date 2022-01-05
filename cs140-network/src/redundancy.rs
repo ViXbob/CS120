@@ -72,6 +72,7 @@ impl RedundancyPackage {
         RECEIVED_PACKAGE_COUNT.fetch_add(1, Relaxed);
         debug!("total reaceived packages: {}", RECEIVED_PACKAGE_COUNT.load(Relaxed));
         if package.validate_checksum() {
+            debug!("{:?}",package.data);
             Some(package)
         } else {
             let count = LOSS_PACKAGE_COUNT.fetch_add(1, Relaxed) + 1;

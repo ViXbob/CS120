@@ -19,10 +19,10 @@ impl TCPClient<'_> {
     pub fn new(mtu: usize) -> Self {
         let device = AthernetInterface::new(mtu, Medium::Ip);
 
-        let device = middleware(device, /*loopback=*/ false);
+        let device = middleware(device, /*loopback=*/ true);
 
-        let tcp_rx_buffer = TcpSocketBuffer::new(vec![0; 64]);
-        let tcp_tx_buffer = TcpSocketBuffer::new(vec![0; 128]);
+        let tcp_rx_buffer = TcpSocketBuffer::new(vec![0; 1638400]);
+        let tcp_tx_buffer = TcpSocketBuffer::new(vec![0; 1638400]);
         let tcp_socket = TcpSocket::new(tcp_rx_buffer, tcp_tx_buffer);
 
         let ip_addrs = [IpCidr::new(IpAddress::v4(10, 19, 75, 17), 24)];
@@ -66,7 +66,7 @@ impl TCPServer {
     pub fn new(mtu: usize) -> Self {
         let device = AthernetInterface::new(mtu, Medium::Ip);
 
-        let device = middleware(device, /*loopback=*/ false);
+        let device = middleware(device, /*loopback=*/ true);
 
         let tcp_rx_buffer = TcpSocketBuffer::new(vec![0; 64]);
         let tcp_tx_buffer = TcpSocketBuffer::new(vec![0; 128]);

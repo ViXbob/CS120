@@ -18,7 +18,7 @@ pub struct AthernetInterface {
 
 impl AthernetInterface {
     pub fn new(mtu: usize, medium: Medium) -> Self {
-        let layer = PhysicalLayer::new(16, mtu);
+        let layer = PhysicalLayer::new(1, mtu);
         let layer = RedundancyLayer::new(layer);
         let layer = IPLayer::new(layer);
         let layer = Arc::new(layer);
@@ -39,7 +39,7 @@ impl<'a> Device<'a> for AthernetInterface {
         let handle = tokio::runtime::Handle::current();
         handle.enter();
         let result = futures::executor::block_on(async move{
-            tokio::time::timeout(std::time::Duration::from_micros(100),layer.recv()).await
+            tokio::time::timeout(std::time::Duration::from_micros(100000),layer.recv()).await
         });
         match result {
             Ok(buffer) => {
@@ -90,7 +90,7 @@ pub struct TxToken {
 
 impl phy::TxToken for TxToken {
     fn consume<R, F>(self, timestamp: smoltcp::time::Instant, len: usize, f: F) -> smoltcp::Result<R> where F: FnOnce(&mut [u8]) -> smoltcp::Result<R> {
-        let mut layer = self.layer.clone();
+        let mut layer = self.layer;
         let mut buffer = vec![0; len];
         let result = f(&mut buffer);
         // layer.send_package(buffer).await;

@@ -19,7 +19,7 @@ async fn main() {
     builder.format_timestamp_millis().init();
     let data = file_io::read_bytes_from_file(PATH);
     trace!("{:?}", data);
-    let layer = PhysicalLayer::new(16, 64);
+    let layer = PhysicalLayer::new(1, 64);
     let layer = RedundancyLayer::new(layer);
     let mut layer = IPLayer::new(layer);
     let src = SocketAddr::from(SocketAddrV4::from_str("192.168.1.2:1234").unwrap());
