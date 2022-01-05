@@ -71,8 +71,8 @@ impl TCPServer {
         let tcp_rx_buffer = TcpSocketBuffer::new(vec![0; 64]);
         let tcp_tx_buffer = TcpSocketBuffer::new(vec![0; 128]);
         let tcp_socket = TcpSocket::new(tcp_rx_buffer, tcp_tx_buffer);
-
-        let ip_addrs = [IpCidr::new(IpAddress::v4(192, 168, 69, 2), 24)];
+        // 10.19.75.17
+        let ip_addrs = [IpCidr::new(IpAddress::v4(10, 19, 75, 17), 24)];
 
         let medium = device.capabilities().medium;
         let mut builder = InterfaceBuilder::new(device, vec![]).ip_addrs(ip_addrs);
