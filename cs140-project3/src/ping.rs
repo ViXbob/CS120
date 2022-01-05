@@ -6,7 +6,7 @@ use cs140_network::physical::PhysicalLayer;
 use cs140_network::redundancy::RedundancyLayer;
 use cs140_util::icmp::AudioPinger;
 
-const PING_COUNT: usize = 20;
+const PING_COUNT: usize = 5;
 
 
 #[tokio::main]
@@ -20,7 +20,11 @@ async fn main() {
     let mut pinger = AudioPinger::new(layer, 0x0002);
 
     for _ in 0..PING_COUNT {
-        pinger.ping_once(IpAddr::from_str("101.32.194.18").unwrap()).await;
+        // let addr = std::net::Ipv4Addr::new(10, 11, 128, 69);
+        // 220.181.38.148
+        pinger.ping_once(IpAddr::from_str("10.20.210.29").unwrap()).await;
+        // pinger.ping_once(IpAddr::from_str("64.99.80.121").unwrap()).await;
+        // pinger.ping_once(IpAddr::from_str("10.11.128.69").unwrap()).await;
     }
 
     std::thread::park();

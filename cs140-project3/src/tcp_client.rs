@@ -58,7 +58,7 @@ async fn main() {
 
             if socket.can_send() && TIME.elapsed().as_millis() > 5000 {
                 debug!("good, send request!");
-                let result = socket.send_slice(b"GET / HTTP/1.1\n\n\n\n\n");
+                let result = socket.send_slice(b"GET /cs140/INPUT.txt HTTP/1.1\n\n\n\n\n");
                 TIME = tokio::time::Instant::now();
                 match result {
                     Ok(n) => {

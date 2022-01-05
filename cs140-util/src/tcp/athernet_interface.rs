@@ -39,7 +39,7 @@ impl<'a> Device<'a> for AthernetInterface {
         let handle = tokio::runtime::Handle::current();
         handle.enter();
         let result = futures::executor::block_on(async move{
-            tokio::time::timeout(std::time::Duration::from_micros(100000),layer.recv()).await
+            tokio::time::timeout(std::time::Duration::from_micros(300000),layer.recv()).await
         });
         match result {
             Ok(buffer) => {
