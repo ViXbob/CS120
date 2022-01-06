@@ -200,8 +200,8 @@ impl AudioPinger {
             let mut package = Ipv4Packet::new_unchecked(data);
             let dst = package.src_addr();
             let src = package.dst_addr();
-            package.set_dst_addr(src);
-            package.set_src_addr(dst);
+            package.set_dst_addr(dst);
+            package.set_src_addr(src);
             let mut icmp_package = Icmpv4Packet::new_unchecked(package.payload_mut());
             icmp_package.set_msg_type(Icmpv4Message::EchoReply);
             icmp_package.set_msg_code(0);
