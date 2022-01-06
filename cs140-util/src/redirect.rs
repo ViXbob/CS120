@@ -45,6 +45,7 @@ pub async fn run_unix_redirect_server(local_addr: Ipv4Addr, nat_server_addr: Ipv
                     let mut data:Vec<u8> = icmp_buf.iter().take(len).map(|x| *x).collect();
                     let mut package = Ipv4Packet::new_unchecked(data);
                     package.set_dst_addr(Ipv4Address::from(ADDR));
+                    trace!("receive a icmp package: {:?}", package);
                     udp_socket.send_to(package.into_inner().as_slice(), nat_server_addr);
                 }
             }
@@ -58,6 +59,7 @@ pub async fn run_unix_redirect_server(local_addr: Ipv4Addr, nat_server_addr: Ipv
                     let mut tcp_package = TcpPacket::new_unchecked(package.payload_mut());
                     tcp_package.fill_checksum(&IpAddress::from(src), &IpAddress::from(dst));
                     package.fill_checksum();
+                    trace!("receive a tcp package: {:?}", package);
                     udp_socket.send_to(package.into_inner().as_slice(), nat_server_addr);
                 }
             }
@@ -69,9 +71,11 @@ pub async fn run_unix_redirect_server(local_addr: Ipv4Addr, nat_server_addr: Ipv
                     let dst = package.dst_addr();
                     match package.protocol() {
                         IpProtocol::Icmp => {
+                            trace!("send a icmp package: {:?}", package);
                             icmp_socket.send_to_addr(package.payload_mut(), SocketAddr::new(IpAddr::from(Ipv4Addr::from(dst)), 0));
                         }
                         IpProtocol::Tcp => {
+                            trace!("send a tcp package: {:?}", package);
                             let mut tcp_package = TcpPacket::new_unchecked(package.payload_mut());
                             let dst_port = tcp_package.dst_port();
                             tcp_package.fill_checksum(&IpAddress::from(src), &IpAddress::from(dst));
