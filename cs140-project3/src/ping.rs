@@ -24,6 +24,7 @@ async fn main() {
         // 220.181.38.148
         // pinger.ping_once(Ipv4Addr::from_str("10.20.210.29").unwrap()).await;
         pinger.ping_once(Ipv4Addr::from_str("64.99.80.121").unwrap()).await;
+        // pinger.ping_once(Ipv4Addr::from_str("101.32.194.18").unwrap()).await;
         // pinger.ping_once(IpAddr::from_str("10.11.128.69").unwrap()).await;
     }
 

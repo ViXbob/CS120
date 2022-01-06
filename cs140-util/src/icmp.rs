@@ -154,18 +154,23 @@ impl AudioPinger {
         icmp_package.fill_checksum();
         package.fill_checksum();
 
+        println!("{:?}", package.payload_mut());
+
         let start_time = Instant::now();
 
-        self.layer.send_package(package.into_inner());
+        self.layer.send_package(package.into_inner()).await;
 
         self.sequence_number += 1;
 
         let mut data = self.layer.recv_package().await;
         let mut package = Ipv4Packet::new_unchecked(data);
+        println!("receive a icmp package {:?}", package);
         let addr = package.src_addr();
         let protocol = package.protocol();
         let mut icmp_package = Icmpv4Packet::new_unchecked(package.payload_mut());
         let msg_type = icmp_package.msg_type();
+        println!("receive a icmp package {:?}", icmp_package);
+
 
         match protocol {
             IpProtocol::Icmp => {
