@@ -52,7 +52,7 @@ pub async fn run_nat_server(local_addr: Ipv4Addr, unix_server_addr: Ipv4Addr) {
                             }
                             Some(package) => {
                                 trace!("a package is about ot send to audio server: {:?}", package);
-                                layer.send_package(package.into_inner());
+                                layer.send_package(package.into_inner()).await;
                             }
                         }
                     }

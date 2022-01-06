@@ -82,7 +82,7 @@ pub async fn run_unix_redirect_server(local_addr: Ipv4Addr, nat_server_addr: Ipv
                             tcp_socket.send_to_addr(tcp_package.into_inner(), SocketAddr::new(IpAddr::from(Ipv4Addr::from(dst)), dst_port)).await;
                         }
                         _ => {
-                            unreachable!()
+
                         }
                     }
                 }
