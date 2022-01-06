@@ -46,7 +46,7 @@ pub async fn run_unix_redirect_server(local_addr: Ipv4Addr, nat_server_addr: Ipv
                     let mut package = Ipv4Packet::new_unchecked(data);
                     package.set_dst_addr(Ipv4Address::from(ADDR));
                     trace!("receive a icmp package: {:?}", package);
-                    udp_socket.send_to(package.into_inner().as_slice(), nat_server_addr);
+                    udp_socket.send_to(package.into_inner().as_slice(), nat_server_addr).await;
                 }
             }
             result = tcp_socket.recv_from_addr(&mut tcp_buf) => {
