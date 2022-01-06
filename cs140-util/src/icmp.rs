@@ -193,8 +193,10 @@ impl AudioPinger {
         loop {
             let mut data = self.layer.recv_package().await;
             let mut package = Ipv4Packet::new_unchecked(data);
-            // let dst = SocketAddr::new(IpAddr::from(Ipv4Addr::from(package.src_addr())), 0);
-            // let src = SocketAddr::new(IpAddr::from(Ipv4Addr::from(package.dst_addr())), 0);
+            let dst = package.src_addr();
+            let src = package.dst_addr();
+            package.set_dst_addr(src);
+            package.set_src_addr(dst);
             let mut icmp_package = Icmpv4Packet::new_unchecked(package.payload_mut());
             icmp_package.set_msg_type(Icmpv4Message::EchoReply);
             icmp_package.set_msg_code(0);
