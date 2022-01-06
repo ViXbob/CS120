@@ -39,18 +39,10 @@ impl<'a> Device<'a> for AthernetInterface {
         let handle = tokio::runtime::Handle::current();
         handle.enter();
         let result = futures::executor::block_on(async move{
-            tokio::time::timeout(std::time::Duration::from_micros(300000),layer.recv()).await
+            tokio::time::timeout(std::time::Duration::from_micros(300000),layer.recv_package()).await
         });
         match result {
             Ok(buffer) => {
-                let buffer= match buffer {
-                    CS120RPC::TcpPackage(package) => {
-                        package.data
-                    }
-                    _ => {
-                        Vec::new()
-                    }
-                };
                 Some((RxToken {buffer}, TxToken {layer: self.layer.clone()}))
             }
             Err(_) => {
@@ -97,12 +89,12 @@ impl phy::TxToken for TxToken {
         let handle = Handle::current();
         handle.enter();
         futures::executor::block_on(async move{
-            let ip_package = pnet::packet::ipv4::Ipv4Packet::new(buffer.as_slice()).unwrap();
-            let tcp_package = pnet::packet::tcp::TcpPacket::new(&buffer.as_slice()[20..]).unwrap();
-            let src = SocketAddr::from(SocketAddrV4::new(ip_package.get_source(), tcp_package.get_source()));
-            let dst = SocketAddr::from(SocketAddrV4::new(ip_package.get_destination(), tcp_package.get_destination()));
-            // layer.send_package(buffer).await
-            layer.trans(CS120RPC::TcpPackage(TcpPackage{src, dst, data: buffer})).await;
+            // let ip_package = pnet::packet::ipv4::Ipv4Packet::new(buffer.as_slice()).unwrap();
+            // let tcp_package = pnet::packet::tcp::TcpPacket::new(&buffer.as_slice()[20..]).unwrap();
+            // let src = SocketAddr::from(SocketAddrV4::new(ip_package.get_source(), tcp_package.get_source()));
+            // let dst = SocketAddr::from(SocketAddrV4::new(ip_package.get_destination(), tcp_package.get_destination()));
+            layer.send_package(buffer).await
+            // layer.trans(CS120RPC::TcpPackage(TcpPackage{src, dst, data: buffer})).await;
         });
         result
     }
