@@ -144,6 +144,8 @@ impl AudioPinger {
         let mut package = Ipv4Packet::new_unchecked(buf);
         package.set_dst_addr(Ipv4Address::from(target));
         package.set_protocol(IpProtocol::Icmp);
+        package.set_header_len(20);
+        package.set_total_len(20 + packet_size);
         let mut icmp_package = Icmpv4Packet::new_unchecked(package.payload_mut());
         icmp_package.set_echo_seq_no(self.sequence_number);
         icmp_package.set_echo_ident(self.identifier);

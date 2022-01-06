@@ -85,10 +85,10 @@ impl TCPSocket {
                     (size,addr.as_socket().unwrap(),buf)
                 });
                 if result.is_err() { continue; }
-                trace!("{:?}",result);
                 let buf = result.as_ref().unwrap().2.clone();
                 let tcp_packet = pnet::packet::tcp::TcpPacket::new(&buf.as_slice()[20..]).unwrap();
                 if tcp_packet.get_destination() != TCPPORT { continue; }
+                trace!("{:?}",result);
                 let sending_result = recv_sender.send(result).await;
                 trace!("data sent");
                 if sending_result.is_err() {
