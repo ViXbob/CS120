@@ -6,3 +6,5 @@ pub mod icmp;
 pub mod rpc;
 pub mod nat;
 pub mod tcp;
+pub mod new_nat;
+pub mod redirect;

@@ -1,7 +1,7 @@
 use std::mem::MaybeUninit;
 use socket2::{Domain, Protocol, SockAddr, Socket, Type};
 use std::time::Instant;
-use std::net::{AddrParseError, IpAddr, SocketAddrV4};
+use std::net::{AddrParseError, IpAddr, Ipv4Addr, SocketAddrV4};
 use std::net::SocketAddr;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -14,6 +14,8 @@ use pnet::packet::Packet;
 
 use async_trait::async_trait;
 use log::trace;
+use pnet::packet;
+use smoltcp::wire::{Ipv4Packet, Icmpv4Packet, Icmpv4Message, Ipv4Address, IpProtocol};
 use tokio::io;
 use cs140_network::encoding::HandlePackage;
 use cs140_network::ip::{IPLayer, IPPackage};
@@ -132,30 +134,54 @@ impl AudioPinger {
         }
     }
 
-    pub async fn ping_once(&mut self, target: IpAddr) {
+    pub async fn ping_once(&mut self, target: Ipv4Addr) {
         let src = SocketAddr::from(SocketAddrV4::from_str("192.168.1.2:0").unwrap());
-        let dst = SocketAddr::new(target, 0);
+        let dst = SocketAddr::new(IpAddr::from(target), 0);
         let packet_size = EchoRequestPacket::minimum_packet_size();
 
-        let mut buf: Vec<u8> = vec![0; packet_size];
-        self.make_packet(&mut buf[..]);
+        let mut buf: Vec<u8> = vec![0; 20 + packet_size];
+
+        let mut package = Ipv4Packet::new_unchecked(buf);
+        package.set_dst_addr(Ipv4Address::from(target));
+        package.set_protocol(IpProtocol::Icmp);
+        let mut icmp_package = Icmpv4Packet::new_unchecked(package.payload_mut());
+        icmp_package.set_echo_seq_no(self.sequence_number);
+        icmp_package.set_echo_ident(self.identifier);
+        icmp_package.set_msg_type(Icmpv4Message::EchoRequest);
+        icmp_package.set_msg_code(0);
+        icmp_package.fill_checksum();
+        package.fill_checksum();
+
         let start_time = Instant::now();
 
-        self.layer.trans(CS120RPC::IcmpPackage(IcmpPackage{src, dst, types: IcmpTypes::EchoRequest.0, data: buf})).await;
+        self.layer.send_package(package.into_inner());
 
         self.sequence_number += 1;
 
-        if let CS120RPC::IcmpPackage(package) = self.layer.recv().await {
-            let buf = package.data.as_slice();
-            let addr = package.src;
-            if let Some(icmp_packet) = EchoReplyPacket::new(&buf[..]) {
-                println!("{:?}", icmp_packet);
-                println!("addr: {:?}", addr);
-                let duration = start_time.elapsed();
-                println!("time={}ms", duration.as_millis());
+        let mut data = self.layer.recv_package().await;
+        let mut package = Ipv4Packet::new_unchecked(data);
+        let addr = package.src_addr();
+        let protocol = package.protocol();
+        let mut icmp_package = Icmpv4Packet::new_unchecked(package.payload_mut());
+        let msg_type = icmp_package.msg_type();
+
+        match protocol {
+            IpProtocol::Icmp => {
+                match msg_type {
+                    Icmpv4Message::EchoReply => {
+                        println!("{:?}", icmp_package);
+                        println!("addr: {:?}", addr);
+                        let duration = start_time.elapsed();
+                        println!("time={}ms", duration.as_millis());
+                    }
+                    _ => {
+
+                    }
+                }
             }
-        } else {
-            unreachable!()
+            _ => {
+
+            }
         }
     }
 
@@ -163,12 +189,16 @@ impl AudioPinger {
         let packet_size = EchoReplyPacket::minimum_packet_size();
         let mut buf: Vec<u8> = vec![0; packet_size + 32];
         loop {
-            if let CS120RPC::IcmpPackage(mut package) = self.layer.recv().await {
-                let dst = package.src;
-                let src = package.dst;
-                self.make_reply_packet(package.data.as_mut_slice());
-                self.layer.trans(CS120RPC::IcmpPackage(IcmpPackage{src, dst, types: IcmpTypes::EchoReply.0, data: package.data.clone()})).await;
-            }
+            let mut data = self.layer.recv_package().await;
+            let mut package = Ipv4Packet::new_unchecked(data);
+            // let dst = SocketAddr::new(IpAddr::from(Ipv4Addr::from(package.src_addr())), 0);
+            // let src = SocketAddr::new(IpAddr::from(Ipv4Addr::from(package.dst_addr())), 0);
+            let mut icmp_package = Icmpv4Packet::new_unchecked(package.payload_mut());
+            icmp_package.set_msg_type(Icmpv4Message::EchoReply);
+            icmp_package.set_msg_code(0);
+            icmp_package.fill_checksum();
+            package.fill_checksum();
+            self.layer.send_package(package.into_inner());
         }
     }
 

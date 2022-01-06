@@ -1,4 +1,4 @@
-use std::net::{IpAddr, SocketAddr, SocketAddrV4};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::str::FromStr;
 use log::trace;
 use cs140_network::ip::{IPLayer, IPPackage};
@@ -22,8 +22,8 @@ async fn main() {
     for _ in 0..PING_COUNT {
         // let addr = std::net::Ipv4Addr::new(10, 11, 128, 69);
         // 220.181.38.148
-        pinger.ping_once(IpAddr::from_str("10.20.210.29").unwrap()).await;
-        // pinger.ping_once(IpAddr::from_str("64.99.80.121").unwrap()).await;
+        // pinger.ping_once(Ipv4Addr::from_str("10.20.210.29").unwrap()).await;
+        pinger.ping_once(Ipv4Addr::from_str("64.99.80.121").unwrap()).await;
         // pinger.ping_once(IpAddr::from_str("10.11.128.69").unwrap()).await;
     }
 
