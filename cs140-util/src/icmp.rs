@@ -205,7 +205,7 @@ impl AudioPinger {
             icmp_package.set_msg_code(0);
             icmp_package.fill_checksum();
             package.fill_checksum();
-            self.layer.send_package(package.into_inner());
+            self.layer.send_package(package.into_inner()).await;
         }
     }
 
