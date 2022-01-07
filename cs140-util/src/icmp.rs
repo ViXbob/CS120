@@ -156,7 +156,7 @@ impl AudioPinger {
 
         let start_time = Instant::now();
 
-        self.layer.send_package(package.into_inner());
+        self.layer.send_package(package.into_inner()).await;
 
         self.sequence_number += 1;
 
