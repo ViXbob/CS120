@@ -51,12 +51,14 @@ pub async fn run_unix_redirect_server(local_addr: Ipv4Addr, nat_server_addr: Ipv
             }
             result = tcp_socket.recv_from_addr(&mut tcp_buf) => {
                 if let Ok((len, addr)) = result {
-                    let mut data:Vec<u8> = icmp_buf.iter().take(len).map(|x| *x).collect();
+                    let mut data:Vec<u8> = tcp_buf.iter().take(len).map(|x| *x).collect();
                     let mut package = Ipv4Packet::new_unchecked(data);
                     package.set_dst_addr(Ipv4Address::from(ADDR));
                     let src = package.src_addr();
                     let dst = package.dst_addr();
+                    trace!("ip header length: {}, ip packet length: {}", package.header_len(), package.total_len());
                     let mut tcp_package = TcpPacket::new_unchecked(package.payload_mut());
+                    trace!("tcp packet: {:?}", tcp_package);
                     tcp_package.fill_checksum(&IpAddress::from(src), &IpAddress::from(dst));
                     package.fill_checksum();
                     trace!("receive a tcp package: {:?}", package);
