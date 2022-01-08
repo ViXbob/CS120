@@ -8,21 +8,21 @@ use cs140_util::tcp::tcp_stack::TCPClient;
 async fn main() {
     let mut builder = env_logger::Builder::from_default_env();
     builder.format_timestamp_millis().init();
-    let mtu: usize =  256;
     let addr = std::net::Ipv4Addr::new(10, 19, 75, 4);
-    // let addr = std::net::Ipv4Addr::new(101, 32, 194, 18);
-    // let addr = std::new::Ipv4Addr::new(10, 19, 75, 17);
-    let mut tcp_client = TCPClient::new(mtu);
-    tcp_client.connect(addr, 8000, 11113);
-    let mut tcp_socket = AthernetTcpSocket::new(addr, 8000, 11113);
-    tcp_socket.send(Vec::from("GET /cs140/INPUT.txt HTTP/1.1\n\n\n\n\n"));
+    let mut tcp_socket = AthernetTcpSocket::new(addr, 8010, 11113);
+    tcp_socket.send(Vec::from("GET /cs140/INPUT.txt HTTP/1.1\n\n\n\n\n")).await;
     let data = tcp_socket.recv().await;
     println!(
         "recv data: {:?}",
         std::str::from_utf8(data.as_ref()).unwrap_or("(invalid utf8)")
     );
-    tcp_socket.close();
-    // tcp_client.send(b"GET / HTTP/1.1\n\n\n\n\n");
+    tcp_socket.close().await;
+    // let addr = std::net::Ipv4Addr::new(101, 32, 194, 18);
+    // let addr = std::new::Ipv4Addr::new(10, 19, 75, 17);
+    // let mtu: usize =  256;
+    // let mut tcp_client = TCPClient::new(mtu);
+    // tcp_client.connect(addr, 8000, 11113);
+    //
     // let mut tcp_active = false;
     // let mut receive_page = false;
     // let mut TIME = tokio::time::Instant::now();

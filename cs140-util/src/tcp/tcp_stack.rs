@@ -56,6 +56,11 @@ impl TCPClient<'_> {
         let socket = self.iface.get_socket::<TcpSocket>(self.tcp_handle);
         socket.recv_slice(buf)
     }
+
+    pub fn use_socket<T>(&mut self, mut f:impl FnMut(&mut TcpSocket)->T)->T{
+        let socket = self.iface.get_socket::<TcpSocket>(self.tcp_handle);
+        f(socket)
+    }
 }
 
 pub struct TCPServer {
@@ -129,6 +134,8 @@ fn middleware<D>(
     device.set_bucket_interval(Duration::from_millis(shaping_interval));
     device
 }
+
+unsafe impl Send for TCPClient<'_>{}
 
 #[cfg(test)]
 mod tests{
