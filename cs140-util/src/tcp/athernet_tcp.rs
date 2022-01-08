@@ -28,7 +28,7 @@ impl AthernetTcpSocket {
     pub fn new(dst_addr: Ipv4Addr, dst_port: u16, local_port: u16) -> Self {
         let (command_send, mut command_recv) = channel::<TcpSocketCommand>(1024);
         let (package_send, package_recv) = channel::<Vec<u8>>(1024);
-        std::thread::spawn(move || {
+        tokio::spawn(async move {
             let mut q: VecDeque<TcpSocketCommand> = VecDeque::new();
             let mtu: usize =  256;
             let mut tcp_client = TCPClient::new(mtu);
