@@ -70,3 +70,7 @@ path = "src/new_nat_server.rs"
 [[bin]]
 name = "new_redirect_server"
 path = "src/new_redirect_server.rs"
+
+[[bin]]
+name = "ping_server"
+path = "src/ping_server.rs"
