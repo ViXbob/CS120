@@ -87,7 +87,7 @@ impl TCPSocket {
                 if result.is_err() { continue; }
                 let buf = result.as_ref().unwrap().2.clone();
                 let tcp_packet = pnet::packet::tcp::TcpPacket::new(&buf.as_slice()[20..]).unwrap();
-                if tcp_packet.get_destination() != TCPPORT { continue; }
+                if tcp_packet.get_destination() < TCPPORT || tcp_packet.get_destination() > TCPPORT + 7 { continue; }
                 trace!("{:?}",result);
                 let sending_result = recv_sender.send(result).await;
                 trace!("data sent");
