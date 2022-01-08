@@ -113,6 +113,6 @@ impl AthernetTcpSocket {
         self.package_recv.recv().await.unwrap()
     }
     pub async fn close(&mut self) {
-        self.command_send(TcpSocketCommand::Close).await;
+        self.command_send.send(TcpSocketCommand::Close).await;
     }
 }
