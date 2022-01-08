@@ -1,6 +1,7 @@
 use log::debug;
 use smoltcp::socket::TcpSocket;
 use smoltcp::time::Instant;
+use cs140_util::tcp::athernet_tcp::AthernetTcpSocket;
 use cs140_util::tcp::tcp_stack::TCPClient;
 
 #[tokio::main]
@@ -13,74 +14,82 @@ async fn main() {
     // let addr = std::new::Ipv4Addr::new(10, 19, 75, 17);
     let mut tcp_client = TCPClient::new(mtu);
     tcp_client.connect(addr, 8000, 11113);
+    let mut tcp_socket = AthernetTcpSocket::new(addr, 8000, 11113);
+    tcp_socket.send(Vec::from("GET /cs140/INPUT.txt HTTP/1.1\n\n\n\n\n"));
+    let data = tcp_socket.recv().await;
+    println!(
+        "recv data: {:?}",
+        std::str::from_utf8(data.as_ref()).unwrap_or("(invalid utf8)")
+    );
+    tcp_socket.close();
     // tcp_client.send(b"GET / HTTP/1.1\n\n\n\n\n");
-    let mut tcp_active = false;
-    let mut receive_page = false;
-    let mut TIME = tokio::time::Instant::now();
-    loop {
-        let timestamp = Instant::now();
-        match tcp_client.iface.poll(timestamp) {
-            Ok(_) => {}
-            Err(e) => {
-                debug!("poll error: {}", e);
-            }
-        }
-        let socket = tcp_client.iface.get_socket::<TcpSocket>(tcp_client.tcp_handle);
-        if socket.is_active() && !tcp_active {
-            debug!("connected");
-        } else if !socket.is_active() && tcp_active {
-            debug!("disconnected");
-            break;
-        }
-        tcp_active = socket.is_active();
-
-        if socket.may_recv() {
-            let data = socket
-                .recv(|data| {
-                    let mut data = data.to_owned();
-                    if !data.is_empty() {
-                        debug!(
-                            "recv data: {:?}",
-                            std::str::from_utf8(data.as_ref()).unwrap_or("(invalid utf8)")
-                        );
-                        data = data.split(|&b| b == b'\n').collect::<Vec<_>>().concat();
-                        data.reverse();
-                        data.extend(b"\n");
-                        receive_page = true;
-                    }
-                    (data.len(), data)
-                })
-                .unwrap();
-            if receive_page {
-                debug!("OK, receive reply, close.");
-                socket.close();
-            }
-
-            if socket.can_send() && TIME.elapsed().as_millis() > 5000 {
-                debug!("good, send request!");
-                let result = socket.send_slice(b"GET /cs140/INPUT.txt HTTP/1.1\n\n\n\n\n");
-                TIME = tokio::time::Instant::now();
-                match result {
-                    Ok(n) => {
-                        debug!("successfully send!");
-                    }
-                    Err(_) => {
-                        debug!("oops, fail to send!");
-                    }
-                } ;
-            }
-            if socket.can_send() && !data.is_empty() {
-                debug!(
-                    "send data: {:?}",
-                    std::str::from_utf8(data.as_ref()).unwrap_or("(invalid utf8)")
-                );
-                socket.send_slice(&data[..]).unwrap();
-            }
-        } else if socket.may_send() {
-            debug!("close");
-            socket.close();
-        }
-    }
+    // let mut tcp_active = false;
+    // let mut receive_page = false;
+    // let mut TIME = tokio::time::Instant::now();
+    // loop {
+    //     let timestamp = Instant::now();
+    //     match tcp_client.iface.poll(timestamp) {
+    //         Ok(_) => {}
+    //         Err(e) => {
+    //             debug!("poll error: {}", e);
+    //         }
+    //     }
+    //     let socket = tcp_client.iface.get_socket::<TcpSocket>(tcp_client.tcp_handle);
+    //     if socket.is_active() && !tcp_active {
+    //         debug!("connected");
+    //     } else if !socket.is_active() && tcp_active {
+    //         debug!("disconnected");
+    //         break;
+    //     }
+    //     tcp_active = socket.is_active();
+    //
+    //     if socket.may_recv() {
+    //         let data = socket
+    //             .recv(|data| {
+    //                 let mut data = data.to_owned();
+    //                 if !data.is_empty() {
+    //                     debug!(
+    //                         "recv data: {:?}",
+    //                         std::str::from_utf8(data.as_ref()).unwrap_or("(invalid utf8)")
+    //                     );
+    //                     data = data.split(|&b| b == b'\n').collect::<Vec<_>>().concat();
+    //                     data.reverse();
+    //                     data.extend(b"\n");
+    //                     receive_page = true;
+    //                 }
+    //                 (data.len(), data)
+    //             })
+    //             .unwrap();
+    //         if receive_page {
+    //             debug!("OK, receive reply, close.");
+    //             socket.close();
+    //         }
+    //
+    //         if socket.can_send() && TIME.elapsed().as_millis() > 5000 {
+    //             debug!("good, send request!");
+    //             let result = socket.send_slice(b"GET /cs140/INPUT.txt HTTP/1.1\n\n\n\n\n");
+    //             TIME = tokio::time::Instant::now();
+    //             match result {
+    //                 Ok(n) => {
+    //                     debug!("successfully send!");
+    //                 }
+    //                 Err(_) => {
+    //                     debug!("oops, fail to send!");
+    //                 }
+    //             } ;
+    //         }
+    //         if socket.can_send() && !data.is_empty() {
+    //             debug!(
+    //                 "send data: {:?}",
+    //                 std::str::from_utf8(data.as_ref()).unwrap_or("(invalid utf8)")
+    //             );
+    //             socket.send_slice(&data[..]).unwrap();
+    //         }
+    //     } else if socket.may_send() {
+    //         debug!("close");
+    //         socket.close();
+    //     }
+    // }
 }
 
 #[cfg(test)]
