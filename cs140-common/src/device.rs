@@ -65,9 +65,9 @@ impl<Buffer> InputDevice<Buffer>
         //     cpal::default_host()
         // };
         let choose_device = || {
-            for (index, input_) in host.input_devices().unwrap().enumerate() {
-                println!("input_device {}: {}", index, input_.name().unwrap());
-            }
+            // for (index, input_) in host.input_devices().unwrap().enumerate() {
+            //     println!("input_device {}: {}", index, input_.name().unwrap());
+            // }
             for (index, input_) in host.input_devices().unwrap().enumerate() {
                 if index == device_name {
                     return input_;
@@ -234,9 +234,9 @@ impl<Buffer> OutputDevice<Buffer>
         //     cpal::default_host()
         // };
         let choose_device = || {
-            for (index, output_) in host.output_devices().unwrap().enumerate() {
-                println!("output_device {}: {}", index, output_.name().unwrap());
-            }
+            // for (index, output_) in host.output_devices().unwrap().enumerate() {
+            //     println!("output_device {}: {}", index, output_.name().unwrap());
+            // }
             for (index, output_) in host.output_devices().unwrap().enumerate() {
                 if index == device_name {
                     return output_;

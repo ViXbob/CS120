@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use cpal::traits::{DeviceTrait, HostTrait};
 
 use cs140_buffer::ring_buffer::RingBuffer;
 use cs140_common::buffer::Buffer;
@@ -55,10 +56,26 @@ impl NetworkPackage for PhysicalPackage {}
 
 impl PhysicalLayer {
     pub fn new(padding_zero_byte_len: usize, max_package_byte_len: usize) -> Self {
+        let host = cpal::default_host();
+        for (index, input_) in host.input_devices().unwrap().enumerate() {
+            println!("input_device {}: {}", index, input_.name().unwrap());
+        }
+        println!("please choose your input audio device: ");
+        let mut buf = String::new();
+        std::io::stdin().read_line(&mut buf).unwrap();
+        let input = buf.trim().parse().unwrap();
         let input_buffer = Arc::new(DefaultBuffer::new());
-        let (input_device, input_descriptor) = InputDevice::new_with_specific_device(input_buffer.clone(), 0);
+        let (input_device, input_descriptor) = InputDevice::new_with_specific_device(input_buffer.clone(), input);
+
+        for (index, output_) in host.output_devices().unwrap().enumerate() {
+            println!("output_device {}: {}", index, output_.name().unwrap());
+        }
+        println!("please choose your output audio device: ");
+        buf.clear();
+        std::io::stdin().read_line(&mut buf).unwrap();
+        let output = buf.trim().parse().unwrap();
         let output_buffer = Arc::new(DefaultBuffer::new());
-        let (output_device, output_descriptor) = OutputDevice::new_with_specific_device(output_buffer.clone(), 2);
+        let (output_device, output_descriptor) = OutputDevice::new_with_specific_device(output_buffer.clone(), output);
         input_device.listen();
         output_device.play();
         PhysicalLayer {
