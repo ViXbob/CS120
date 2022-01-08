@@ -112,4 +112,7 @@ impl AthernetTcpSocket {
     pub async fn recv(&mut self) -> Vec<u8> {
         self.package_recv.recv().await.unwrap()
     }
+    pub async fn close(&mut self) {
+        self.command_send(TcpSocketCommand::Close).await;
+    }
 }
