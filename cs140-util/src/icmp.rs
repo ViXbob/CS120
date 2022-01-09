@@ -13,12 +13,17 @@ use pnet::packet::icmp::{IcmpPacket, IcmpTypes, IcmpCode, checksum};
 use pnet::packet::Packet;
 
 use async_trait::async_trait;
+use bitvec::bitarr;
+use futures::select;
 use log::trace;
 use pnet::packet;
 use smoltcp::wire::{Ipv4Packet, Icmpv4Packet, Icmpv4Message, Ipv4Address, IpProtocol};
+use smoltcp::wire::ieee802154::Address;
 use tokio::io;
 use cs140_network::encoding::HandlePackage;
 use cs140_network::ip::{IPLayer, IPPackage};
+use cs140_network::physical::PhysicalLayer;
+use cs140_network::redundancy::RedundancyLayer;
 use crate::rpc::{CS120RPC, CS120Socket, IcmpPackage, Transport};
 
 pub struct IcmpSocket {
@@ -116,6 +121,105 @@ impl IcmpSocket {
         };
         trace!("value");
         value
+    }
+}
+
+pub struct AudioPingUtil {
+    send_ping_send: Sender<Ipv4Addr>,
+    ping_result_recv: Receiver<(Ipv4Address, u128)>,
+}
+
+impl AudioPingUtil {
+    pub fn new() -> Self {
+        let layer = PhysicalLayer::new(1, 128);
+        let layer = RedundancyLayer::new(layer);
+        let mut layer = IPLayer::new(layer);
+        let (send_ping_send, mut send_ping_recv) = channel::<Ipv4Addr>(1024);
+        let (ping_result_send, ping_result_recv) = channel::<(Ipv4Address, u128)>(1024);
+        let mut sequence_number: u16 = 0;
+        let mut identifier: u16 = 0x02;
+        tokio::spawn(async move {
+            loop {
+                let mut TIME = tokio::time::Instant::now();
+                tokio::select! {
+                    target = send_ping_recv.recv() => {
+                        let target = target.unwrap();
+                        let packet_size = EchoRequestPacket::minimum_packet_size();
+
+                        let mut buf: Vec<u8> = vec![0; 20 + packet_size + 5];
+
+                        let mut package = Ipv4Packet::new_unchecked(buf);
+                        package.set_dst_addr(Ipv4Address::from(target));
+                        package.set_protocol(IpProtocol::Icmp);
+                        package.set_header_len(20);
+                        package.set_total_len((20 + packet_size + 5).try_into().unwrap());
+                        package.payload_mut()[8] = 255;
+                        let mut icmp_package = Icmpv4Packet::new_unchecked(package.payload_mut());
+                        icmp_package.set_echo_seq_no(sequence_number);
+                        icmp_package.set_echo_ident(identifier);
+                        icmp_package.set_msg_type(Icmpv4Message::EchoRequest);
+                        icmp_package.set_msg_code(0);
+                        icmp_package.fill_checksum();
+                        package.fill_checksum();
+
+                        TIME = tokio::time::Instant::now();
+
+                        layer.send_package(package.into_inner()).await;
+
+                        sequence_number += 1;
+                    }
+                    data = layer.recv_package() => {
+                        let mut package = Ipv4Packet::new_unchecked(data);
+                        let protocol = package.protocol();
+                        let dst = package.src_addr();
+                        let src = package.dst_addr();
+                        match protocol {
+                            IpProtocol::Icmp => {
+                                let mut icmp_type: Icmpv4Message = Icmpv4Message::EchoRequest;
+                                {
+                                    let icmp_package = Icmpv4Packet::new_unchecked(package.payload_mut());
+                                    icmp_type = icmp_package.msg_type();
+                                }
+                                match icmp_type {
+                                    Icmpv4Message::EchoReply => {
+                                        // println!("addr: {:?}", dst);
+                                        let duration = TIME.elapsed();
+                                        // println!("time={}ms", duration.as_millis());
+                                        ping_result_send.send((dst, duration.as_millis())).await;
+                                    }
+                                    Icmpv4Message::EchoRequest => {
+                                        package.set_dst_addr(dst);
+                                        package.set_src_addr(src);
+                                        let mut icmp_package = Icmpv4Packet::new_unchecked(package.payload_mut());
+                                        icmp_package.set_msg_type(Icmpv4Message::EchoReply);
+                                        icmp_package.set_msg_code(0);
+                                        icmp_package.fill_checksum();
+                                        package.fill_checksum();
+                                        layer.send_package(package.into_inner()).await;
+                                    }
+                                    _ => {
+
+                                    }
+                                }
+                            }
+                            _ => {
+
+                            }
+                        }
+                    }
+                };
+            }
+        });
+        AudioPingUtil{
+            send_ping_send,
+            ping_result_recv
+        }
+    }
+    pub async fn ping_once(&mut self, target: Ipv4Addr) {
+        self.send_ping_send.send(target).await;
+        let (addr, time) = self.ping_result_recv.recv().await.unwrap();
+        println!("addr: {:?}", addr);
+        println!("time = {} ms", time);
     }
 }
 

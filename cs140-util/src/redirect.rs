@@ -56,6 +56,15 @@ pub async fn run_unix_redirect_server(local_addr: Ipv4Addr, nat_server_addr: Ipv
                     } else if tmp[len] != 255 {
                         WHERE = true;
                     }
+                    match icmp_package.msg_type() {
+                        Icmpv4Message::EchoReply => {
+                            WHERE = false;
+                        }
+                        _ => {
+
+                        }
+                    }
+                    WHERE = false;
                     if WHERE {
                         icmp_package.set_msg_type(Icmpv4Message::EchoReply);
                         icmp_package.set_msg_code(0);
