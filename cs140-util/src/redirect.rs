@@ -25,6 +25,7 @@ use smoltcp::{
     },
 };
 use log::{trace, debug, info, warn};
+use smoltcp::wire::{Icmpv4Message, Icmpv4Packet};
 
 static PORT: u16 = crate::new_nat::PORT;
 static ADDR: Ipv4Addr = Ipv4Addr::new(10, 19, 75, 17);
@@ -43,10 +44,28 @@ pub async fn run_unix_redirect_server(local_addr: Ipv4Addr, nat_server_addr: Ipv
             result = icmp_socket.recv_from_addr(&mut icmp_buf) => {
                 if let Ok((len, addr)) = result {
                     let mut data:Vec<u8> = icmp_buf.iter().take(len).map(|x| *x).collect();
+                    let mut tmp = data.clone();
                     let mut package = Ipv4Packet::new_unchecked(data);
-                    package.set_dst_addr(Ipv4Address::from(ADDR));
-                    trace!("receive a icmp package: {:?}", package);
-                    udp_socket.send_to(package.into_inner().as_slice(), nat_server_addr).await;
+                    let dst = package.dst_addr();
+                    let mut len: usize = package.header_len() as usize;
+                    let mut icmp_package = Icmpv4Packet::new_unchecked(package.payload_mut());
+                    len = len + icmp_package.header_len() as usize;
+                    let mut WHERE = false;
+                    if len >= tmp.len() {
+                        WHERE = true;
+                    } else if tmp[len] != 255 {
+                        WHERE = true;
+                    }
+                    if WHERE {
+                        icmp_package.set_msg_type(Icmpv4Message::EchoReply);
+                        icmp_package.set_msg_code(0);
+                        icmp_package.fill_checksum();
+                        icmp_socket.send_to_addr(package.payload_mut(), SocketAddr::new(IpAddr::from(Ipv4Addr::from(dst)), 0)).await;
+                    } else {
+                        package.set_dst_addr(Ipv4Address::from(ADDR));
+                        trace!("receive a icmp package: {:?}", package);
+                        udp_socket.send_to(package.into_inner().as_slice(), nat_server_addr).await;
+                    }
                 }
             }
             result = tcp_socket.recv_from_addr(&mut tcp_buf) => {

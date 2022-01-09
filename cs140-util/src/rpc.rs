@@ -3,6 +3,7 @@ use std::net::{SocketAddr, SocketAddrV4};
 use bincode::{config::Configuration, Decode, Encode};
 
 use async_trait::async_trait;
+use log::trace;
 use tokio::net::{TcpSocket, UdpSocket};
 use cs140_network::encoding::HandlePackage;
 use cs140_network::ip::{IPLayer, IPPackage};
@@ -78,11 +79,11 @@ impl Transport for IPLayer {
     type RPCTypeSet = CS120RPC;
 
     async fn send_package(&self, data: Vec<u8>) {
-        println!("length: {}, data: {:?}", data.len(), data);
+        trace!("length: {}, data: {:?}", data.len(), data);
         let package = pnet::packet::ipv4::Ipv4Packet::new(data.as_slice());
         let tcp_package = pnet::packet::tcp::TcpPacket::new(&data.as_slice()[20..]);
-        println!("ip_package: {:?}", package);
-        println!("tcp_package: {:?}", tcp_package);
+        trace!("ip_package: {:?}", package);
+        trace!("tcp_package: {:?}", tcp_package);
         self.send(IPPackage::new(data)).await;
     }
 

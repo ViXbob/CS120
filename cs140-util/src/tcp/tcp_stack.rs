@@ -11,7 +11,7 @@ use crate::rpc::CS120RPC::TcpPackage;
 use crate::tcp::athernet_interface::AthernetInterface;
 
 pub struct TCPClient<'a> {
-    pub tcp_handle: SocketHandle,
+    // pub tcp_handle: SocketHandle,
     pub iface: Interface<'a, FaultInjector<Tracer<PcapWriter<AthernetInterface, Box<dyn Write>>>>>,
 }
 
@@ -21,9 +21,9 @@ impl TCPClient<'_> {
 
         let device = middleware(device, /*loopback=*/ true);
 
-        let tcp_rx_buffer = TcpSocketBuffer::new(vec![0; 1638400]);
-        let tcp_tx_buffer = TcpSocketBuffer::new(vec![0; 1638400]);
-        let tcp_socket = TcpSocket::new(tcp_rx_buffer, tcp_tx_buffer);
+        // let tcp_rx_buffer = TcpSocketBuffer::new(vec![0; 1638400]);
+        // let tcp_tx_buffer = TcpSocketBuffer::new(vec![0; 1638400]);
+        // let tcp_socket = TcpSocket::new(tcp_rx_buffer, tcp_tx_buffer);
 
         let ip_addrs = [IpCidr::new(IpAddress::v4(10, 19, 75, 17), 24)];
         let default_v4_gw = Ipv4Address::new(192, 168, 69, 100);
@@ -34,31 +34,38 @@ impl TCPClient<'_> {
             .ip_addrs(ip_addrs)
             .routes(routes);
         let mut iface = builder.finalize();
-        let tcp_handle = iface.add_socket(tcp_socket);
+        // let tcp_handle = iface.add_socket(tcp_socket);
         TCPClient {
-            tcp_handle,
+            // tcp_handle,
             iface
         }
     }
 
-    pub fn connect(&mut self, dst: std::net::Ipv4Addr, dst_port: u16, local_port: u16) {
-        let (socket, cx) = self.iface.get_socket_and_context::<TcpSocket>(self.tcp_handle);
+    pub fn new_socket(&mut self) -> SocketHandle {
+        let tcp_rx_buffer = TcpSocketBuffer::new(vec![0; 163840]);
+        let tcp_tx_buffer = TcpSocketBuffer::new(vec![0; 163840]);
+        let tcp_socket = TcpSocket::new(tcp_rx_buffer, tcp_tx_buffer);
+        self.iface.add_socket(tcp_socket)
+    }
+
+    pub fn connect(&mut self, dst: std::net::Ipv4Addr, dst_port: u16, local_port: u16, tcp_handle: SocketHandle) {
+        let (socket, cx) = self.iface.get_socket_and_context::<TcpSocket>(tcp_handle);
         socket.connect(cx, (dst, dst_port), local_port).unwrap();
     }
 
-    pub fn send(&mut self, buf: &[u8]) -> smoltcp::Result<usize> {
-        let socket = self.iface.get_socket::<TcpSocket>(self.tcp_handle);
+    pub fn send(&mut self, buf: &[u8], tcp_handle: SocketHandle) -> smoltcp::Result<usize> {
+        let socket = self.iface.get_socket::<TcpSocket>(tcp_handle);
         println!("{}", socket.is_active());
         socket.send_slice(buf)
     }
 
-    pub fn recv(&mut self, buf: &mut [u8]) -> smoltcp::Result<usize> {
-        let socket = self.iface.get_socket::<TcpSocket>(self.tcp_handle);
+    pub fn recv(&mut self, buf: &mut [u8], tcp_handle: SocketHandle) -> smoltcp::Result<usize> {
+        let socket = self.iface.get_socket::<TcpSocket>(tcp_handle);
         socket.recv_slice(buf)
     }
 
-    pub fn use_socket<T>(&mut self, mut f:impl FnMut(&mut TcpSocket)->T)->T{
-        let socket = self.iface.get_socket::<TcpSocket>(self.tcp_handle);
+    pub fn use_socket<T>(&mut self, mut f:impl FnMut(&mut TcpSocket)->T, tcp_handle: SocketHandle)->T{
+        let socket = self.iface.get_socket::<TcpSocket>(tcp_handle);
         f(socket)
     }
 }
