@@ -64,7 +64,7 @@ pub async fn run_unix_redirect_server(local_addr: Ipv4Addr, nat_server_addr: Ipv
 
                         }
                     }
-                    WHERE = false;
+                    // WHERE = false;
                     if WHERE {
                         icmp_package.set_msg_type(Icmpv4Message::EchoReply);
                         icmp_package.set_msg_code(0);
