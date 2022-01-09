@@ -1,0 +1,15 @@
+[package]
+name = "protocol-ftp-client"
+version = "0.1.0"
+authors = ["Ivan Baidakou <basiliscos@openmailbox.org>"]
+description = "Transport layer neutral client-side protocol parser"
+documentation = "https://basiliscos.github.io/rust-procol-ftp-client/protocol_ftp_client"
+homepage = "https://github.com/basiliscos/rust-procol-ftp-client"
+repository = "https://github.com/basiliscos/rust-procol-ftp-client"
+keywords = ["FTP", "Protocol", "Parser"]
+license = "MIT"
+
+[dependencies]
+lazy_static = "0.1"
+regex = "0.1"
+url = "1.2.0"
