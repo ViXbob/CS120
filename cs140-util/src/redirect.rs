@@ -46,7 +46,7 @@ pub async fn run_unix_redirect_server(local_addr: Ipv4Addr, nat_server_addr: Ipv
                     let mut data:Vec<u8> = icmp_buf.iter().take(len).map(|x| *x).collect();
                     let mut tmp = data.clone();
                     let mut package = Ipv4Packet::new_unchecked(data);
-                    let dst = package.dst_addr();
+                    let dst = package.src_addr();
                     let mut len: usize = package.header_len() as usize;
                     let mut icmp_package = Icmpv4Packet::new_unchecked(package.payload_mut());
                     len = len + icmp_package.header_len() as usize;
