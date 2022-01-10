@@ -22,3 +22,7 @@ futures = "0.3.18"
 [[bin]]
 name = "jamming_sender"
 path = "src/jamming_sender.rs"
+
+[[bin]]
+name = "jamming_receiver"
+path = "src/jamming_receiver.rs"
