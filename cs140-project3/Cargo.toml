@@ -20,57 +20,5 @@ smoltcp = "0.8.0"
 futures = "0.3.18"
 
 [[bin]]
-name = "sender"
-path = "src/sender.rs"
-
-[[bin]]
-name = "receiver"
-path = "src/receiver.rs"
-
-[[bin]]
-name = "udp_receiver"
-path = "src/udp_receiver.rs"
-
-[[bin]]
-name = "udp_sender"
-path = "src/udp_sender.rs"
-
-[[bin]]
-name = "nat_server"
-path = "src/nat_server.rs"
-
-[[bin]]
-name = "ping"
-path = "src/ping.rs"
-
-[[bin]]
-name = "ping_reply"
-path = "src/ping_reply.rs"
-
-[[bin]]
-name = "redirect_server"
-path = "src/redirect_server.rs"
-
-[[bin]]
-name = "redirect_server_tcp"
-path = "src/redirect_server_tcp.rs"
-
-[[bin]]
-name = "tcp_client"
-path = "src/tcp_client.rs"
-
-[[bin]]
-name = "tcp_server"
-path = "src/tcp_server.rs"
-
-[[bin]]
-name = "new_nat_server"
-path = "src/new_nat_server.rs"
-
-[[bin]]
-name = "new_redirect_server"
-path = "src/new_redirect_server.rs"
-
-[[bin]]
-name = "ping_server"
-path = "src/ping_server.rs"
+name = "jamming_sender"
+path = "src/jamming_sender.rs"

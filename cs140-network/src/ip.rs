@@ -28,14 +28,14 @@ pub struct IPLayer {
 }
 
 impl IPLayer {
-    pub fn new(mut redundancy: RedundancyLayer) -> Self {
+    pub fn new(mut redundancy: RedundancyLayer, src_address: u8, dest_address: u8) -> Self {
         let byte_in_frame = redundancy.byte_in_frame;
         let (send_package_sender, mut send_package_receiver) = tokio::sync::mpsc::channel::<IPPackage>(1);
         let (recv_package_sender, recv_package_receiver) = tokio::sync::mpsc::channel::<IPPackage>(1024);
 
-        tokio::spawn(async move{
+        tokio::spawn(async move {
             let mut data: Vec<u8> = Vec::new();
-            loop{
+            loop {
                 tokio::select! {
                     package = send_package_receiver.recv() => {
                         match package {
@@ -46,7 +46,7 @@ impl IPLayer {
                                 let chunks = package.data.chunks(byte_in_frame);
                                 let last_chunk_index = chunks.len() - 1;
                                 for (index, ip_data) in chunks.enumerate() {
-                                    let package = RedundancyPackage::new(ip_data.iter().cloned(),ip_data.len(),index != last_chunk_index,0,0);
+                                    let package = RedundancyPackage::new(ip_data.iter().cloned(),ip_data.len(),index != last_chunk_index,src_address,dest_address);
                                     redundancy.send(package).await;
                                 }
                             }
@@ -56,12 +56,15 @@ impl IPLayer {
                         trace!("fragment:{:?},len:{}",package,package.len());
                         let len = package.len();
                         let more_fragments = package.has_more_fragments();
+                        let address = package.address();
                         data.extend(package.data.into_iter().skip(BYTE_IN_LENGTH + BYTE_IN_ENDING + BYTE_IN_ADDRESS).take(len));
                         trace!("merged_data:{:?}",data);
                         if !more_fragments {
                             let empty_data = Vec::new();
                             let data = std::mem::replace(&mut data,empty_data);
-                            recv_package_sender.send(IPPackage { data }).await;
+                            if address.0 != src_address{
+                                recv_package_sender.send(IPPackage { data }).await;
+                            }
                         }
                     }
                 }
