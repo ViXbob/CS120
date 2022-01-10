@@ -349,7 +349,8 @@ impl TCPLayer {
                                 ip.send_raw(Sack(sack_to_send).into()).await;
                             }
                         }
-                        rtt_timeout = Box::pin(rtt_status.get_rtt_timeout(20.0));
+                        // TODO: find a suitable RTT_TIMEOUT
+                        rtt_timeout = Box::pin(rtt_status.get_rtt_timeout(8.0));
                     }
                     _ = sack_timeout.as_mut() => {
                         if is_sending{

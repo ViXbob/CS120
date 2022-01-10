@@ -10,7 +10,7 @@ use cs140_network::tcp::TCPLayer;
 async fn main() {
     let mut builder = env_logger::Builder::from_default_env();
     builder.format_timestamp_millis().init();
-    let layer = PhysicalLayer::new(2,64);
+    let layer = PhysicalLayer::new(2,256);
     let layer = RedundancyLayer::new(layer);
     let layer = IPLayer::new(layer,1,2);
     let layer = TCPLayer::new(layer);
@@ -20,6 +20,6 @@ async fn main() {
     // reader.read_to_string(&mut string_to_send);
 
     loop{
-        layer.send_raw((0..=255).cycle().take(65536).collect()).await;
+        layer.send_raw((0..=255).cycle().take(6553).collect()).await;
     }
 }

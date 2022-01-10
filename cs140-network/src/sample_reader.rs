@@ -148,9 +148,9 @@ pub struct ZeroReader {
 impl ZeroReader {
     pub fn new() -> Self {
         ZeroReader {
-            one_amplitude: 0.08,
+            one_amplitude: 0.05,
             zero_amplitude: 0.0,
-            neg_one_amplitude: -0.08,
+            neg_one_amplitude: -0.05,
         }
     }
 
