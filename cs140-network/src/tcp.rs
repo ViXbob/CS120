@@ -117,7 +117,7 @@ impl TCPSendingStatus {
                             data_length: self.data_sending.len() as _,
                         }))
                     } else {
-                        (next_segment_id, Data(DataPackage {
+                        (sent_segment_id, Data(DataPackage {
                             sequence_id: next_segment_id,
                             offset: (next_segment_id - 1) as u32 * sequence_length as u32,
                             data: self.data_sending[(next_segment_id - 1) as usize * sequence_length as usize..].iter().take(sequence_length).cloned().collect(),
@@ -251,6 +251,7 @@ impl TCPLayer {
                 let state_for_package_to_send_future = state.clone();
                 let ip_for_package_to_send_future = ip.clone();
                 let package_to_send_future = async move {
+                    log::trace!("package_to_send_future generated");
                     let package = match &*state_for_package_to_send_future.lock().unwrap() {
                         TCPState::Ready => { None }
                         Sending(sending) => {
@@ -258,8 +259,30 @@ impl TCPLayer {
                         }
                         Receiving(_) => { None }
                     };
+                    log::trace!("state is Sending, generated package {:?}", package);
                     if let Some(package) = package {
+                        let package_id = match &package{
+                            PeerVacant => {None}
+                            Sack(_) => {None}
+                            Data(data) => {
+                                Some(data.sequence_id)
+                            }
+                            Header(_) => {
+                                Some(0)
+                            }
+                            RttRequest(_) => {None}
+                            RttResponse(_) => {None}
+                        };
                         ip_for_package_to_send_future.send_raw(package.into()).await;
+                        if let Some(package_id)=package_id{
+                            match &mut *state_for_package_to_send_future.lock().unwrap() {
+                                TCPState::Ready => {  }
+                                Sending(ref mut sending) => {
+                                    sending.sequence_missing.remove(&package_id);
+                                }
+                                Receiving(_) => {  }
+                            };
+                        }
                     }else{
                         tokio::time::sleep(std::time::Duration::from_secs(10000)).await;
                     }
@@ -371,6 +394,7 @@ impl TCPLayer {
                                     if let Sending(sending) = &mut *guard{
                                         sending.sequence_missing.extend(sack.missing_ranges.into_iter().flat_map(|range| range));
                                         sending.largest_confirmed_sequence_id = sack.largest_confirmed_sequence_id;
+                                        sending.set_next_send_package(sequence_length.into());
                                         if sending.completed(){
                                             info!("transmit finish");
                                             *guard = TCPState::Ready;
