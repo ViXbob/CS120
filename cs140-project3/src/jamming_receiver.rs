@@ -13,5 +13,5 @@ async fn main() {
     let layer = IPLayer::new(layer,2,1);
     let layer = TCPLayer::new(layer);
     let result = layer.receive_raw().await;
-    println!("{:?}",result);
+    println!("{:?}",result.unwrap().len());
 }
