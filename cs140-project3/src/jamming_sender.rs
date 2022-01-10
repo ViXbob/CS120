@@ -1,4 +1,4 @@
-use cs140_network::ip::IPLayer;
+use cs140_network::ip::{IPLayer, IPPackage};
 use cs140_network::physical::PhysicalLayer;
 use cs140_network::redundancy::RedundancyLayer;
 use cs140_network::tcp::TCPLayer;

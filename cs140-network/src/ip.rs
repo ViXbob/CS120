@@ -1,4 +1,6 @@
 use async_trait::async_trait;
+use bincode::{Decode, Encode};
+use bincode::config::Configuration;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::Mutex;
 
@@ -80,13 +82,25 @@ impl IPLayer {
 
 #[async_trait]
 impl HandlePackage<IPPackage> for IPLayer {
-    async fn send(&self, package: IPPackage) {
+    async fn send_raw(&self, package: IPPackage) {
         self.send_package_sender.send(package).await;
     }
 
-    async fn receive(&self) -> IPPackage {
+    async fn receive_raw(&self) -> IPPackage {
         let mut guard = self.recv_package_receiver.lock().await;
         let package = guard.recv().await.unwrap();
         package
+    }
+}
+
+impl IPLayer {
+    pub async fn send<T>(&self, package: &T) where T: Decode + Encode {
+        let encoded_package = bincode::encode_to_vec(&package, Configuration::standard()).unwrap();
+        self.send_raw(IPPackage::new(encoded_package)).await;
+    }
+
+    pub async fn receive<T>(&self) -> Option<T> where T: Decode + Encode {
+        let IPPackage { data } = self.receive_raw().await;
+        Some(bincode::decode_from_slice(&data, Configuration::standard()).unwrap())
     }
 }

@@ -257,7 +257,7 @@ impl TCPLayer {
                         Receiving(_) => { None }
                     };
                     if let Some(package) = package {
-                        ip_for_package_to_send_future.send(package.into()).await;
+                        ip_for_package_to_send_future.send_raw(package.into()).await;
                     }else{
                         tokio::time::sleep(std::time::Duration::from_secs(10000)).await;
                     }
@@ -272,10 +272,10 @@ impl TCPLayer {
                 select! {
                     _ = rtt_timeout.as_mut() => {
                         info!("rtt timeout, sending rtt...");
-                        ip.send(RttRequest(TCPRTTStatus::generate_rtt_package()).into()).await;
+                        ip.send_raw(RttRequest(TCPRTTStatus::generate_rtt_package()).into()).await;
                         if is_ready {
                             info!("rtt timeout, sending peer vacant...");
-                            ip.send(PeerVacant.into()).await;
+                            ip.send_raw(PeerVacant.into()).await;
                         }
                         if is_receiving{
                             let sack_to_send = {
@@ -302,7 +302,7 @@ impl TCPLayer {
                                 }
                             };
                             if let Some(sack_to_send) = sack_to_send {
-                                ip.send(Sack(sack_to_send).into()).await;
+                                ip.send_raw(Sack(sack_to_send).into()).await;
                             }
                         }
                         rtt_timeout = Box::pin(rtt_status.get_rtt_timeout(10.0));
@@ -345,7 +345,7 @@ impl TCPLayer {
                             }
                         }
                     },
-                    package = ip.receive() =>{
+                    package = ip.receive_raw() =>{
                         let package = bincode::decode_from_slice(&package.data, Configuration::standard()).unwrap();
                         info!("received package, {:?}",package);
                         match package {
@@ -403,7 +403,7 @@ impl TCPLayer {
                                             return;
                                         }
                                         info!("all packages received, send ack!");
-                                        ip.send(Sack(SackPackage{
+                                        ip.send_raw(Sack(SackPackage{
                                                 missing_ranges: vec![],
                                                 largest_confirmed_sequence_id
                                             }).into()).await;
@@ -423,7 +423,7 @@ impl TCPLayer {
                                 }
                             }
                             TCPPackage::RttRequest(rtt) => {
-                                ip.send(RttResponse(rtt).into()).await;
+                                ip.send_raw(RttResponse(rtt).into()).await;
                             },
                             TCPPackage::RttResponse(rtt) => {
                                 let now_millis = std::time::SystemTime::now().duration_since(std::time::SystemTime::UNIX_EPOCH).unwrap().subsec_millis() as u16;

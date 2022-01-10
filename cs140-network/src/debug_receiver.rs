@@ -18,7 +18,7 @@ async fn main() {
     let layer = RedundancyLayer::new(layer);
     let mut layer = IPLayer::new(layer);
     loop {
-        let data = layer.receive().await;
+        let data = layer.receive_raw().await;
         println!("{:?}",data.data);
     }
 }

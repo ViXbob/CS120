@@ -20,6 +20,6 @@ async fn main() {
     loop {
         let data = (0..=255).take(64).collect();
         let package = IPPackage::new(data);
-        layer.send(package).await;
+        layer.send_raw(package).await;
     }
 }

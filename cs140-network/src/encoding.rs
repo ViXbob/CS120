@@ -16,8 +16,8 @@ pub trait HandlePackageMut<Package> {
 
 #[async_trait]
 pub trait HandlePackage<Package> {
-    async fn send(&self, package: Package);
-    async fn receive(&self) -> Package;
+    async fn send_raw(&self, package: Package);
+    async fn receive_raw(&self) -> Package;
 }
 
 const TABLE: &'static [u8] = &[0b11110u8, 0b01001u8, 0b10100u8, 0b10101u8,
