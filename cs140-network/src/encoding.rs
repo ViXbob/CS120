@@ -46,7 +46,7 @@ pub fn decode_4b5b(data: &BitStore) -> BitStore {
     let mut result: BitStore = BitVec::with_capacity((data.len() as f64 * 0.8).floor() as usize);
     for bits in data.chunks(5) {
         if bits.len() < 5{
-            log::warn!("Fail to decode, bits len {}, which is too short.", bits.len());
+            //log::warn!("Fail to decode, bits len {}, which is too short.", bits.len());
             break;
         }
         let mut value: u8 = 0;
@@ -60,7 +60,7 @@ pub fn decode_4b5b(data: &BitStore) -> BitStore {
                 result.push(((decoded >> shift) & 1) == 1);
             }
         } else {
-            log::warn!("Fail to decode, pushing random bits.");
+           // log::warn!("Fail to decode, pushing random bits.");
             result.extend(padding_inclusive_range(0..=1).take(4).map(|x| x == 1));
         }
     }

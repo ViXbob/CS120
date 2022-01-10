@@ -94,14 +94,30 @@ impl TCPSendingStatus {
                     data_length: self.data_sending.len() as _,
                 }))
             }
-            Some(sent_segment_id) => {
+            Some(mut sent_segment_id) => {
                 if self.sequence_missing.is_empty() {
                     debug!("Great, no lost packages");
-                    let next_segment_id = sent_segment_id + 1;
+                    let mut next_segment_id = sent_segment_id + 1;
                     if next_segment_id >= self.sequence_count {
-                        debug!("we have sent all the data, return");
-                        self.next_package_to_send = None;
-                        return;
+                        debug!("we have sent all the data, set next_package_to_send to largest_confirmed id");
+                        match self.largest_confirmed_sequence_id {
+                            None => {
+                                // waiting client to reply
+                                self.next_package_to_send = None;
+                                return;
+                            }
+                            Some(largest_id) => {
+                                assert!(largest_id<self.sequence_count);
+                                if largest_id+1 == self.sequence_count{
+                                    self.next_package_to_send = None;
+                                    return;
+                                }else{
+                                    sent_segment_id = largest_id;
+                                    next_segment_id = largest_id + 1;
+                                }
+                            }
+                        }
+
                     }
                     (next_segment_id, Data(DataPackage {
                         sequence_id: next_segment_id,
@@ -337,7 +353,7 @@ impl TCPLayer {
                     _ = sack_timeout.as_mut() => {
                         if is_sending{
                             sack_timeout_count += 1;
-                            warn!("sack timeout, now we have {} sack timeout",sack_timeout_count);
+                            // warn!("sack timeout, now we have {} sack timeout",sack_timeout_count);
                         }
                         sack_timeout = Box::pin(rtt_status.get_rtt_timeout(7.0));
                     }
