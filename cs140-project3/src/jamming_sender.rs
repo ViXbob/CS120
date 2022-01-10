@@ -19,6 +19,7 @@ async fn main() {
     // let mut string_to_send = String::new();
     // reader.read_to_string(&mut string_to_send);
 
-    layer.send_raw((0..=255).cycle().take(16384).collect()).await;
-    let _:String = layer.receive().await.unwrap();
+    loop{
+        layer.send_raw((0..=255).cycle().take(65536).collect()).await;
+    }
 }

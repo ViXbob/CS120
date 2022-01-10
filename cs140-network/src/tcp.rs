@@ -114,6 +114,7 @@ impl TCPSendingStatus {
                                 }else{
                                     sent_segment_id = largest_id;
                                     next_segment_id = largest_id + 1;
+                                    self.largest_confirmed_sequence_id = None;
                                 }
                             }
                         }
