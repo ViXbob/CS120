@@ -83,6 +83,7 @@ impl IPLayer {
 #[async_trait]
 impl HandlePackage<IPPackage> for IPLayer {
     async fn send_raw(&self, package: IPPackage) {
+        log::trace!("raw ip package len:{}",package.data.len());
         self.send_package_sender.send(package).await;
     }
 

@@ -250,6 +250,7 @@ impl TCPLayer {
                 let state = state.clone();
                 let state_for_package_to_send_future = state.clone();
                 let ip_for_package_to_send_future = ip.clone();
+                let (to_send_next_package_sender, mut to_send_next_package_receiver) = tokio::sync::oneshot::channel();
                 let package_to_send_future = async move {
                     let package = match &*state_for_package_to_send_future.lock().unwrap() {
                         TCPState::Ready => { None }
@@ -259,11 +260,13 @@ impl TCPLayer {
                         Receiving(_) => { None }
                     };
                     if let Some(package) = package {
+                        to_send_next_package_sender.send(true);
                         ip_for_package_to_send_future.send_raw(package.into()).await;
                     }else{
-                        tokio::time::sleep(std::time::Duration::from_secs(10000)).await;
+                        to_send_next_package_sender.send(false);
                     }
                 };
+                let to_send_next_package = to_send_next_package_receiver.await.unwrap();
                 let (is_ready, is_sending, is_receiving) = {
                     match *state.lock().unwrap() {
                         TCPState::Ready => { (true, false, false) }
@@ -338,7 +341,7 @@ impl TCPLayer {
                             return;
                         }
                     },
-                    _ = package_to_send_future, if is_sending => {
+                    _ = package_to_send_future, if is_sending && to_send_next_package=> {
                         match &mut *state.lock().unwrap(){
                             Sending(sending)=>{
                                 debug!("we are sending the package, {:?}",sending.next_package_to_send);
