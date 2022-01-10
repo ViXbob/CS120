@@ -51,17 +51,20 @@ pub async fn run_unix_redirect_server(local_addr: Ipv4Addr, nat_server_addr: Ipv
                     let mut icmp_package = Icmpv4Packet::new_unchecked(package.payload_mut());
                     len = len + icmp_package.header_len() as usize;
                     let mut WHERE = false;
-                    if len >= tmp.len() {
-                        WHERE = true;
-                    } else if tmp[len] != 255 {
-                        WHERE = true;
-                    }
+
                     match icmp_package.msg_type() {
                         Icmpv4Message::EchoReply => {
                             WHERE = false;
                         }
+                        Icmpv4Message::EchoRequest => {
+                            if len >= tmp.len() {
+                                WHERE = true;
+                            } else if tmp[len] != 255 {
+                                WHERE = true;
+                            }
+                        }
                         _ => {
-
+                            
                         }
                     }
                     // WHERE = false;
