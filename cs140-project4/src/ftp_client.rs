@@ -61,9 +61,9 @@ fn std_tcp_ftp() {
     transmitter = get_reply(&mut stream, &mut rx_buff, ftp_receiver);
 }
 
-static PORT1: u16 = 11117;
-static PORT2: u16 = 11118;
-static PORT3: u16 = 11119;
+static PORT1: u16 = 11113;
+static PORT2: u16 = 11114;
+static PORT3: u16 = 11115;
 
 
 async fn user_get_reply(stream:&mut AthernetTcpSocket, rx_buff: &mut [u8], rx_count: &mut usize, receiver: FtpReceiver) -> FtpTransmitter {
