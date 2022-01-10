@@ -125,6 +125,7 @@ impl HandlePackageMut<PhysicalPackage> for PhysicalLayer {
                     let data = &data[index..];
                     let mut sample_reader = SampleReader::from(self.zero_reader.clone());
                     let result_result = sample_reader.read_all(data);
+                    log::trace!("sample_reader:{:?}",sample_reader);
                     self.zero_reader = sample_reader.into();
                     match result_result {
                         None => {
