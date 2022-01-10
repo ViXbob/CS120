@@ -1,6 +1,13 @@
 use log::trace;
 
 use crate::encoding::BitStore;
+use crate::sample_reader::SampleReaderResult::{Data, EOF, PackageLoss};
+
+pub enum SampleReaderResult{
+    Data(bool),
+    EOF,
+    PackageLoss,
+}
 
 static BIT_SLIP_HISTORY_COUNT: usize = 4;
 static SAMPLE_PER_BIT: usize = 2;
@@ -27,22 +34,28 @@ impl SampleReader {
         }
     }
 
-    pub fn read_all(&mut self, data: &[f32]) -> (BitStore, usize) {
+    // if the result is Some, then the package is ok, otherwise, the package is corrupted(usually there is a package loss)
+    pub fn read_all(&mut self, data: &[f32]) -> Option<(BitStore, usize)> {
         let mut result = BitStore::with_capacity(data.len() / 2);
         let mut data_ref = data;
         loop {
             let bit = self.read(&mut data_ref);
             match bit {
-                None => { return (result, data.len() - data_ref.len()); }
-                Some(bit) => { result.push(bit); }
+                Data(bit) => {
+                    result.push(bit);
+                }
+                EOF => {return Some((result, data.len() - data_ref.len()));}
+                PackageLoss => {return None}
             }
-            // println!("{}",result);
         }
     }
 
-    fn read(&mut self, data: &mut &[f32]) -> Option<bool> {
+    pub fn read(&mut self, data: &mut &[f32]) -> SampleReaderResult {
         // if this assertion fails, please check the count of your max package size with the count of samples that pop from buffer
-        assert!(data.len() > SAMPLE_PER_BIT);
+        if data.len() > SAMPLE_PER_BIT {
+            log::warn!("Potential Jamming occurred, data.len() > SAMPLE_PER_BIT.")
+            return PackageLoss;
+        }
 
         let current_bit_sample = &data[..SAMPLE_PER_BIT];
 
@@ -50,7 +63,7 @@ impl SampleReader {
             let sample = sample + self.zero_amplitude;
             (sample >= 0.0 && sample < ZERO_RANGE * (self.one_amplitude - self.zero_amplitude)) || (sample < 0.0 && sample > -ZERO_RANGE * (self.zero_amplitude-self.neg_one_amplitude))
         }) {
-            return None;
+            return EOF;
         }
 
         let current_bit_average_value = current_bit_sample.iter().sum::<f32>() / current_bit_sample.len() as f32;
@@ -87,13 +100,13 @@ impl SampleReader {
             assert!(self.check_sample_is_acceptable(current_bit_sample, result));
             // the bit is flawless
             *data = &data[SAMPLE_PER_BIT..];
-            return Some(result);
+            return Data(result);
         }
 
         if self.check_sample_is_acceptable(current_bit_sample, result) {
             // the bit is flawless
             *data = &data[SAMPLE_PER_BIT..];
-            return Some(result);
+            return Data(result);
         }
 
         if self.bit_slip_history != 0 {
@@ -111,7 +124,7 @@ impl SampleReader {
                 *data = &data[SAMPLE_PER_BIT..];
             }
         }
-        Some(result)
+        Data(result)
     }
 
     fn check_sample_is_acceptable(&self, current_bit_sample: &[f32], result: bool) -> bool {
