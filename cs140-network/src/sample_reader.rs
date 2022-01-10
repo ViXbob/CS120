@@ -11,7 +11,7 @@ pub enum SampleReaderResult{
 
 static BIT_SLIP_HISTORY_COUNT: usize = 4;
 static SAMPLE_PER_BIT: usize = 2;
-static EXPONENTIALLY_WEIGHTED_MOVING_AVERAGE_NEW_DATA_RATIO: f32 = 0.5;
+static EXPONENTIALLY_WEIGHTED_MOVING_AVERAGE_NEW_DATA_RATIO: f32 = 0.0;
 static ZERO_RANGE: f32 = ACCEPTABLE_NO_OFFSET_SIGNAL_RANGE;
 // check the sample is in 50% range of zero
 static ACCEPTABLE_NO_OFFSET_SIGNAL_RANGE: f32 = 0.5;
@@ -148,9 +148,9 @@ pub struct ZeroReader {
 impl ZeroReader {
     pub fn new() -> Self {
         ZeroReader {
-            one_amplitude: 0.14,
+            one_amplitude: 0.08,
             zero_amplitude: 0.0,
-            neg_one_amplitude: -0.14,
+            neg_one_amplitude: -0.08,
         }
     }
 
