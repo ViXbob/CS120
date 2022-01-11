@@ -125,8 +125,8 @@ impl IcmpSocket {
 }
 
 pub struct AudioPingUtil {
-    send_ping_send: Sender<Ipv4Addr>,
-    ping_result_recv: Receiver<(Ipv4Address, u128)>,
+    send_ping_send: Sender<(Ipv4Addr, u16)>,
+    ping_result_recv: Receiver<(Ipv4Address, u16)>,
 }
 
 impl AudioPingUtil {
@@ -134,16 +134,15 @@ impl AudioPingUtil {
         let layer = PhysicalLayer::new(1, 128);
         let layer = RedundancyLayer::new(layer);
         let mut layer = IPLayer::new(layer);
-        let (send_ping_send, mut send_ping_recv) = channel::<Ipv4Addr>(1024);
-        let (ping_result_send, ping_result_recv) = channel::<(Ipv4Address, u128)>(1024);
-        let mut sequence_number: u16 = 0;
+        let (send_ping_send, mut send_ping_recv) = channel::<(Ipv4Addr, u16)>(1024);
+        let (ping_result_send, ping_result_recv) = channel::<(Ipv4Address, u16)>(1024);
         let mut identifier: u16 = 0x02;
         tokio::spawn(async move {
             loop {
                 let mut TIME = tokio::time::Instant::now();
                 tokio::select! {
                     target = send_ping_recv.recv() => {
-                        let target = target.unwrap();
+                        let (target, sequence_number) = target.unwrap();
                         let packet_size = EchoRequestPacket::minimum_packet_size();
 
                         let mut buf: Vec<u8> = vec![0; 20 + packet_size + 5];
@@ -166,11 +165,7 @@ impl AudioPingUtil {
                         icmp_package.fill_checksum();
                         package.fill_checksum();
 
-                        TIME = tokio::time::Instant::now();
-
                         layer.send_package(package.into_inner()).await;
-
-                        sequence_number += 1;
                     }
                     data = layer.recv_package() => {
                         let mut package = Ipv4Packet::new_unchecked(data);
@@ -180,16 +175,17 @@ impl AudioPingUtil {
                         match protocol {
                             IpProtocol::Icmp => {
                                 let mut icmp_type: Icmpv4Message = Icmpv4Message::EchoRequest;
+                                let mut icmp_seq: u16 = u16::MAX;
                                 {
                                     let icmp_package = Icmpv4Packet::new_unchecked(package.payload_mut());
                                     icmp_type = icmp_package.msg_type();
+                                    icmp_seq = icmp_package.echo_seq_no();
                                 }
                                 match icmp_type {
                                     Icmpv4Message::EchoReply => {
                                         // println!("addr: {:?}", dst);
-                                        let duration = TIME.elapsed();
                                         // println!("time={}ms", duration.as_millis());
-                                        ping_result_send.send((dst, duration.as_millis())).await;
+                                        ping_result_send.send((dst, icmp_seq)).await;
                                     }
                                     Icmpv4Message::EchoRequest => {
                                         package.set_dst_addr(dst);
@@ -219,11 +215,24 @@ impl AudioPingUtil {
             ping_result_recv
         }
     }
-    pub async fn ping_once(&mut self, target: Ipv4Addr) {
-        self.send_ping_send.send(target).await;
-        let (addr, time) = self.ping_result_recv.recv().await.unwrap();
-        println!("addr: {:?}", addr);
-        println!("time = {} ms", time);
+    pub async fn ping_once(&mut self, target: Ipv4Addr, sequence_number: u16) {
+        let mut TIME = Instant::now();
+        self.send_ping_send.send((target, sequence_number)).await;
+        while let result = self.ping_result_recv.try_recv() {
+            if TIME.elapsed().as_millis() > 4000 {
+                println!("timeout, rtt > 4000 ms");
+                break;
+            }
+            if result.is_err() {
+                continue;
+            }
+            let (addr, seq) = result.unwrap();
+            if seq == sequence_number {
+                println!("addr: {:?}", addr);
+                println!("time = {} ms", TIME.elapsed().as_millis());
+                break;
+            }
+        }
     }
 }
 

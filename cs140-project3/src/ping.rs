@@ -6,7 +6,7 @@ use cs140_network::physical::PhysicalLayer;
 use cs140_network::redundancy::RedundancyLayer;
 use cs140_util::icmp::{AudioPinger, AudioPingUtil};
 
-const PING_COUNT: usize = 5;
+const PING_COUNT: usize = 1;
 
 fn read(buf: &mut String) {
     buf.clear();
@@ -26,9 +26,9 @@ async fn main() {
     loop {
         println!("please type the ping address,");
         read(&mut buf);
-        for _ in 0..PING_COUNT {
+        for i in 0..PING_COUNT {
             let addr = buf.parse::<Ipv4Addr>().unwrap();
-            pinger.ping_once(addr).await;
+            pinger.ping_once(addr, i as u16).await;
         }
     }
 
