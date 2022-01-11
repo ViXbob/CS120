@@ -27,6 +27,7 @@ winapi = { version = "0.3.8", features = [ "std" ] }
 regex = "1"
 libc = "0.2"
 libloading = "0.6"
+windivert = "0.3.1"
 
 [[bin]]
 name = "tcp_test"
@@ -39,3 +40,7 @@ path = "../cs140-playground/src/pcap_test.rs"
 [[bin]]
 name = "build_lib"
 path = "../cs140-playground/src/build.rs"
+
+[[bin]]
+name = "windivert_test"
+path = "../cs140-playground/src/windivert_test.rs"
