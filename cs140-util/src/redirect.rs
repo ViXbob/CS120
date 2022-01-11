@@ -49,7 +49,7 @@ pub async fn run_unix_redirect_server(local_addr: Ipv4Addr, nat_server_addr: Ipv
                     let dst = package.src_addr();
                     let mut len: usize = package.header_len() as usize;
                     let mut icmp_package = Icmpv4Packet::new_unchecked(package.payload_mut());
-                    len = len + icmp_package.header_len() as usize;
+                    len = len + 8 as usize;
                     let mut WHERE = false;
 
                     match icmp_package.msg_type() {
