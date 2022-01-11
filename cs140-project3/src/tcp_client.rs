@@ -8,29 +8,50 @@ use cs140_util::tcp::tcp_stack::TCPClient;
 async fn main() {
     let mut builder = env_logger::Builder::from_default_env();
     builder.format_timestamp_millis().init();
-    let addr = std::net::Ipv4Addr::new(101, 32, 194, 18);
-    let addr1 = std::net::Ipv4Addr::new(10, 19, 75, 4);
-    let mut tcp_socket = AthernetTcpSocket::new(2);
-    let src_port = 11116;
-    let src_port1= 11115;
-    tcp_socket.connect(addr, 80, src_port).await;
-    tcp_socket.connect(addr1, 8010, src_port1).await;
-    tcp_socket.send(Vec::from("GET / HTTP/1.1\n\n\n\n\n"), src_port).await;
-    tcp_socket.send(Vec::from("GET /cs140/INPUT.txt HTTP/1.1\n\n\n\n\n"), src_port1).await;
-    let data = tcp_socket.recv(src_port).await;
-    let data1 = tcp_socket.recv(src_port1).await;
+    let addr = std::net::Ipv4Addr::new(10, 20, 93, 103);
+    let mut tcp_socket = AthernetTcpSocket::new(1);
+    let src_port = 11113;
+    tcp_socket.connect(addr, 18888, src_port).await;
+    let mut data: Vec<u8> = Vec::new();
+    loop {
+        let result = tokio::time::timeout(std::time::Duration::from_millis(6000),tcp_socket.recv(src_port)).await;
+        if result.is_err() {
+            break;
+        }
+        data.extend(result.unwrap().iter());
+    }
     println!(
         "recv data: {:?}",
         std::str::from_utf8(data.as_ref()).unwrap_or("(invalid utf8)")
     );
-    println!(
-        "recv data1: {:?}",
-        std::str::from_utf8(data1.as_ref()).unwrap_or("(invalid utf8)")
-    );
     tcp_socket.close(src_port).await;
-    tcp_socket.close(src_port1).await;
     println!("connection terminated!");
     std::thread::park();
+
+    // let addr = std::net::Ipv4Addr::new(101, 32, 194, 18);
+    // let addr1 = std::net::Ipv4Addr::new(10, 19, 75, 4);
+    // let mut tcp_socket = AthernetTcpSocket::new(2);
+    // let src_port = 11113;
+    // let src_port1= 11114;
+    // tcp_socket.connect(addr, 80, src_port).await;
+    // tcp_socket.connect(addr1, 8010, src_port1).await;
+    // tcp_socket.send(Vec::from("GET / HTTP/1.1\n\n\n\n\n"), src_port).await;
+    // tcp_socket.send(Vec::from("GET /cs140/INPUT.txt HTTP/1.1\n\n\n\n\n"), src_port1).await;
+    // let data = tcp_socket.recv(src_port).await;
+    // let data1 = tcp_socket.recv(src_port1).await;
+    // println!(
+    //     "recv data: {:?}",
+    //     std::str::from_utf8(data.as_ref()).unwrap_or("(invalid utf8)")
+    // );
+    // println!(
+    //     "recv data1: {:?}",
+    //     std::str::from_utf8(data1.as_ref()).unwrap_or("(invalid utf8)")
+    // );
+    // tcp_socket.close(src_port).await;
+    // tcp_socket.close(src_port1).await;
+    // println!("connection terminated!");
+    // std::thread::park();
+
     // let addr = std::net::Ipv4Addr::new(101, 32, 194, 18);
     // let addr = std::new::Ipv4Addr::new(10, 19, 75, 17);
     // let mtu: usize =  256;

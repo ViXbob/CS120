@@ -74,3 +74,11 @@ path = "src/new_redirect_server.rs"
 [[bin]]
 name = "ping_server"
 path = "src/ping_server.rs"
+
+[[bin]]
+name = "tcp_tokio_client"
+path = "src/tcp_tokio_client.rs"
+
+[[bin]]
+name = "tcp_tokio_server"
+path = "src/tcp_tokio_server.rs"
