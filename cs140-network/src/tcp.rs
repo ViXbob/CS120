@@ -250,6 +250,7 @@ impl TCPRTTStatus {
 impl TCPLayer {
     pub fn new(ip: IPLayer) -> TCPLayer {
         let sequence_length: u16 = (ip.byte_in_frame - 12) as u16;
+        log::info!("tcp sequence_length: {}",sequence_length);
         let ip = Arc::new(ip);
         let (send_package_sender, mut send_package_receiver) = tokio::sync::mpsc::channel::<BinaryData>(1024);
         let (recv_package_sender, recv_package_receiver) = tokio::sync::mpsc::channel::<BinaryData>(1024);
@@ -330,6 +331,7 @@ impl TCPLayer {
                                     // largest_confirmed_sequence_id is u16 plus u8
                                     let take_count = (sequence_length - 4) / 4;
                                     let missing =  missing.into_iter().take(take_count.into()).collect();
+                                    log::trace!("SACK missing ranges len:{}", take_count);
                                     Some(SackPackage{
                                         missing_ranges: missing,
                                         largest_confirmed_sequence_id: match receiving_status.range_ack.back(){
@@ -346,6 +348,7 @@ impl TCPLayer {
                                 }
                             };
                             if let Some(sack_to_send) = sack_to_send {
+                                log::info!("Sending sack: {:?}",sack_to_send);
                                 ip.send_raw(Sack(sack_to_send).into()).await;
                             }
                         }
@@ -538,5 +541,9 @@ mod tests {
         s.set_ack(3);
         assert_eq!(s.range_ack, std::collections::LinkedList::from([0..6, 9..10, 11..13]));
         assert_eq!(s.get_ack_missing(), vec![6..9, 10..11]);
+        // s.set_ack(6);
+        // s.set_ack(10);
+        // s.set_ack(7);
+        // assert_eq!(s.range_ack, std::collections::LinkedList::from([0..8, 9..13]));
     }
 }
