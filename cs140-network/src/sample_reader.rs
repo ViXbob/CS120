@@ -53,7 +53,7 @@ impl SampleReader {
     pub fn read(&mut self, data: &mut &[f32]) -> SampleReaderResult {
         // if this assertion fails, please check the count of your max package size with the count of samples that pop from buffer
         if data.len() > SAMPLE_PER_BIT {
-            log::warn!("Potential Jamming occurred, data.len() > SAMPLE_PER_BIT.")
+            log::warn!("Potential Jamming occurred, data.len() > SAMPLE_PER_BIT.");
             return PackageLoss;
         }
 

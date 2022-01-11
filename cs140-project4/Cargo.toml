@@ -21,7 +21,12 @@ smoltcp = "0.8.0"
 futures = "0.3.18"
 async_ftp = "6.0.0"
 # protocol-ftp-client = "0.1.1"
+pcap = "0.9.1"
 
 [[bin]]
 name = "ftp_client"
 path = "src/ftp_client.rs"
+
+[[bin]]
+name = "ftp_redirect"
+path = "src/ftp_redirect.rs"
