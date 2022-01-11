@@ -5,6 +5,7 @@ use cs140_network::ip::{IPLayer, IPPackage};
 use cs140_network::physical::PhysicalLayer;
 use cs140_network::redundancy::RedundancyLayer;
 use cs140_network::tcp::TCPLayer;
+use cs140_util::file_io;
 
 #[tokio::main]
 async fn main() {
@@ -18,8 +19,7 @@ async fn main() {
     // let mut reader = BufReader::new(file);
     // let mut string_to_send = String::new();
     // reader.read_to_string(&mut string_to_send);
+    let data = file_io::read_bytes_from_bin_file("INPUT.bin", 6250);
 
-    loop{
-        layer.send_raw((0..=255).cycle().take(6553).collect()).await;
-    }
+    layer.send_raw(data).await;
 }
