@@ -4,7 +4,7 @@ use tokio::net::TcpSocket;
 
 #[tokio::main]
 async fn main() -> io::Result<()> {
-    let addr = "10.19.73.32:18880".parse().unwrap();
+    let addr = "10.19.72.77:18880".parse().unwrap();
     let socket = TcpSocket::new_v4()?;
     socket.bind(addr)?;
     let dst_addr = "101.32.194.18:80".parse().unwrap();
