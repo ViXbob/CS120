@@ -153,7 +153,11 @@ impl AudioPingUtil {
                         package.set_protocol(IpProtocol::Icmp);
                         package.set_header_len(20);
                         package.set_total_len((20 + packet_size + 5).try_into().unwrap());
-                        package.payload_mut()[8] = 255;
+                        package.payload_mut()[8] = 0xff;
+                        package.payload_mut()[9] = 0xff;
+                        package.payload_mut()[10] = 0xff;
+                        package.payload_mut()[11] = 0xff;
+                        package.payload_mut()[12] = 0xff;
                         let mut icmp_package = Icmpv4Packet::new_unchecked(package.payload_mut());
                         icmp_package.set_echo_seq_no(sequence_number);
                         icmp_package.set_echo_ident(identifier);
